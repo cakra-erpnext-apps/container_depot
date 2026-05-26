@@ -1,0 +1,107 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "hash",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "damage_info",
+    "damage_type",
+    "damage_description",
+    "column_break_1",
+    "severity",
+    "location",
+    "part_face",
+    "coordinate_x",
+    "coordinate_y",
+    "before_photo",
+    "section_break_2",
+    "after_photo",
+    "estimated_repair_hours",
+    "repair_status"
+  ],
+  "fields": [
+    {
+      "fieldname": "damage_info",
+      "fieldtype": "Section Break",
+      "label": "Damage Information"
+    },
+    {
+      "fieldname": "damage_type",
+      "fieldtype": "Select",
+      "label": "Damage Type",
+      "options": "Gasket\nValve\nFrame\nDoor\nFloor\nInterior_Lining\nManlid\nHinges\nLocking_Rod\nOther",
+      "reqd": 1
+    },
+    {
+      "fieldname": "damage_description",
+      "fieldtype": "Small Text",
+      "label": "Description",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "severity",
+      "fieldtype": "Select",
+      "label": "Severity",
+      "options": "Minor\nModerate\nMajor\nCritical",
+      "reqd": 1
+    },
+    {
+      "fieldname": "location",
+      "fieldtype": "Data",
+      "label": "Location on Container"
+    },
+    {
+      "fieldname": "part_face",
+      "fieldtype": "Select",
+      "label": "Container Face / Part",
+      "options": "Front\nBack\nLeft\nRight\nTop\nBottom\nInside"
+    },
+    {
+      "fieldname": "coordinate_x",
+      "fieldtype": "Float",
+      "label": "Coordinate X (%)"
+    },
+    {
+      "fieldname": "coordinate_y",
+      "fieldtype": "Float",
+      "label": "Coordinate Y (%)"
+    },
+    {
+      "fieldname": "before_photo",
+      "fieldtype": "Attach Image",
+      "label": "Before Photo"
+    },
+    {
+      "fieldname": "section_break_2",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "after_photo",
+      "fieldtype": "Attach Image",
+      "label": "After Photo (Post-Repair)"
+    },
+    {
+      "fieldname": "estimated_repair_hours",
+      "fieldtype": "Float",
+      "label": "Estimated Repair Hours"
+    },
+    {
+      "fieldname": "repair_status",
+      "fieldtype": "Select",
+      "label": "Repair Status",
+      "options": "Pending\nIn_Progress\nCompleted"
+    }
+  ],
+  "index_web_pages_for_search": 1,
+  "istable": 1,
+  "links": [],
+  "modified": "2026-05-16",
+  "module": "Operations",
+  "name": "Damage Entry"
+}

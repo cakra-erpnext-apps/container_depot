@@ -1,0 +1,158 @@
+{
+  "actions": [],
+  "allow_import": 1,
+  "autoname": "CO-.YYYY.-.#####",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "order_info",
+    "order_id",
+    "status",
+    "column_break_1",
+    "container",
+    "container_no",
+    "priority_score",
+    "section_break_2",
+    "last_cargo",
+    "cleaning_type",
+    "cleaning_instructions",
+    "column_break_3",
+    "assigned_to",
+    "zone",
+    "timestamps",
+    "order_created",
+    "cleaning_start",
+    "cleaning_end",
+    "column_break_4",
+    "created_by",
+    "completed_by"
+  ],
+  "fields": [
+    {
+      "fieldname": "order_info",
+      "fieldtype": "Section Break",
+      "label": "Order Information"
+    },
+    {
+      "bold": 1,
+      "fieldname": "order_id",
+      "fieldtype": "Data",
+      "label": "Order ID",
+      "read_only": 1
+    },
+    {
+      "default": "Pending",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Pending\nIn_Progress\nCompleted\nCancelled",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "container",
+      "fieldtype": "Link",
+      "label": "Container",
+      "options": "Container",
+      "reqd": 1
+    },
+    {
+      "fieldname": "container_no",
+      "fieldtype": "Data",
+      "label": "Container Number",
+      "read_only": 1
+    },
+    {
+      "default": "0",
+      "fieldname": "priority_score",
+      "fieldtype": "Float",
+      "label": "Priority Score",
+      "read_only": 1
+    },
+    {
+      "fieldname": "section_break_2",
+      "fieldtype": "Section Break",
+      "label": "Cleaning Details"
+    },
+    {
+      "fieldname": "last_cargo",
+      "fieldtype": "Data",
+      "label": "Last Cargo"
+    },
+    {
+      "fieldname": "cleaning_type",
+      "fieldtype": "Select",
+      "label": "Cleaning Type",
+      "options": "Standard_Wash\nHot_Wash\nSteam_Clean\nChemical_Clean\nNitrogen_Purge"
+    },
+    {
+      "fieldname": "cleaning_instructions",
+      "fieldtype": "Small Text",
+      "label": "Cleaning Instructions"
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "assigned_to",
+      "fieldtype": "Link",
+      "label": "Assigned To",
+      "options": "User"
+    },
+    {
+      "fieldname": "zone",
+      "fieldtype": "Data",
+      "label": "Zone (Cleaning Bay)"
+    },
+    {
+      "fieldname": "timestamps",
+      "fieldtype": "Section Break",
+      "label": "Timestamps"
+    },
+    {
+      "fieldname": "order_created",
+      "fieldtype": "Datetime",
+      "label": "Order Created",
+      "read_only": 1
+    },
+    {
+      "fieldname": "cleaning_start",
+      "fieldtype": "Datetime",
+      "label": "Cleaning Start"
+    },
+    {
+      "fieldname": "cleaning_end",
+      "fieldtype": "Datetime",
+      "label": "Cleaning End"
+    },
+    {
+      "fieldname": "column_break_4",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "created_by",
+      "fieldtype": "Link",
+      "label": "Created By",
+      "options": "User"
+    },
+    {
+      "fieldname": "completed_by",
+      "fieldtype": "Link",
+      "label": "Completed By",
+      "options": "User"
+    }
+  ],
+  "is_submittable": 1,
+  "links": [],
+  "modified": "2026-05-16",
+  "module": "Operations",
+  "name": "Cleaning Order",
+  "search_fields": "order_id, container_no, status",
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "title_field": "order_id"
+}

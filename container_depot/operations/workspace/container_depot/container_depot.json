@@ -1,0 +1,158 @@
+{
+ "app": "container_depot",
+ "creation": "2026-05-21 16:50:00.000000",
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "icon": "ship",
+ "is_hidden": 0,
+ "label": "Container Depot",
+ "module": "Operations",
+ "name": "Container Depot",
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "type": "Workspace",
+ "title": "Container Depot",
+ "content": "[{\"id\":\"0BcePLg0g1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Container Depot Operations</b></span>\",\"col\":12}},{\"id\":\"uze5dJ1ipL\",\"type\":\"card\",\"data\":{\"card_name\":\"Transactions\",\"col\":4}},{\"id\":\"3j2fYwMAkq\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Data\",\"col\":4}},{\"id\":\"xImm8NepFt\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}}]",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Transactions",
+   "type": "Card Break",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Voucher",
+   "link_to": "Voucher",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gate Entry",
+   "link_to": "Gate Entry",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Inspection",
+   "link_to": "Inspection",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cleaning Order",
+   "link_to": "Cleaning Order",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Repair Order",
+   "link_to": "Repair Order",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fuel Log",
+   "link_to": "Fuel Log",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Master Data",
+   "type": "Card Break",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Container",
+   "link_to": "Container",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gasket Inventory",
+   "link_to": "Gasket Inventory",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Equipment Maintenance",
+   "link_to": "Equipment Maintenance",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "type": "Card Break",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Container Status Report",
+   "link_to": "Container Status Report",
+   "link_type": "Report",
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gasket Inventory Status",
+   "link_to": "Gasket Inventory Status",
+   "link_type": "Report",
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Yard Utilization Location",
+   "link_to": "Yard Utilization Location",
+   "link_type": "Report",
+   "type": "Link",
+   "doctype": "Workspace Link"
+  }
+ ]
+}

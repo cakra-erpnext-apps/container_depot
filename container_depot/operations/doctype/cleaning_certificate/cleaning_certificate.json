@@ -1,0 +1,91 @@
+{
+  "actions": [],
+  "allow_import": 1,
+  "autoname": "CERT-.YYYY.-.#####",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "certificate_info",
+    "certificate_no",
+    "container",
+    "cleaning_order",
+    "column_break_1",
+    "clean_date",
+    "prior_cargo",
+    "cleaning_method",
+    "certified_by",
+    "remarks"
+  ],
+  "fields": [
+    {
+      "fieldname": "certificate_info",
+      "fieldtype": "Section Break",
+      "label": "Certificate Information"
+    },
+    {
+      "bold": 1,
+      "fieldname": "certificate_no",
+      "fieldtype": "Data",
+      "label": "Certificate Number",
+      "read_only": 1
+    },
+    {
+      "fieldname": "container",
+      "fieldtype": "Link",
+      "label": "Container",
+      "options": "Container",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "cleaning_order",
+      "fieldtype": "Link",
+      "label": "Cleaning Order Reference",
+      "options": "Cleaning Order"
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "clean_date",
+      "fieldtype": "Datetime",
+      "label": "Cleaning Date",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "prior_cargo",
+      "fieldtype": "Data",
+      "label": "Prior Cargo"
+    },
+    {
+      "fieldname": "cleaning_method",
+      "fieldtype": "Select",
+      "label": "Cleaning Method",
+      "options": "Hot Water\nSteam\nChemical Wash\nDetergent",
+      "reqd": 1
+    },
+    {
+      "fieldname": "certified_by",
+      "fieldtype": "Link",
+      "label": "Certified By (User)",
+      "options": "User"
+    },
+    {
+      "fieldname": "remarks",
+      "fieldtype": "Small Text",
+      "label": "Remarks"
+    }
+  ],
+  "is_submittable": 1,
+  "links": [],
+  "modified": "2026-05-21",
+  "module": "Operations",
+  "name": "Cleaning Certificate",
+  "naming_rule": "Expression (BY ASSIGNMENT)",
+  "search_fields": "container, clean_date, certified_by",
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "title_field": "container"
+}

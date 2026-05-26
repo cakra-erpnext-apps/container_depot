@@ -1,0 +1,186 @@
+{
+  "actions": [],
+  "allow_import": 1,
+  "autoname": "EIR-.YYYY.-.#####",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "inspection_info",
+    "inspection_id",
+    "inspection_type",
+    "status",
+    "column_break_1",
+    "container",
+    "container_no",
+    "voucher",
+    "section_break_2",
+    "inspector",
+    "driver",
+    "driver_signature",
+    "timestamps",
+    "gate_in_timestamp",
+    "column_break_3",
+    "gate_out_timestamp",
+    "eir_photos_section",
+    "exterior_photos",
+    "damage_section",
+    "has_damage",
+    "damage_log",
+    "section_break_4",
+    "repair_estimate",
+    "total_estimate",
+    "approval_status"
+  ],
+  "fields": [
+    {
+      "fieldname": "inspection_info",
+      "fieldtype": "Section Break",
+      "label": "Inspection Information"
+    },
+    {
+      "bold": 1,
+      "fieldname": "inspection_id",
+      "fieldtype": "Data",
+      "label": "Inspection ID",
+      "read_only": 1
+    },
+    {
+      "fieldname": "inspection_type",
+      "fieldtype": "Select",
+      "label": "Inspection Type",
+      "options": "EIR-In\nEIR-Out\nDetailed Survey\nPost-Repair",
+      "reqd": 1
+    },
+    {
+      "default": "Draft",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Draft\nSubmitted\nCompleted\nCancelled",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "container",
+      "fieldtype": "Link",
+      "label": "Container",
+      "options": "Container",
+      "reqd": 1
+    },
+    {
+      "fieldname": "container_no",
+      "fieldtype": "Data",
+      "label": "Container Number",
+      "read_only": 1
+    },
+    {
+      "fieldname": "voucher",
+      "fieldtype": "Link",
+      "label": "Voucher",
+      "options": "Voucher"
+    },
+    {
+      "fieldname": "section_break_2",
+      "fieldtype": "Section Break",
+      "label": "Personnel"
+    },
+    {
+      "fieldname": "inspector",
+      "fieldtype": "Link",
+      "label": "Inspector/Technician",
+      "options": "User",
+      "reqd": 1
+    },
+    {
+      "fieldname": "driver",
+      "fieldtype": "Data",
+      "label": "Driver Name"
+    },
+    {
+      "fieldname": "driver_signature",
+      "fieldtype": "Attach Image",
+      "label": "Driver Signature"
+    },
+    {
+      "fieldname": "timestamps",
+      "fieldtype": "Section Break",
+      "label": "Timestamps"
+    },
+    {
+      "fieldname": "gate_in_timestamp",
+      "fieldtype": "Datetime",
+      "label": "Gate-In Timestamp"
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "gate_out_timestamp",
+      "fieldtype": "Datetime",
+      "label": "Gate-Out Timestamp"
+    },
+    {
+      "fieldname": "eir_photos_section",
+      "fieldtype": "Section Break",
+      "label": "Exterior Photos (EIR)"
+    },
+    {
+      "fieldname": "exterior_photos",
+      "fieldtype": "Table",
+      "label": "Exterior Photos",
+      "options": "Inspection Photo"
+    },
+    {
+      "fieldname": "damage_section",
+      "fieldtype": "Section Break",
+      "label": "Damage Log"
+    },
+    {
+      "default": "0",
+      "fieldname": "has_damage",
+      "fieldtype": "Check",
+      "label": "Has Damage"
+    },
+    {
+      "fieldname": "damage_log",
+      "fieldtype": "Table",
+      "label": "Damage Details",
+      "options": "Damage Entry"
+    },
+    {
+      "fieldname": "section_break_4",
+      "fieldtype": "Section Break",
+      "label": "Repair Estimate"
+    },
+    {
+      "fieldname": "repair_estimate",
+      "fieldtype": "Table",
+      "label": "Repair Estimate",
+      "options": "Repair Estimate Item"
+    },
+    {
+      "fieldname": "total_estimate",
+      "fieldtype": "Currency",
+      "label": "Total Estimate"
+    },
+    {
+      "fieldname": "approval_status",
+      "fieldtype": "Select",
+      "label": "Principal Approval",
+      "options": "Not Required\nPending\nApproved\nRejected"
+    }
+  ],
+  "is_submittable": 1,
+  "links": [],
+  "modified": "2026-05-16",
+  "module": "Operations",
+  "name": "Inspection",
+  "search_fields": "inspection_id, container_no, inspection_type, status",
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "title_field": "inspection_id"
+}

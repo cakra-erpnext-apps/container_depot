@@ -1,0 +1,156 @@
+{
+  "actions": [],
+  "allow_import": 1,
+  "autoname": "field:container_no",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "basic_info",
+    "container_no",
+    "container_type",
+    "size",
+    "status",
+    "column_break_1",
+    "principal",
+    "current_location",
+    "yard_zone",
+    "row",
+    "bay",
+    "tier",
+    "inspection_info",
+    "eir_in_date",
+    "eir_out_date",
+    "column_break_2",
+    "last_cargo",
+    "cleaning_status",
+    "repair_status",
+    "certification_status",
+    "timestamps"
+  ],
+  "fields": [
+    {
+      "fieldname": "basic_info",
+      "fieldtype": "Section Break",
+      "label": "Basic Information"
+    },
+    {
+      "bold": 1,
+      "fieldname": "container_no",
+      "fieldtype": "Data",
+      "label": "Container Number",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "container_type",
+      "fieldtype": "Select",
+      "label": "Container Type",
+      "options": "ISO Tank\n20ft Dry\n40ft HC\n20ft Reefer\n40ft Reefer\nOpen Top\nFlat Rack",
+      "reqd": 1
+    },
+    {
+      "fieldname": "size",
+      "fieldtype": "Select",
+      "label": "Size",
+      "options": "20'\n40'\n45'\nOther"
+    },
+    {
+      "default": "Available",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Available\nGate_In\nInspecting\nNeeds_Cleaning\nNeeds_Repair\nIn_Workshop\nPending_Repair\nPending_Survey\nPending_Cleaning\nCleaning_In_Progress\nRepair_In_Progress\nSurvey_In_Progress\nReady_For_Service\nReady_For_Release\nGate_Out\nIn_Workshop",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "principal",
+      "fieldtype": "Data",
+      "label": "Principal (Owner)"
+    },
+    {
+      "fieldname": "current_location",
+      "fieldtype": "Data",
+      "label": "Current Location (Yard)"
+    },
+    {
+      "fieldname": "yard_zone",
+      "fieldtype": "Select",
+      "label": "Yard Zone",
+      "options": "Storage_Yard_A\nStorage_Yard_B\nCleaning_Bay_C\nWorkshop_D\nSurvey_Lane_E\nGate_F\nPreClean_Buffer"
+    },
+    {
+      "fieldname": "row",
+      "fieldtype": "Data",
+      "label": "Row"
+    },
+    {
+      "fieldname": "bay",
+      "fieldtype": "Data",
+      "label": "Bay"
+    },
+    {
+      "fieldname": "tier",
+      "fieldtype": "Int",
+      "label": "Tier"
+    },
+    {
+      "fieldname": "inspection_info",
+      "fieldtype": "Section Break",
+      "label": "Inspection Information"
+    },
+    {
+      "fieldname": "eir_in_date",
+      "fieldtype": "Datetime",
+      "label": "EIR-In Date"
+    },
+    {
+      "fieldname": "eir_out_date",
+      "fieldtype": "Datetime",
+      "label": "EIR-Out Date"
+    },
+    {
+      "fieldname": "column_break_2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "last_cargo",
+      "fieldtype": "Data",
+      "label": "Last Cargo (for ISO Tanks)"
+    },
+    {
+      "fieldname": "cleaning_status",
+      "fieldtype": "Select",
+      "label": "Cleaning Status",
+      "options": "Not_Required\nPending\nIn_Progress\nCompleted"
+    },
+    {
+      "fieldname": "repair_status",
+      "fieldtype": "Select",
+      "label": "Repair Status",
+      "options": "Not_Required\nPending_Estimate\nAwaiting_Approval\nIn_Progress\nCompleted"
+    },
+    {
+      "fieldname": "certification_status",
+      "fieldtype": "Select",
+      "label": "Certification Status",
+      "options": "Not_Required\nPending\nCompleted"
+    },
+    {
+      "fieldname": "timestamps",
+      "fieldtype": "Section Break",
+      "label": "Timestamps"
+    }
+  ],
+  "links": [],
+  "modified": "2026-05-16",
+  "module": "Operations",
+  "name": "Container",
+  "search_fields": "container_no, container_type, status, principal",
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "title_field": "container_no"
+}
