@@ -2,6 +2,7 @@
   "actions": [],
   "allow_import": 1,
   "autoname": "VOUCH-.YYYY.-.#####",
+  "description": "DEPRECATED — superseded by Isotank Booking + Booking Code. Retained read-only for historical records that pre-date Phase 5 (PRO-OPS-08). New gate flows must use Isotank Booking; do not create new Vouchers.",
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [

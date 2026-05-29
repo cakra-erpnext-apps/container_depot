@@ -1,7 +1,18 @@
+"""DEPRECATED — replaced by Isotank Booking + Booking Code.
+
+This module is kept on the import path so existing data can still be read and
+historical reports keep working. The doctype is hidden from the workspace as
+of Phase 5b. A follow-up commit (Phase 5b-drop) will physically remove the
+DocType directory once the operator has confirmed there are no remaining
+production sites that need to read these rows.
+"""
+
+import datetime
+import hashlib
+
 import frappe
 from frappe.model.document import Document
-import hashlib
-import datetime
+
 
 class Voucher(Document):
 	def before_insert(self):
