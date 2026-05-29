@@ -20,8 +20,11 @@ def after_install():
 
 
 def after_migrate():
-	"""Idempotent post-migrate hook: ensure roles always exist on managed sites."""
+	"""Idempotent post-migrate hook: ensure roles + DocPerms stay in sync."""
 	ensure_roles_exist()
+	# setup_permissions() is idempotent (existence-check on Custom DocPerm) so
+	# running it on every migrate just picks up new DocTypes as they're added.
+	setup_permissions()
 
 
 def ensure_roles_exist():

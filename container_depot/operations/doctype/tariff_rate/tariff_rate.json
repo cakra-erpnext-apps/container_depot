@@ -1,0 +1,53 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "hash",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "service",
+    "uom",
+    "rate",
+    "currency"
+  ],
+  "fields": [
+    {
+      "fieldname": "service",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Service",
+      "options": "Lift Off\nLift On\nStorage per Day\nCleaning\nEIR\nOther",
+      "reqd": 1
+    },
+    {
+      "fieldname": "uom",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "UoM"
+    },
+    {
+      "fieldname": "rate",
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Rate",
+      "options": "currency",
+      "reqd": 1
+    },
+    {
+      "default": "IDR",
+      "fieldname": "currency",
+      "fieldtype": "Link",
+      "label": "Currency",
+      "options": "Currency",
+      "reqd": 1
+    }
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2026-05-29",
+  "module": "Operations",
+  "name": "Tariff Rate",
+  "sort_field": "creation",
+  "sort_order": "DESC"
+}

@@ -68,8 +68,9 @@
     },
     {
       "fieldname": "principal",
-      "fieldtype": "Data",
-      "label": "Principal (Owner)"
+      "fieldtype": "Link",
+      "label": "Principal (Owner)",
+      "options": "Customer"
     },
     {
       "fieldname": "current_location",

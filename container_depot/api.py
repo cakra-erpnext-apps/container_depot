@@ -56,6 +56,24 @@ def _normalize_container_no(value) -> str:
 	return candidate
 
 
+def _resolve_customer(value) -> str | None:
+	"""Translate a Container.principal-ish string into a Customer ``name``.
+
+	Accepts either an existing Customer name or a Customer's ``customer_name``.
+	Returns ``None`` when no match — caller should leave the Link field blank
+	rather than fail. (Auto-creating customers from gate-entry text is out of
+	scope and would let typos pollute the master.)
+	"""
+	if not value or not isinstance(value, str):
+		return None
+	candidate = value.strip()
+	if not candidate:
+		return None
+	if frappe.db.exists("Customer", candidate):
+		return candidate
+	return frappe.db.get_value("Customer", {"customer_name": candidate}, "name")
+
+
 def _assert_voucher_id(value) -> str:
 	if not value or not isinstance(value, str):
 		frappe.throw(_("voucher_id is required."), frappe.ValidationError)
@@ -195,7 +213,7 @@ def register_gate_entry(voucher_id, container_no, security_guard=None, truck_pla
 				"container_no": container_no,
 				"container_type": voucher.expected_containers[0].container_type if voucher.expected_containers else "ISO Tank",
 				"status": "Gate_In",
-				"principal": voucher.principal,
+				"principal": _resolve_customer(voucher.principal),
 			})
 			# TODO(Phase 6): drop ignore_permissions once the SST service role is
 			# wired and the install.py blanket grant is replaced.

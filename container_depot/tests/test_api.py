@@ -19,25 +19,29 @@ def run_tests():
 		# 1. Setup Test Data
 		print("\n--- 1. Setting up test Container and Voucher ---")
 		container_no = "TSTU1234567"
-		
+
+		# Seed Customer used as Container.principal (now Link Customer).
+		principal_customer = ensure_test_customer("Test Principal")
+		print(f"✓ Test Customer: {principal_customer}")
+
 		# Create test container
 		container = frappe.get_doc({
 			"doctype": "Container",
 			"container_no": container_no,
 			"container_type": "ISO Tank",
 			"status": "Available",
-			"principal": "Test Principal"
+			"principal": principal_customer
 		})
 		container.insert(ignore_permissions=True)
 		print(f"✓ Created test Container: {container.name}")
 
-		# Create test voucher
+		# Create test voucher (voucher.principal is still free-text)
 		voucher = frappe.get_doc({
 			"doctype": "Voucher",
 			"voucher_id": "VOUCH-TST-9999",
 			"voucher_type": "Gate_In (Bon Bongkar)",
 			"client": "Test Client",
-			"principal": "Test Principal",
+			"principal": principal_customer,
 			"payment_status": 1,
 			"status": "Active",
 			"expected_containers": [
@@ -175,7 +179,7 @@ def run_tests():
 		assert repair_order.estimation_items[1].total_price == 0.00, "Item 2 part cost calculation failed"
 		assert repair_order.estimation_items[1].labor_total == 180.00, "Item 2 labor cost calculation failed"
 		assert repair_order.total_cost == 430.00, f"Repair Order total cost calculation failed: expected 430, got {repair_order.total_cost}"
-		assert repair_order.principal == "Test Principal", "Principal not auto-fetched"
+		assert repair_order.principal == principal_customer, "Principal not auto-fetched"
 		
 		container.reload()
 		assert container.repair_status == "Pending_Estimate", "Container repair status should be Pending_Estimate for Draft RO"
@@ -307,6 +311,26 @@ def run_tests():
 	finally:
 		# Cleanup
 		cleanup_test_data()
+
+def ensure_test_customer(name: str) -> str:
+	"""Idempotently create (or fetch) a Customer used by the smoke test.
+
+	Returns the Customer's ``name`` which is what Link fields store.
+	"""
+	if frappe.db.exists("Customer", name):
+		return name
+	hit = frappe.db.get_value("Customer", {"customer_name": name}, "name")
+	if hit:
+		return hit
+	doc = frappe.get_doc({
+		"doctype": "Customer",
+		"customer_name": name,
+		"customer_type": "Company",
+		"customer_group": frappe.db.get_value("Customer Group", {"is_group": 0}, "name") or "All Customer Groups",
+		"territory": frappe.db.get_value("Territory", {"is_group": 0}, "name") or "All Territories",
+	}).insert(ignore_permissions=True)
+	return doc.name
+
 
 def cleanup_test_data():
 	print("\n--- Cleaning up test records ---")
