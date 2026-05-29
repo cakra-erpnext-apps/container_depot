@@ -11,6 +11,15 @@ app_license = "MIT"
 after_install = "container_depot.install.after_install"
 after_migrate = "container_depot.install.after_migrate"
 
+# Scheduled Jobs
+# --------------
+
+scheduler_events = {
+	"hourly": [
+		"container_depot.tasks.expire_booking_codes",
+	],
+}
+
 # API Routes
 # ----------
 

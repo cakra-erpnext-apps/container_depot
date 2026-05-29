@@ -14,6 +14,7 @@
     "prior_cargo",
     "cleaning_method",
     "certified_by",
+    "valid_until",
     "remarks"
   ],
   "fields": [
@@ -71,6 +72,13 @@
       "fieldtype": "Link",
       "label": "Certified By (User)",
       "options": "User"
+    },
+    {
+      "description": "Defaults to clean_date + 30 days. After this date the cert no longer satisfies TANK OUT gating.",
+      "fieldname": "valid_until",
+      "fieldtype": "Date",
+      "label": "Valid Until",
+      "in_list_view": 1
     },
     {
       "fieldname": "remarks",

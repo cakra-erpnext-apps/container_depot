@@ -1,0 +1,95 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "hash",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "container",
+    "container_no",
+    "status_tag",
+    "clean_flag",
+    "column_break_1",
+    "ex_cargo",
+    "tare_weight",
+    "max_gross",
+    "manufacture",
+    "last_test",
+    "booking_code"
+  ],
+  "fields": [
+    {
+      "description": "Required for Tank Out direction (must reference an existing Container).",
+      "fieldname": "container",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Container",
+      "options": "Container"
+    },
+    {
+      "description": "Used when the container number is announced before the Container record exists (Tank In).",
+      "fieldname": "container_no",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Container No"
+    },
+    {
+      "default": "Dirty",
+      "fieldname": "status_tag",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Status Tag",
+      "options": "Dirty\nClean"
+    },
+    {
+      "default": "0",
+      "fieldname": "clean_flag",
+      "fieldtype": "Check",
+      "label": "Clean Flag"
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "ex_cargo",
+      "fieldtype": "Data",
+      "label": "Ex Cargo"
+    },
+    {
+      "fieldname": "tare_weight",
+      "fieldtype": "Float",
+      "label": "Tare Weight (kg)"
+    },
+    {
+      "fieldname": "max_gross",
+      "fieldtype": "Float",
+      "label": "Max Gross (kg)"
+    },
+    {
+      "fieldname": "manufacture",
+      "fieldtype": "Date",
+      "label": "Manufacture Date"
+    },
+    {
+      "fieldname": "last_test",
+      "fieldtype": "Date",
+      "label": "Last Test"
+    },
+    {
+      "fieldname": "booking_code",
+      "fieldtype": "Link",
+      "label": "Booking Code",
+      "options": "Booking Code",
+      "read_only": 1
+    }
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2026-05-29",
+  "module": "Operations",
+  "name": "Isotank Booking Item",
+  "sort_field": "creation",
+  "sort_order": "DESC"
+}
