@@ -14,23 +14,70 @@
  "public": 1,
  "type": "Workspace",
  "title": "Container Depot",
- "content": "[{\"id\":\"0BcePLg0g1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Container Depot Operations</b></span>\",\"col\":12}},{\"id\":\"uze5dJ1ipL\",\"type\":\"card\",\"data\":{\"card_name\":\"Transactions\",\"col\":4}},{\"id\":\"3j2fYwMAkq\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Data\",\"col\":4}},{\"id\":\"xImm8NepFt\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}}]",
+ "content": "[{\"id\":\"hdr1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Container Depot Operations</b></span>\",\"col\":12}},{\"id\":\"cardBooking\",\"type\":\"card\",\"data\":{\"card_name\":\"Bookings\",\"col\":4}},{\"id\":\"cardTxn\",\"type\":\"card\",\"data\":{\"card_name\":\"Gate & Yard\",\"col\":4}},{\"id\":\"cardMaster\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Data\",\"col\":4}},{\"id\":\"cardSST\",\"type\":\"card\",\"data\":{\"card_name\":\"SST & Audit\",\"col\":4}},{\"id\":\"cardReports\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}}]",
  "links": [
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Transactions",
+   "label": "Bookings",
    "type": "Card Break",
    "doctype": "Workspace Link"
   },
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Voucher",
-   "link_to": "Voucher",
+   "label": "Isotank Booking",
+   "link_to": "Isotank Booking",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Booking Code",
+   "link_to": "Booking Code",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Order Bongkar",
+   "link_to": "Order Bongkar",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Order Muat",
+   "link_to": "Order Muat",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Depot Contract",
+   "link_to": "Depot Contract",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gate & Yard",
+   "type": "Card Break",
    "doctype": "Workspace Link"
   },
   {
@@ -46,7 +93,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Inspection",
+   "label": "Inspection (EIR)",
    "link_to": "Inspection",
    "link_type": "DocType",
    "onboard": 1,
@@ -66,6 +113,16 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Cleaning Certificate",
+   "link_to": "Cleaning Certificate",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Repair Order",
    "link_to": "Repair Order",
    "link_type": "DocType",
@@ -76,8 +133,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Fuel Log",
-   "link_to": "Fuel Log",
+   "label": "Container Movement",
+   "link_to": "Container Movement",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link",
@@ -103,8 +160,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Gasket Inventory",
-   "link_to": "Gasket Inventory",
+   "label": "Customer",
+   "link_to": "Customer",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link",
@@ -123,8 +180,64 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Fuel Log",
+   "link_to": "Fuel Log",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gasket Inventory",
+   "link_to": "Gasket Inventory",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "SST & Audit",
+   "type": "Card Break",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Self Service Terminal",
+   "link_to": "Self Service Terminal",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "SST Activity Log",
+   "link_to": "SST Activity Log",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Reports",
    "type": "Card Break",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Daily Operations Report",
+   "link_to": "Daily Operations Report",
+   "link_type": "Report",
+   "type": "Link",
    "doctype": "Workspace Link"
   },
   {
