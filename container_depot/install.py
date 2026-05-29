@@ -133,6 +133,35 @@ def after_migrate():
 	# setup_permissions() is idempotent (existence-check on Custom DocPerm) so
 	# running it on every migrate just picks up new DocTypes as they're added.
 	setup_permissions()
+	# Workspace Sidebar JSON isn't picked up by Frappe's standard module-sync,
+	# so we re-import the file every migrate. Idempotent (force=True replaces
+	# the existing rows in-place).
+	sync_workspace_sidebar()
+
+
+def sync_workspace_sidebar():
+	"""Force-resync the Container Depot Workspace Sidebar from JSON.
+
+	Frappe's standard `bench migrate` syncs DocTypes, Workspaces, Reports, etc.
+	but not ``workspace_sidebar/*.json``. We import it manually here so the
+	left-rail navigation always matches the file on disk.
+	"""
+	import os
+	from frappe.modules.import_file import import_file_by_path
+
+	path = os.path.join(
+		os.path.dirname(__file__),
+		"workspace_sidebar",
+		"container_depot.json",
+	)
+	if not os.path.exists(path):
+		return
+	try:
+		import_file_by_path(path, force=True, reset_permissions=True)
+		frappe.db.commit()
+	except Exception:
+		# Never break a migrate over a sidebar; just log and continue.
+		frappe.log_error(frappe.get_traceback(), "container_depot sidebar sync failed")
 
 
 def ensure_roles_exist():

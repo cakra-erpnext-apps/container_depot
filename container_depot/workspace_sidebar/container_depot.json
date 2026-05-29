@@ -24,7 +24,7 @@
    "icon": "list",
    "indent": 0,
    "keep_closed": 0,
-   "label": "Transactions",
+   "label": "Bookings",
    "type": "Section Break"
   },
   {
@@ -83,6 +83,15 @@
    "type": "Link"
   },
   {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "tool",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Gate & Yard",
+   "type": "Section Break"
+  },
+  {
    "child": 1,
    "collapsible": 1,
    "indent": 0,
@@ -98,7 +107,7 @@
    "collapsible": 1,
    "indent": 0,
    "keep_closed": 0,
-   "label": "Inspection",
+   "label": "Inspection (EIR)",
    "link_to": "Inspection",
    "link_type": "DocType",
    "show_arrow": 0,
@@ -120,6 +129,17 @@
    "collapsible": 1,
    "indent": 0,
    "keep_closed": 0,
+   "label": "Cleaning Certificate",
+   "link_to": "Cleaning Certificate",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
    "label": "Repair Order",
    "link_to": "Repair Order",
    "link_type": "DocType",
@@ -131,8 +151,8 @@
    "collapsible": 1,
    "indent": 0,
    "keep_closed": 0,
-   "label": "Fuel Log",
-   "link_to": "Fuel Log",
+   "label": "Container Movement",
+   "link_to": "Container Movement",
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
@@ -162,8 +182,8 @@
    "collapsible": 1,
    "indent": 0,
    "keep_closed": 0,
-   "label": "Gasket Inventory",
-   "link_to": "Gasket Inventory",
+   "label": "Customer",
+   "link_to": "Customer",
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
@@ -180,6 +200,59 @@
    "type": "Link"
   },
   {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Fuel Log",
+   "link_to": "Fuel Log",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Gasket Inventory",
+   "link_to": "Gasket Inventory",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "shield",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "SST & Audit",
+   "type": "Section Break"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Self Service Terminal",
+   "link_to": "Self Service Terminal",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "SST Activity Log",
+   "link_to": "SST Activity Log",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
    "child": 0,
    "collapsible": 1,
    "icon": "report",
@@ -187,6 +260,17 @@
    "keep_closed": 0,
    "label": "Reports",
    "type": "Section Break"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Daily Operations Report",
+   "link_to": "Daily Operations Report",
+   "link_type": "Report",
+   "show_arrow": 0,
+   "type": "Link"
   },
   {
    "child": 1,
@@ -222,7 +306,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-05-28 16:30:00.000000",
+ "modified": "2026-05-29 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Operations",
  "name": "Container Depot",
