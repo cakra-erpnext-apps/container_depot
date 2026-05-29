@@ -18,6 +18,11 @@ scheduler_events = {
 	"hourly": [
 		"container_depot.tasks.expire_booking_codes",
 	],
+	"cron": {
+		"*/5 * * * *": [
+			"container_depot.tasks.mark_stale_sst_heartbeats",
+		],
+	},
 }
 
 # API Routes
