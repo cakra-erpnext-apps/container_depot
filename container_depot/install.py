@@ -1,3 +1,5 @@
+import os
+
 import frappe
 
 # Legacy blanket-grant role list. Kept for backwards compatibility on existing
@@ -157,6 +159,7 @@ def after_install():
 	ensure_roles_exist()
 	setup_permissions()
 	setup_workspace()
+	sync_branding()
 
 
 def after_migrate():
@@ -169,6 +172,94 @@ def after_migrate():
 	# so we re-import the file every migrate. Idempotent (force=True replaces
 	# the existing rows in-place).
 	sync_workspace_sidebar()
+	# Push env-driven logo into site-wide settings so ALL apps pick it up.
+	sync_branding()
+
+
+# ---------------------------------------------------------------------------
+# Branding: env-driven logo -> site-wide settings (berlaku untuk SEMUA app)
+# ---------------------------------------------------------------------------
+# Sumber nilai = container_depot.branding (site_config -> OS env -> default asset).
+# Disinkronkan ke mekanisme native Frappe yang dihormati lintas app:
+#   - Navbar Settings  -> logo navbar desk (mengalahkan hook app_logo_url)
+#   - Website Settings -> brand/banner/favicon web & portal
+#   - Letter Head      -> logo header semua print/PDF (ERPNext/HRMS/dll)
+
+LETTER_HEAD_NAME = "OAK Brand"
+
+
+def sync_branding():
+	"""Idempotent: tulis logo env-driven ke Navbar/Website Settings + Letter Head.
+
+	Tidak pernah menggagalkan migrate — tiap bagian dibungkus try/except.
+	"""
+	from container_depot import branding
+
+	logo_main = branding.get_logo_main()  # emblem (navbar/web/favicon)
+	logo_pdf = branding.get_logo_pdf()    # logo lengkap (PDF/letterhead)
+
+	try:
+		_set_single_if_exists("Navbar Settings", {"app_logo": logo_main})
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "container_depot branding: navbar")
+
+	try:
+		_set_single_if_exists("Website Settings", {
+			"app_logo": logo_main,
+			"banner_image": logo_main,
+			"favicon": logo_main,
+		})
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "container_depot branding: website")
+
+	try:
+		_sync_default_letter_head(logo_pdf)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "container_depot branding: letterhead")
+
+	frappe.db.commit()
+
+
+def _set_single_if_exists(doctype: str, values: dict) -> None:
+	"""Set field pada Single doctype hanya bila field-nya ada & nilainya berubah."""
+	fieldnames = {df.fieldname for df in frappe.get_meta(doctype).fields}
+	for key, val in values.items():
+		if val and key in fieldnames and frappe.db.get_single_value(doctype, key) != val:
+			frappe.db.set_single_value(doctype, key, val)
+
+
+def _sync_default_letter_head(logo_pdf: str) -> None:
+	"""Buat/segarkan Letter Head 'OAK Brand' dari env dan jadikan default.
+
+	Default print Frappe/ERPNext memakai Letter Head, jadi ini membuat logo PDF
+	berlaku ke print format SEMUA app sekaligus. Set BRAND_LETTERHEAD_DEFAULT=0
+	untuk berhenti memaksanya jadi default (mis. kalau kamu kelola manual).
+	"""
+	if not logo_pdf:
+		return
+	content = (
+		'<div style="text-align:center; padding:6px 0;">'
+		f'<img src="{logo_pdf}" alt="OAK Depot" style="max-height:70px; object-fit:contain;">'
+		"</div>"
+	)
+	set_default = os.getenv("BRAND_LETTERHEAD_DEFAULT", "1") != "0"
+
+	if frappe.db.exists("Letter Head", LETTER_HEAD_NAME):
+		doc = frappe.get_doc("Letter Head", LETTER_HEAD_NAME)
+		doc.source = "HTML"
+		doc.content = content
+		doc.disabled = 0
+		if set_default:
+			doc.is_default = 1
+		doc.save(ignore_permissions=True)
+	else:
+		frappe.get_doc({
+			"doctype": "Letter Head",
+			"letter_head_name": LETTER_HEAD_NAME,
+			"source": "HTML",
+			"content": content,
+			"is_default": 1 if set_default else 0,
+		}).insert(ignore_permissions=True)
 
 
 def sync_workspace_sidebar():

@@ -1,3 +1,5 @@
+import os
+
 app_name = "container_depot"
 app_title = "Container Depot"
 app_publisher = "Oak Depot Team"
@@ -44,6 +46,22 @@ website_route_rules = [
 	{"from_route": "/api/v1/inspection/offline-batch", "to_route": "container_depot.api.upload_inspection_offline_batch"},
 ]
 
+# Branding / Logo (env-driven)
+# ----------------------------
+# Lihat container_depot/branding.py. Override via BRAND_LOGO_MAIN / BRAND_LOGO_PDF
+# (env / docker-compose) atau brand_logo_main / brand_logo_pdf (site_config.json).
+
+# Logo navbar desk (dibaca dari OS env saat worker start; default = asset ter-bundle)
+app_logo_url = os.getenv("BRAND_LOGO_MAIN") or "/assets/container_depot/images/oak-emblem.png"
+
+# Method yang bisa dipanggil di Jinja (print format & web template), mis. {{ get_logo_pdf() }}
+jinja = {
+	"methods": [
+		"container_depot.branding.get_logo_main",
+		"container_depot.branding.get_logo_pdf",
+	]
+}
+
 # Includes in <head>
 # ------------------
 
@@ -62,8 +80,8 @@ website_route_rules = [
 # web_include_css = "/assets/container_depot/css/container_depot.css"
 # web_include_js = "/assets/container_depot/js/container_depot.js"
 
-# website
-# update_website_context = "container_depot.www.index.website_context"
+# website — set logo navbar web/portal dari env (lihat branding.py)
+update_website_context = "container_depot.branding.update_website_context"
 
 # doctype js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
