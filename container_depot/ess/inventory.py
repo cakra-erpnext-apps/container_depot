@@ -180,7 +180,10 @@ def get_tank_list(
 
 	start = cint(start)
 	page_length = cint(page_length) or 50
-	if status and status not in BUCKETS:
+	# Tolerate client quirks where an absent filter arrives as "" / "undefined".
+	if status in (None, "", "undefined", "null"):
+		status = None
+	elif status not in BUCKETS:
 		frappe.throw(frappe._("Invalid status filter: {0}").format(status), frappe.ValidationError)
 
 	filters = {}

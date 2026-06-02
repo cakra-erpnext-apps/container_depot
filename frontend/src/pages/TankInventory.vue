@@ -152,11 +152,23 @@ const items = ref([])
 const start = ref(0)
 const total = ref(0)
 
+// frappe-ui serializes GET params via URLSearchParams.append, which turns an
+// `undefined` value into the literal string "undefined". So only include keys
+// that actually have a value.
+function cleanParams(obj) {
+	const out = {}
+	for (const k in obj) {
+		const v = obj[k]
+		if (v !== undefined && v !== null && v !== "") out[k] = v
+	}
+	return out
+}
+
 // Status counts — depot-scoped server-side; refetched when the depot changes.
 const summary = createResource({
 	url: "container_depot.ess.inventory.get_inventory_summary",
 	method: "GET",
-	makeParams: () => ({ depot: depotFilter.value || undefined }),
+	makeParams: () => cleanParams({ depot: depotFilter.value }),
 	auto: true,
 })
 
@@ -178,15 +190,16 @@ const principals = createListResource({
 const tanks = createResource({
 	url: "container_depot.ess.inventory.get_tank_list",
 	method: "GET",
-	makeParams: () => ({
-		search: search.value || undefined,
-		status: statusFilter.value || undefined,
-		yard_zone: zoneFilter.value || undefined,
-		depot: depotFilter.value || undefined,
-		principal: principalFilter.value || undefined,
-		start: start.value,
-		page_length: PAGE,
-	}),
+	makeParams: () =>
+		cleanParams({
+			search: search.value,
+			status: statusFilter.value,
+			yard_zone: zoneFilter.value,
+			depot: depotFilter.value,
+			principal: principalFilter.value,
+			start: start.value,
+			page_length: PAGE,
+		}),
 	auto: true,
 	onSuccess(data) {
 		total.value = data.total
