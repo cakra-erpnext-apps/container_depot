@@ -42,6 +42,10 @@ website_route_rules = [
 	{"from_route": "/api/v1/sst/issue-order", "to_route": "container_depot.api.sst_issue_order"},
 	{"from_route": "/api/v1/sst/heartbeat", "to_route": "container_depot.api.sst_heartbeat"},
 	{"from_route": "/api/v1/inspection/offline-batch", "to_route": "container_depot.api.upload_inspection_offline_batch"},
+	# ESS PWA read endpoints (F1 — Tank Inventory & Live Status)
+	{"from_route": "/api/v1/ess/inventory-summary", "to_route": "container_depot.ess.inventory.get_inventory_summary"},
+	{"from_route": "/api/v1/ess/tank-list", "to_route": "container_depot.ess.inventory.get_tank_list"},
+	{"from_route": "/api/v1/ess/tank-detail", "to_route": "container_depot.ess.inventory.get_tank_detail"},
 ]
 
 # Includes in <head>

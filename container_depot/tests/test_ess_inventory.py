@@ -1,0 +1,165 @@
+"""Tests for the ESS PWA read endpoints — Feature F1 (Tank Inventory & Live
+Status). Covers the server-side status derivation (incl. the duplicated
+``In_Workshop`` value), the summary counts, list filtering/search/pagination,
+the detail payload, and the Guest rejection guard.
+
+Fixtures are created once in setUpClass and removed in tearDownClass (mirroring
+this repo's idempotent-fixture convention rather than relying on per-test
+rollback). All tests are read-only.
+"""
+
+from __future__ import annotations
+
+import frappe
+from frappe.tests.utils import FrappeTestCase
+from frappe.utils import today
+
+from container_depot.ess.inventory import (
+	derive_status,
+	get_inventory_summary,
+	get_tank_list,
+	get_tank_detail,
+)
+
+ESS_DEPOT = "ESST"
+# Raw status seeded per container -> expected derived bucket.
+TANKS = {
+	"ESST1000001": "Available",  # in_depot (+ PT due)
+	"ESST1000002": "Gate_Out",  # gate_out
+	"ESST1000003": "Ready_For_Release",  # ready
+	"ESST1000004": "Available",  # cleaning (open CO)
+	"ESST1000005": "In_Workshop",  # repair_survey (duplicated raw value)
+	"ESST1000006": "Available",  # repair_survey (open RO)
+	"ESST1000007": "Available",  # repair_survey (open EIR)
+}
+
+
+def _teardown():
+	names = list(TANKS.keys())
+	for dt in ["Container Movement", "Cleaning Order", "Repair Order", "Inspection", "Periodic Test"]:
+		frappe.db.delete(dt, {"container": ["in", names]})
+	frappe.db.delete("Container", {"name": ["in", names]})
+	if frappe.db.exists("Depot", ESS_DEPOT):
+		frappe.db.delete("Depot", {"name": ESS_DEPOT})
+	frappe.db.commit()
+
+
+def _build():
+	frappe.get_doc(
+		{"doctype": "Depot", "depot_code": ESS_DEPOT, "depot_name": "ESS Test Depot"}
+	).insert(ignore_permissions=True)
+	for no, status in TANKS.items():
+		frappe.get_doc(
+			{
+				"doctype": "Container",
+				"container_no": no,
+				"container_type": "ISO Tank",
+				"status": status,
+				"depot": ESS_DEPOT,
+			}
+		).insert(ignore_permissions=True)
+	frappe.get_doc(
+		{"doctype": "Cleaning Order", "container": "ESST1000004", "status": "Pending"}
+	).insert(ignore_permissions=True)
+	frappe.get_doc(
+		{
+			"doctype": "Repair Order",
+			"container": "ESST1000006",
+			"status": "Draft",
+			"billing_status": "Unbilled",
+		}
+	).insert(ignore_permissions=True)
+	frappe.get_doc(
+		{
+			"doctype": "Inspection",
+			"container": "ESST1000007",
+			"inspection_type": "EIR-In",
+			"status": "Submitted",
+			"inspector": "Administrator",
+		}
+	).insert(ignore_permissions=True)
+	frappe.get_doc(
+		{
+			"doctype": "Periodic Test",
+			"container": "ESST1000001",
+			"status": "Scheduled",
+			"test_type": "2,5Y",
+			"due_date": today(),
+		}
+	).insert(ignore_permissions=True)
+	frappe.db.commit()
+
+
+class TestEssInventory(FrappeTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		frappe.set_user("Administrator")
+		_teardown()  # clean slate in case a prior run left scratch rows
+		_build()
+
+	@classmethod
+	def tearDownClass(cls):
+		_teardown()
+		super().tearDownClass()
+
+	def test_derive_status_mapping(self):
+		self.assertEqual(derive_status("Gate_Out"), "gate_out")
+		self.assertEqual(derive_status("Ready_For_Release"), "ready")
+		self.assertEqual(derive_status("Ready_For_Service"), "ready")
+		# The duplicated In_Workshop value collapses into repair_survey.
+		self.assertEqual(derive_status("In_Workshop"), "repair_survey")
+		self.assertEqual(derive_status("Available"), "in_depot")
+		self.assertEqual(derive_status("Available", open_cleaning=True), "cleaning")
+		self.assertEqual(derive_status("Available", open_repair=True), "repair_survey")
+		self.assertEqual(derive_status("Available", open_inspection=True), "repair_survey")
+		# Explicit ready/gate-out win over an open order.
+		self.assertEqual(derive_status("Ready_For_Release", open_repair=True), "ready")
+
+	def test_inventory_summary_counts(self):
+		res = get_inventory_summary(depot=ESS_DEPOT)
+		self.assertTrue(res["success"])
+		self.assertEqual(
+			res["counts"],
+			{"in_depot": 1, "cleaning": 1, "repair_survey": 3, "ready": 1, "gate_out": 1},
+		)
+		self.assertEqual(res["total"], 7)
+		self.assertEqual(res["periodic_test_due"], 1)
+
+	def test_tank_list_pagination(self):
+		res = get_tank_list(depot=ESS_DEPOT, page_length=3)
+		self.assertEqual(res["total"], 7)
+		self.assertEqual(len(res["items"]), 3)
+		# Each row carries a derived bucket + pt_due flag (not the raw status).
+		row = next(i for i in res["items"] if i["container_no"] == "ESST1000001")
+		self.assertEqual(row["status"], "in_depot")
+		self.assertTrue(row["pt_due"])
+
+	def test_tank_list_status_filter(self):
+		res = get_tank_list(depot=ESS_DEPOT, status="repair_survey")
+		self.assertEqual(res["total"], 3)
+		self.assertEqual({i["status"] for i in res["items"]}, {"repair_survey"})
+
+	def test_tank_list_search(self):
+		res = get_tank_list(depot=ESS_DEPOT, search="ESST1000002")
+		self.assertEqual([i["container_no"] for i in res["items"]], ["ESST1000002"])
+
+	def test_tank_list_rejects_bad_status(self):
+		with self.assertRaises(frappe.ValidationError):
+			get_tank_list(depot=ESS_DEPOT, status="not_a_bucket")
+
+	def test_tank_detail(self):
+		res = get_tank_detail("ESST1000001")
+		self.assertTrue(res["success"])
+		self.assertEqual(res["status"], "in_depot")
+		self.assertTrue(res["pt_due"])
+		for key in ("capacity", "tare_weight", "last_test_date", "yard_zone", "container_type"):
+			self.assertIn(key, res)
+
+	def test_guest_is_rejected(self):
+		frappe.set_user("Guest")
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				get_inventory_summary()
+		finally:
+			frappe.set_user("Administrator")
