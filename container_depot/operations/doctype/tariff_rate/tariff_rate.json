@@ -7,6 +7,7 @@
   "engine": "InnoDB",
   "field_order": [
     "service",
+    "cleaning_type",
     "uom",
     "rate",
     "currency"
@@ -17,8 +18,17 @@
       "fieldtype": "Select",
       "in_list_view": 1,
       "label": "Service",
-      "options": "Lift Off\nLift On\nStorage per Day\nCleaning\nEIR\nOther",
+      "options": "Lift Off\nLift On\nStorage per Day\nCleaning\nEIR\nPeriodic Test\nLeasing\nOther",
       "reqd": 1
+    },
+    {
+      "depends_on": "eval:doc.service=='Cleaning'",
+      "description": "Required when Service is Cleaning, so each wash type can be priced separately.",
+      "fieldname": "cleaning_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Cleaning Type",
+      "options": "\nPP Wash\nMethanol Rinse\nSteam Wash\nHot Water\nChemical\nDetergent\nNitrogen Purge"
     },
     {
       "fieldname": "uom",

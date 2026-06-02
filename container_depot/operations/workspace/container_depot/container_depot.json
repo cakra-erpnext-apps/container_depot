@@ -76,6 +76,16 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Isotank Leasing",
+   "link_to": "Isotank Leasing",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Gate & Yard",
    "type": "Card Break",
    "doctype": "Workspace Link"
@@ -143,6 +153,16 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Periodic Test",
+   "link_to": "Periodic Test",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Master Data",
    "type": "Card Break",
    "doctype": "Workspace Link"
@@ -192,6 +212,36 @@
    "is_query_report": 0,
    "label": "Gasket Inventory",
    "link_to": "Gasket Inventory",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Depot",
+   "link_to": "Depot",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "EIR Damage Code",
+   "link_to": "EIR Damage Code",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "EIR Repair Code",
+   "link_to": "EIR Repair Code",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link",
@@ -263,6 +313,15 @@
    "is_query_report": 0,
    "label": "Yard Utilization Location",
    "link_to": "Yard Utilization Location",
+   "link_type": "Report",
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Inventory KPI per Principal",
+   "link_to": "Inventory KPI per Principal",
    "link_type": "Report",
    "type": "Link",
    "doctype": "Workspace Link"

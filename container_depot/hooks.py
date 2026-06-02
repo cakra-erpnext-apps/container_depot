@@ -18,6 +18,9 @@ scheduler_events = {
 	"hourly": [
 		"container_depot.tasks.expire_booking_codes",
 	],
+	"daily": [
+		"container_depot.tasks.remind_periodic_test_due",
+	],
 	"cron": {
 		"*/5 * * * *": [
 			"container_depot.tasks.mark_stale_sst_heartbeats",

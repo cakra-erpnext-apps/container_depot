@@ -7,7 +7,9 @@
   "engine": "InnoDB",
   "field_order": [
     "damage_info",
+    "component",
     "damage_type",
+    "repair_code",
     "damage_description",
     "column_break_1",
     "severity",
@@ -28,11 +30,26 @@
       "label": "Damage Information"
     },
     {
+      "description": "Component / item inspected (e.g. Manlid, Foot Valve, Frame). Free text per the EIR template AREA/ITEM list.",
+      "fieldname": "component",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Component / Item"
+    },
+    {
+      "description": "OAK damage condition code (01-29, v) from the EIR template.",
       "fieldname": "damage_type",
-      "fieldtype": "Select",
-      "label": "Damage Type",
-      "options": "Gasket\nValve\nFrame\nDoor\nFloor\nInterior_Lining\nManlid\nHinges\nLocking_Rod\nOther",
-      "reqd": 1
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Damage Code",
+      "options": "EIR Damage Code"
+    },
+    {
+      "description": "OAK repair-action code (30-54, X) from the EIR template.",
+      "fieldname": "repair_code",
+      "fieldtype": "Link",
+      "label": "Repair Code",
+      "options": "EIR Repair Code"
     },
     {
       "fieldname": "damage_description",

@@ -10,6 +10,7 @@
     "status",
     "column_break_1",
     "booking_code",
+    "depot",
     "order_section",
     "order_doctype",
     "order_ref",
@@ -57,6 +58,13 @@
       "in_standard_filter": 1,
       "label": "Booking Code",
       "options": "Booking Code"
+    },
+    {
+      "fieldname": "depot",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Depot",
+      "options": "Depot"
     },
     {
       "collapsible": 1,

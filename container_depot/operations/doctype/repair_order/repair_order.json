@@ -12,6 +12,7 @@
     "status",
     "column_break_1",
     "principal",
+    "depot",
     "technician",
     "start_date",
     "completion_date",
@@ -66,6 +67,13 @@
       "fieldtype": "Data",
       "label": "Principal (Owner)",
       "read_only": 1
+    },
+    {
+      "fieldname": "depot",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Depot",
+      "options": "Depot"
     },
     {
       "fieldname": "technician",

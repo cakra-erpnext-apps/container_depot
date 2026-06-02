@@ -4,3 +4,7 @@
 container_depot.patches.v0_2.migrate_container_principal_to_customer
 container_depot.patches.v0_5.voucher_to_booking
 container_depot.patches.v0_5b.drop_voucher
+container_depot.patches.v0_6.seed_depots
+container_depot.patches.v0_6.canonicalize_cleaning_types
+container_depot.patches.v0_6.seed_eir_codes
+container_depot.patches.v0_6.migrate_damage_component

@@ -13,6 +13,7 @@
     "container",
     "container_no",
     "booking_code",
+    "depot",
     "order_section",
     "order_doctype",
     "order_ref",
@@ -26,6 +27,17 @@
     "gate_in_timestamp",
     "column_break_3",
     "gate_out_timestamp",
+    "tank_template_section",
+    "vessel",
+    "tank_status",
+    "serial_no",
+    "manufacture_date",
+    "column_break_tank",
+    "capacity",
+    "tare_weight",
+    "max_gross_weight",
+    "last_test_date",
+    "last_cargo",
     "eir_photos_section",
     "exterior_photos",
     "damage_section",
@@ -87,6 +99,13 @@
       "in_standard_filter": 1,
       "label": "Booking Code",
       "options": "Booking Code"
+    },
+    {
+      "fieldname": "depot",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Depot",
+      "options": "Depot"
     },
     {
       "collapsible": 1,
@@ -159,6 +178,75 @@
       "fieldname": "gate_out_timestamp",
       "fieldtype": "Datetime",
       "label": "Gate-Out Timestamp"
+    },
+    {
+      "fieldname": "tank_template_section",
+      "fieldtype": "Section Break",
+      "label": "Tank / EIR Template"
+    },
+    {
+      "fieldname": "vessel",
+      "fieldtype": "Data",
+      "label": "Vessel"
+    },
+    {
+      "fieldname": "tank_status",
+      "fieldtype": "Select",
+      "label": "Tank Status",
+      "options": "\nEmpty Clean\nEmpty Dirty"
+    },
+    {
+      "fetch_from": "container.serial_no",
+      "fieldname": "serial_no",
+      "fieldtype": "Data",
+      "label": "Serial No",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.manufacture_date",
+      "fieldname": "manufacture_date",
+      "fieldtype": "Date",
+      "label": "Date of Manufacture",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_tank",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fetch_from": "container.capacity",
+      "fieldname": "capacity",
+      "fieldtype": "Float",
+      "label": "Capacity (L)",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.tare_weight",
+      "fieldname": "tare_weight",
+      "fieldtype": "Float",
+      "label": "Tare Weight (kg)",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.max_gross_weight",
+      "fieldname": "max_gross_weight",
+      "fieldtype": "Float",
+      "label": "Max Gross Weight / MWG (kg)",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.last_test_date",
+      "fieldname": "last_test_date",
+      "fieldtype": "Date",
+      "label": "Last Test Date",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.last_cargo",
+      "fieldname": "last_cargo",
+      "fieldtype": "Data",
+      "label": "Last Cargo",
+      "read_only": 1
     },
     {
       "fieldname": "eir_photos_section",

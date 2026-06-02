@@ -63,8 +63,9 @@
     {
       "fieldname": "cleaning_method",
       "fieldtype": "Select",
+      "in_standard_filter": 1,
       "label": "Cleaning Method",
-      "options": "Hot Water\nSteam\nChemical Wash\nDetergent",
+      "options": "PP Wash\nMethanol Rinse\nSteam Wash\nHot Water\nChemical\nDetergent\nNitrogen Purge",
       "reqd": 1
     },
     {

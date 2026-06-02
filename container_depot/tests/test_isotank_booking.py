@@ -200,7 +200,7 @@ class TestTankOutGating(FrappeTestCase):
 			"container": self.container,
 			"clean_date": add_days(today(), -90),
 			"valid_until": add_days(today(), -1),  # expired yesterday
-			"cleaning_method": "Steam",
+			"cleaning_method": "Steam Wash",
 		})
 		cert.insert(ignore_permissions=True)
 		cert.submit()

@@ -8,7 +8,11 @@ def seed():
 	
 	# 1. Cleanup existing mock data (so it's clean and repeatable)
 	cleanup_data()
-	
+
+	# 1b. Reference masters the demo rows link to (idempotent; also seeded by
+	# the v0_6 patches, but kept here so `seed()` works on a fresh test DB).
+	_ensure_reference_masters()
+
 	# 2. Seed Gasket Inventory
 	print("Creating Gasket Inventory...")
 	gaskets = [
@@ -71,13 +75,13 @@ def seed():
 	# 5. Create active Container records
 	print("Creating Containers...")
 	containers = [
-		{"container_no": "OAKU9812734", "container_type": "ISO Tank", "size": "20'", "status": "Gate_In", "principal": "Oak Depot Principal", "yard_zone": "PreClean_Buffer"},
-		{"container_no": "MSCU1122334", "container_type": "ISO Tank", "size": "20'", "status": "Ready_For_Service", "principal": "MSC Shipping", "yard_zone": "Storage_Yard_A"},
-		{"container_no": "TEXU4455667", "container_type": "20ft Dry", "size": "20'", "status": "Repair_In_Progress", "principal": "TexTainer", "yard_zone": "Workshop_D", "repair_status": "In_Progress"},
-		{"container_no": "GLOU8877665", "container_type": "ISO Tank", "size": "20'", "status": "Needs_Cleaning", "principal": "Global Tanks Co", "yard_zone": "Cleaning_Bay_C", "cleaning_status": "Pending"},
-		{"container_no": "TRLU5566778", "container_type": "40ft HC", "size": "40'", "status": "Available", "principal": "Triton Containers", "yard_zone": "Storage_Yard_B"}
+		{"container_no": "OAKU9812734", "container_type": "ISO Tank", "size": "20'", "status": "Gate_In", "principal": "Oak Depot Principal", "yard_zone": "PreClean_Buffer", "depot": "SUB"},
+		{"container_no": "MSCU1122334", "container_type": "ISO Tank", "size": "20'", "status": "Ready_For_Service", "principal": "MSC Shipping", "yard_zone": "Storage_Yard_A", "depot": "SUB"},
+		{"container_no": "TEXU4455667", "container_type": "20ft Dry", "size": "20'", "status": "Repair_In_Progress", "principal": "TexTainer", "yard_zone": "Workshop_D", "repair_status": "In_Progress", "depot": "SUB"},
+		{"container_no": "GLOU8877665", "container_type": "ISO Tank", "size": "20'", "status": "Needs_Cleaning", "principal": "Global Tanks Co", "yard_zone": "Cleaning_Bay_C", "cleaning_status": "Pending", "depot": "KIM11"},
+		{"container_no": "TRLU5566778", "container_type": "40ft HC", "size": "40'", "status": "Available", "principal": "Triton Containers", "yard_zone": "Storage_Yard_B", "depot": "KIM11"}
 	]
-	
+
 	cont_docs = {}
 	for c in containers:
 		doc = frappe.get_doc({
@@ -87,6 +91,7 @@ def seed():
 			"size": c["size"],
 			"status": c["status"],
 			"principal": c["principal"],
+			"depot": c.get("depot"),
 			"yard_zone": c["yard_zone"],
 			"cleaning_status": c.get("cleaning_status", "Not_Required"),
 			"repair_status": c.get("repair_status", "Not_Required")
@@ -133,7 +138,7 @@ def seed():
 			"inspection_type": "EIR-In",
 			"inspector": "Administrator",
 			"has_damage": 1,
-			"damages": [{"type": "Gasket", "severity": "Moderate", "description": "Blown gasket on outlet valve"}]
+			"damages": [{"component": "Manlid Gasket", "code": "11", "severity": "Moderate", "description": "Blown gasket on outlet valve"}]
 		},
 		{
 			"container": cont_docs["TEXU4455667"].name,
@@ -141,7 +146,7 @@ def seed():
 			"inspection_type": "EIR-In",
 			"inspector": "Administrator",
 			"has_damage": 1,
-			"damages": [{"type": "Frame", "severity": "Moderate", "description": "Dent on left side frame"}]
+			"damages": [{"component": "Frame", "code": "11", "severity": "Moderate", "description": "Dent on left side frame"}]
 		}
 	]
 	
@@ -157,7 +162,8 @@ def seed():
 			"has_damage": insp["has_damage"],
 			"damage_log": [
 				{
-					"damage_type": d["type"],
+					"component": d["component"],
+					"damage_type": d["code"],
 					"severity": d["severity"],
 					"damage_description": d["description"]
 				}
@@ -242,8 +248,8 @@ def seed():
 	# 11. Seed Cleaning Certificates
 	print("Creating Cleaning Certificates...")
 	certs = [
-		{"container": cont_docs["OAKU9812734"].name, "cleaning_method": "Chemical Wash", "remarks": "Approved after inspections"},
-		{"container": cont_docs["MSCU1122334"].name, "cleaning_method": "Steam", "remarks": "Regular periodic cleanup"}
+		{"container": cont_docs["OAKU9812734"].name, "cleaning_method": "Chemical", "remarks": "Approved after inspections"},
+		{"container": cont_docs["MSCU1122334"].name, "cleaning_method": "Steam Wash", "remarks": "Regular periodic cleanup"}
 	]
 	for c in certs:
 		doc = frappe.get_doc({
@@ -257,6 +263,30 @@ def seed():
 
 	frappe.db.commit()
 	print("🎉 Seeding completed successfully! Check the ERPNext UI.")
+
+def _ensure_reference_masters():
+	"""Create the v0.2 reference masters the demo rows link to, if missing."""
+	depots = [("SUB", "Surabaya", "Surabaya"), ("KIM11", "OAK Medan (KIM 11)", "Medan")]
+	for code, name, city in depots:
+		if not frappe.db.exists("Depot", code):
+			frappe.get_doc({
+				"doctype": "Depot",
+				"depot_code": code,
+				"depot_name": name,
+				"city": city,
+				"is_active": 1,
+			}).insert(ignore_permissions=True)
+
+	# Official damage code referenced by the seeded EIR damage logs.
+	if not frappe.db.exists("EIR Damage Code", "11"):
+		frappe.get_doc({
+			"doctype": "EIR Damage Code",
+			"code": "11",
+			"category": "Damage",
+			"description": "Dented",
+			"is_active": 1,
+		}).insert(ignore_permissions=True)
+
 
 def cleanup_data():
 	print("Cleaning up previous data...")

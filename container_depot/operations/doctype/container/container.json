@@ -12,6 +12,7 @@
     "status",
     "column_break_1",
     "principal",
+    "depot",
     "current_location",
     "yard_zone",
     "row",
@@ -25,6 +26,15 @@
     "cleaning_status",
     "repair_status",
     "certification_status",
+    "tank_spec_section",
+    "serial_no",
+    "manufacture_date",
+    "capacity",
+    "column_break_tank",
+    "tare_weight",
+    "max_gross_weight",
+    "last_test_date",
+    "next_pt_due",
     "timestamps"
   ],
   "fields": [
@@ -71,6 +81,13 @@
       "fieldtype": "Link",
       "label": "Principal (Owner)",
       "options": "Customer"
+    },
+    {
+      "fieldname": "depot",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Depot",
+      "options": "Depot"
     },
     {
       "fieldname": "current_location",
@@ -139,6 +156,53 @@
       "fieldtype": "Select",
       "label": "Certification Status",
       "options": "Not_Required\nPending\nCompleted"
+    },
+    {
+      "collapsible": 1,
+      "fieldname": "tank_spec_section",
+      "fieldtype": "Section Break",
+      "label": "Tank Specifications (ISO Tank)"
+    },
+    {
+      "fieldname": "serial_no",
+      "fieldtype": "Data",
+      "label": "Serial No"
+    },
+    {
+      "fieldname": "manufacture_date",
+      "fieldtype": "Date",
+      "label": "Date of Manufacture"
+    },
+    {
+      "fieldname": "capacity",
+      "fieldtype": "Float",
+      "label": "Capacity (L)"
+    },
+    {
+      "fieldname": "column_break_tank",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "tare_weight",
+      "fieldtype": "Float",
+      "label": "Tare Weight (kg)"
+    },
+    {
+      "fieldname": "max_gross_weight",
+      "fieldtype": "Float",
+      "label": "Max Gross Weight / MWG (kg)"
+    },
+    {
+      "fieldname": "last_test_date",
+      "fieldtype": "Date",
+      "label": "Last Test Date"
+    },
+    {
+      "description": "Next periodic-test due date. Maintained from the latest Periodic Test; blocks TANK OUT once overdue.",
+      "fieldname": "next_pt_due",
+      "fieldtype": "Date",
+      "label": "Next Periodic Test Due",
+      "read_only": 1
     },
     {
       "fieldname": "timestamps",

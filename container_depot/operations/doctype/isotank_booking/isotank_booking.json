@@ -10,6 +10,7 @@
     "booking_status",
     "column_break_1",
     "customer",
+    "depot",
     "contract",
     "payment_type",
     "commercial_section",
@@ -58,6 +59,13 @@
       "label": "Customer",
       "options": "Customer",
       "reqd": 1
+    },
+    {
+      "fieldname": "depot",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Depot",
+      "options": "Depot"
     },
     {
       "fieldname": "contract",

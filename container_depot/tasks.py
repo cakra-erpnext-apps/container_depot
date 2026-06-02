@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import frappe
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import add_to_date, getdate, now_datetime, today
 
 
 SST_STALE_AFTER_MINUTES = 15
+
+# How far ahead a periodic test is flagged for a due-date reminder.
+PT_REMINDER_DAYS = 30
 
 
 def expire_booking_codes() -> int:
@@ -82,3 +85,64 @@ def mark_stale_sst_heartbeats() -> int:
 			}).insert(ignore_permissions=True)
 	frappe.db.commit()
 	return len(rows)
+
+
+def remind_periodic_test_due() -> int:
+	"""Flag periodic tests due within the reminder horizon (PRD v0.2 §4).
+
+	Runs daily. Side-effects:
+	- Flips lapsed open tests to ``Overdue``.
+	- Opens one ToDo per due/overdue test, addressed to Commercial + Ops
+	  Supervisor role holders.
+
+	Returns the count of tests in the due/overdue window.
+	"""
+	horizon = add_to_date(getdate(today()), days=PT_REMINDER_DAYS)
+	rows = frappe.get_all(
+		"Periodic Test",
+		filters={
+			"status": ("not in", ["Completed", "Cancelled"]),
+			"docstatus": ("<", 2),
+			"due_date": ("is", "set"),
+		},
+		fields=["name", "container_no", "due_date", "test_type"],
+	)
+	due = [r for r in rows if r.due_date and getdate(r.due_date) <= horizon]
+	if not due:
+		return 0
+
+	today_d = getdate(today())
+	recipients = frappe.get_all(
+		"Has Role",
+		filters={"role": ("in", ["Commercial", "Ops Supervisor"]), "parenttype": "User"},
+		fields=["parent"],
+		pluck="parent",
+	)
+	recipients = sorted(set(recipients))
+
+	for r in due:
+		if getdate(r.due_date) < today_d:
+			frappe.db.set_value("Periodic Test", r.name, "status", "Overdue", update_modified=False)
+		for user in recipients:
+			already = frappe.db.exists(
+				"ToDo",
+				{
+					"reference_type": "Periodic Test",
+					"reference_name": r.name,
+					"allocated_to": user,
+					"status": "Open",
+				},
+			)
+			if already:
+				continue
+			frappe.get_doc({
+				"doctype": "ToDo",
+				"description": f"Periodic Test {r.test_type} for {r.container_no or r.name} is due on {r.due_date}.",
+				"reference_type": "Periodic Test",
+				"reference_name": r.name,
+				"allocated_to": user,
+				"priority": "High",
+				"status": "Open",
+			}).insert(ignore_permissions=True)
+	frappe.db.commit()
+	return len(due)

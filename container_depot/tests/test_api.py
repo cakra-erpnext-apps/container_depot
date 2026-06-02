@@ -245,7 +245,7 @@ def run_tests():
 		cert = frappe.get_doc({
 			"doctype": "Cleaning Certificate",
 			"container": container.name,
-			"cleaning_method": "Chemical Wash",
+			"cleaning_method": "Chemical",
 			"remarks": "Cleaned thoroughly"
 		})
 		cert.insert(ignore_permissions=True)

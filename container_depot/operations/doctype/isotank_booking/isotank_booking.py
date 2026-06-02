@@ -85,7 +85,7 @@ class IsotankBooking(Document):
 			c = frappe.db.get_value(
 				"Container",
 				item.container,
-				["status", "container_no"],
+				["status", "container_no", "next_pt_due"],
 				as_dict=True,
 			)
 			if not c:
@@ -94,6 +94,13 @@ class IsotankBooking(Document):
 			if c.status not in CONTAINER_READY_STATUSES:
 				failures.append(
 					_("Container {0} is not Ready (status={1}).").format(c.container_no, c.status)
+				)
+				continue
+			if c.next_pt_due and getdate(c.next_pt_due) < getdate(today()):
+				failures.append(
+					_("Container {0} periodic test overdue (due {1}).").format(
+						c.container_no, c.next_pt_due
+					)
 				)
 				continue
 			cert = frappe.db.get_value(
