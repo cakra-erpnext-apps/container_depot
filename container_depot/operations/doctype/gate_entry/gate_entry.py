@@ -25,9 +25,9 @@ class GateEntry(Document):
 	def validate(self):
 		"""Validate gate entry.
 
-		If a Booking Code is set, it short-circuits the legacy Voucher payment
-		check — the Booking Code already encodes payment status (an Active code
-		was only issued after Cash invoice paid / TOP credit cleared).
+		A Booking Code encodes payment status (an Active code is only issued
+		after the Cash invoice is paid / TOP credit cleared), so an Active or
+		Used code is what clears the gate.
 		"""
 		if self.booking_code:
 			bc = frappe.db.get_value(
@@ -46,11 +46,6 @@ class GateEntry(Document):
 				frappe.throw(
 					f"Container {self.container_no} does not match Booking Code container {bc.container_no}."
 				)
-			return
-		if self.voucher:
-			voucher = frappe.get_doc("Voucher", self.voucher)
-			if not voucher.payment_status:
-				frappe.throw("Voucher payment not verified. Cannot proceed with gate entry.")
 
 	def before_submit(self):
 		"""Set status on submit"""

@@ -12,7 +12,6 @@
     "column_break_1",
     "container",
     "container_no",
-    "voucher",
     "booking_code",
     "order_section",
     "order_doctype",
@@ -81,13 +80,6 @@
       "fieldtype": "Data",
       "label": "Container Number",
       "read_only": 1
-    },
-    {
-      "description": "Deprecated by Voucher→Booking migration. New entries should use booking_code + order_doctype/order_ref.",
-      "fieldname": "voucher",
-      "fieldtype": "Link",
-      "label": "Voucher [Deprecated]",
-      "options": "Voucher"
     },
     {
       "fieldname": "booking_code",

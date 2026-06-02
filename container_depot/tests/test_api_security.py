@@ -5,7 +5,7 @@ Covers the Phase 1 (PRO-OPS-08) hardening rules in :mod:`container_depot.api`:
 - Parameterized queries / input validation block SQL-injection-shaped payloads.
 - State-changing endpoints reject Guest callers even via direct Python call.
 - ``handle_webhook`` requires a valid HMAC ``X-Signature`` over the raw body.
-- ``validate_qr`` accepts both bare voucher ids and the ``OAK|...`` QR payload.
+- ``validate_qr`` accepts both a bare Booking Code and the ``OAK|...`` QR payload.
 """
 
 from __future__ import annotations
@@ -20,10 +20,13 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from container_depot import api as cdapi
+from container_depot.tests._booking_helpers import make_booking_code
+from container_depot.tests.test_api import ensure_test_customer
 
 
 TEST_SECRET = "test-webhook-secret"
-TEST_VOUCHER_ID = "VOUCH-SEC-T001"
+SEC_CUSTOMER = "Security Test Customer"
+SEC_CONTAINER_NO = "SECU1234560"
 
 
 def _make_request(body: bytes, signature: str | None):
@@ -45,29 +48,13 @@ def _make_request(body: bytes, signature: str | None):
 
 
 class TestApiSecurity(FrappeTestCase):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		# Seed a Voucher used by validate_qr tests. Use Gate_Out so we don't
-		# need to declare expected_containers (Voucher.validate only enforces
-		# that for Gate_In type).
-		if not frappe.db.exists("Voucher", {"voucher_id": TEST_VOUCHER_ID}):
-			frappe.get_doc({
-				"doctype": "Voucher",
-				"voucher_id": TEST_VOUCHER_ID,
-				"voucher_type": "Gate_Out (Release)",
-				"client": "Security Test Client",
-				"principal": "Security Test Principal",
-				"payment_status": 1,
-				"status": "Active",
-			}).insert(ignore_permissions=True)
-			frappe.db.commit()
-
-	@classmethod
-	def tearDownClass(cls):
-		frappe.db.delete("Voucher", {"voucher_id": TEST_VOUCHER_ID})
-		frappe.db.commit()
-		super().tearDownClass()
+	def _active_code(self):
+		"""Create an Active Booking Code within the test's transaction."""
+		return make_booking_code(
+			customer=ensure_test_customer(SEC_CUSTOMER),
+			container_no=SEC_CONTAINER_NO,
+			direction="Tank Out",
+		)
 
 	# ------------------------------------------------------------------
 	# Input validation / parameterized lookup
@@ -78,23 +65,24 @@ class TestApiSecurity(FrappeTestCase):
 		for payload in [
 			"' OR 1=1 --",
 			"%' UNION SELECT * FROM tabUser --",
-			"VOUCH-FOO'; DROP TABLE tabVoucher --",
+			"OAK-FOO'; DROP TABLE `tabBooking Code` --",
 			"' OR '1'='1",
 		]:
 			result = cdapi.validate_qr(payload)
 			self.assertFalse(result["valid"], f"payload {payload!r} should be invalid")
 			self.assertIn("error", result)
 
-	def test_validate_qr_accepts_bare_voucher_id(self):
-		result = cdapi.validate_qr(TEST_VOUCHER_ID)
+	def test_validate_qr_accepts_bare_booking_code(self):
+		code = self._active_code()
+		result = cdapi.validate_qr(code.code)
 		self.assertTrue(result["valid"])
-		self.assertEqual(result["voucher_id"], TEST_VOUCHER_ID)
+		self.assertEqual(result["booking_code"], code.name)
 
 	def test_validate_qr_accepts_oak_pipe_payload(self):
-		payload = f"OAK|{TEST_VOUCHER_ID}|Gate_Out (Release)|Security Test Client"
-		result = cdapi.validate_qr(payload)
+		code = self._active_code()
+		result = cdapi.validate_qr(f"OAK|{code.code}")
 		self.assertTrue(result["valid"])
-		self.assertEqual(result["voucher_id"], TEST_VOUCHER_ID)
+		self.assertEqual(result["booking_code"], code.name)
 
 	def test_validate_qr_rejects_malformed_oak_payload(self):
 		result = cdapi.validate_qr("OAK|")
@@ -113,10 +101,10 @@ class TestApiSecurity(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			cdapi._normalize_container_no("STLU'12345-7")
 
-	def test_assert_voucher_id_format(self):
+	def test_parse_booking_code_format(self):
 		with self.assertRaises(frappe.ValidationError):
-			cdapi._assert_voucher_id("NOT-A-VOUCHER")
-		self.assertEqual(cdapi._assert_voucher_id("vouch-abc123"), "VOUCH-ABC123")
+			cdapi._parse_booking_code_payload("NOT-A-CODE")
+		self.assertEqual(cdapi._parse_booking_code_payload("oak-abc123"), "OAK-ABC123")
 
 	# ------------------------------------------------------------------
 	# Auth: state-changing endpoints must reject Guest
@@ -134,7 +122,7 @@ class TestApiSecurity(FrappeTestCase):
 		def call():
 			with self.assertRaises(frappe.PermissionError):
 				cdapi.register_gate_entry(
-					voucher_id=TEST_VOUCHER_ID, container_no="STLU123456-7"
+					booking_code="OAK-ABC123", container_no="STLU123456-7"
 				)
 		self._as_guest(call)
 
@@ -168,13 +156,13 @@ class TestApiSecurity(FrappeTestCase):
 	def test_register_gate_entry_validates_container_no(self):
 		with self.assertRaises(frappe.ValidationError):
 			cdapi.register_gate_entry(
-				voucher_id=TEST_VOUCHER_ID, container_no="BAD"
+				booking_code="OAK-ABC123", container_no="BAD"
 			)
 
-	def test_register_gate_entry_validates_voucher_id(self):
+	def test_register_gate_entry_validates_booking_code(self):
 		with self.assertRaises(frappe.ValidationError):
 			cdapi.register_gate_entry(
-				voucher_id="not-a-voucher", container_no="STLU123456-7"
+				booking_code="not-a-code", container_no="STLU123456-7"
 			)
 
 	# ------------------------------------------------------------------

@@ -9,7 +9,6 @@
     "gate_entry_id",
     "status",
     "column_break_1",
-    "voucher",
     "booking_code",
     "order_section",
     "order_doctype",
@@ -51,13 +50,6 @@
     {
       "fieldname": "column_break_1",
       "fieldtype": "Column Break"
-    },
-    {
-      "description": "Deprecated by Voucher→Booking migration. Retained for backward compatibility; new entries should set booking_code + order_doctype/order_ref instead.",
-      "fieldname": "voucher",
-      "fieldtype": "Link",
-      "label": "Voucher (Bon Bongkar) [Deprecated]",
-      "options": "Voucher"
     },
     {
       "fieldname": "booking_code",
@@ -153,7 +145,7 @@
   "modified": "2026-05-16",
   "module": "Operations",
   "name": "Gate Entry",
-  "search_fields": "gate_entry_id, container_no, voucher, status",
+  "search_fields": "gate_entry_id, container_no, booking_code, status",
   "sort_field": "creation",
   "sort_order": "DESC",
   "title_field": "gate_entry_id"

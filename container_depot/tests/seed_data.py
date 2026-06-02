@@ -94,70 +94,10 @@ def seed():
 		doc.insert(ignore_permissions=True)
 		cont_docs[c["container_no"]] = doc
 		
-	# 6. Seed Vouchers
-	print("Creating Vouchers...")
-	vouchers = [
-		{
-			"voucher_id": "VOUCH-OAK-001",
-			"voucher_type": "Gate_In (Bon Bongkar)",
-			"client": "Oak Depot Logistics",
-			"principal": "Oak Depot Principal",
-			"status": "Active",
-			"containers": [{"container_no": "OAKU9812734", "container_type": "ISO Tank"}]
-		},
-		{
-			"voucher_id": "VOUCH-MSC-002",
-			"voucher_type": "Gate_Out (Release)",
-			"client": "MSC Logistics",
-			"principal": "MSC Shipping",
-			"status": "Completed",
-			"containers": [{"container_no": "MSCU1122334", "container_type": "ISO Tank"}]
-		},
-		{
-			"voucher_id": "VOUCH-TEX-003",
-			"voucher_type": "Gate_In (Bon Bongkar)",
-			"client": "Tex Transports",
-			"principal": "TexTainer",
-			"status": "Active",
-			"containers": [{"container_no": "TEXU4455667", "container_type": "20ft Dry"}]
-		},
-		{
-			"voucher_id": "VOUCH-GLO-004",
-			"voucher_type": "Gate_In (Bon Bongkar)",
-			"client": "Global Shipping Logistics",
-			"principal": "Global Tanks Co",
-			"status": "Active",
-			"containers": [{"container_no": "GLOU8877665", "container_type": "ISO Tank"}]
-		}
-	]
-	
-	vouch_docs = {}
-	for v in vouchers:
-		doc = frappe.get_doc({
-			"doctype": "Voucher",
-			"voucher_id": v["voucher_id"],
-			"voucher_type": v["voucher_type"],
-			"client": v["client"],
-			"principal": v["principal"],
-			"payment_status": 1,
-			"status": v["status"],
-			"expected_containers": [
-				{
-					"container_no": c["container_no"],
-					"container_type": c["container_type"],
-					"status": "Gate_In" if v["status"] == "Active" else "Gate_Out"
-				}
-				for c in v["containers"]
-			]
-		})
-		doc.insert(ignore_permissions=True)
-		vouch_docs[v["voucher_id"]] = doc
-
-	# 7. Create Gate Entries
+	# 6. Create Gate Entries
 	print("Creating Gate Entries...")
 	gate_entries = [
 		{
-			"voucher": vouch_docs["VOUCH-OAK-001"].name,
 			"container_no": "OAKU9812734",
 			"security_guard": "Administrator",
 			"truck_plate": "B-1234-OAK",
@@ -165,7 +105,6 @@ def seed():
 			"status": "Gate_In_Completed"
 		},
 		{
-			"voucher": vouch_docs["VOUCH-TEX-003"].name,
 			"container_no": "TEXU4455667",
 			"security_guard": "Administrator",
 			"truck_plate": "B-5566-TEX",
@@ -176,7 +115,6 @@ def seed():
 	for ge in gate_entries:
 		doc = frappe.get_doc({
 			"doctype": "Gate Entry",
-			"voucher": ge["voucher"],
 			"container_no": ge["container_no"],
 			"security_guard": ge["security_guard"],
 			"truck_plate": ge["truck_plate"],
@@ -186,7 +124,7 @@ def seed():
 		})
 		doc.insert(ignore_permissions=True)
 		
-	# 8. Create Inspections
+	# 7. Create Inspections
 	print("Creating EIR Inspections...")
 	inspections = [
 		{
@@ -229,7 +167,7 @@ def seed():
 		doc.insert(ignore_permissions=True)
 		insp_docs[insp["container_no"]] = doc
 
-	# 9. Create Repair Orders
+	# 8. Create Repair Orders
 	print("Creating Repair Orders...")
 	repair_orders = [
 		{
@@ -339,7 +277,6 @@ def cleanup_data():
 	frappe.db.delete("Container Movement", {"container": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]})
 	frappe.db.delete("Cleaning Certificate", {"container": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]})
 	frappe.db.delete("Container", {"container_no": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]})
-	frappe.db.delete("Voucher", {"voucher_id": ["in", ["VOUCH-OAK-001", "VOUCH-MSC-002", "VOUCH-TEX-003", "VOUCH-GLO-004"]]})
 	frappe.db.delete("Fuel Log", {"cost_per_liter": ["in", [1.25, 1.28, 1.24]]})
 	frappe.db.delete("Equipment Maintenance", {"equipment_name": ["in", ["Reachstacker RS-A1", "Reachstacker RS-B2", "Heavy Forklift FL-03"]]})
 	frappe.db.delete("Gasket Inventory", {"gasket_name": ["in", ["3 inch PTFE Gasket", "2 inch EPDM Gasket", "3 inch Viton Envelope Gasket", "4 inch EPDM SuperSeal"]]})

@@ -310,7 +310,7 @@ class TestOfflineEIRBatch(FrappeTestCase):
 
 
 class TestGateEntryBookingCodePath(FrappeTestCase):
-	"""Gate Entry: when booking_code is set, voucher payment check is bypassed."""
+	"""Gate Entry: an Active/Used Booking Code clears the gate; other states are rejected."""
 
 	def test_gate_entry_with_active_booking_code(self):
 		code = _make_booking_code(direction="Tank In", container_no="TANK0002001")

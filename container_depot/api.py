@@ -7,7 +7,7 @@ Hardening rules (Phase 1 — PRO-OPS-08):
   must authenticate as a user holding the ``Container Depot SST Service`` role
   using Frappe token auth (``Authorization: token <api_key>:<api_secret>``).
 - Read-only endpoints that may stay guest are rate-limited.
-- All voucher / container lookups are parameterized via ``frappe.db`` helpers.
+- All Booking Code / container lookups are parameterized via ``frappe.db`` helpers.
 - ``handle_webhook`` requires an ``X-Signature: sha256=<hex>`` HMAC over the
   raw request body, keyed by ``container_depot_webhook_secret`` (site_config).
 """
@@ -30,7 +30,6 @@ from frappe.utils import now_datetime
 # ---------------------------------------------------------------------------
 
 CONTAINER_NO_RE = re.compile(r"^[A-Z0-9-]{1,15}$")
-VOUCHER_ID_RE = re.compile(r"^VOUCH-[A-Z0-9-]{1,32}$")
 MAX_WEBHOOK_BODY_BYTES = 16 * 1024  # 16 KB hard cap
 
 
@@ -74,31 +73,14 @@ def _resolve_customer(value) -> str | None:
 	return frappe.db.get_value("Customer", {"customer_name": candidate}, "name")
 
 
-def _assert_voucher_id(value) -> str:
-	if not value or not isinstance(value, str):
-		frappe.throw(_("voucher_id is required."), frappe.ValidationError)
-	candidate = value.strip().upper()
-	if not VOUCHER_ID_RE.match(candidate):
-		frappe.throw(_("Invalid voucher_id format."), frappe.ValidationError)
-	return candidate
+def _booking_customer(booking) -> str | None:
+	"""Return the Customer (already a Link) behind an Isotank Booking, or None."""
+	if not booking:
+		return None
+	return frappe.db.get_value("Isotank Booking", booking, "customer")
 
 
 BOOKING_CODE_RE = re.compile(r"^OAK-[A-F0-9]{6,32}$")
-
-
-def _parse_qr_payload(qr_data) -> str:
-	"""Accept either a bare voucher id or the ``OAK|<voucher>|<type>|<client>``
-	payload produced by :meth:`Voucher.generate_qr_data`. Returns the voucher id.
-	"""
-	if not qr_data or not isinstance(qr_data, str):
-		frappe.throw(_("qr_data is required."), frappe.ValidationError)
-	raw = qr_data.strip()
-	if raw.upper().startswith("OAK|"):
-		parts = raw.split("|")
-		if len(parts) < 2 or not parts[1]:
-			frappe.throw(_("Malformed OAK QR payload."), frappe.ValidationError)
-		raw = parts[1]
-	return _assert_voucher_id(raw)
 
 
 def _parse_booking_code_payload(qr_data) -> str:
@@ -162,45 +144,45 @@ def _enforce_webhook_signature() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Voucher / QR Code Validation
+# Booking Code / QR Code Validation
 # ---------------------------------------------------------------------------
 
 
 @frappe.whitelist(methods=["POST"], allow_guest=True)
 @rate_limit(key="qr_data", limit=30, seconds=60)
 def validate_qr(qr_data):
-	"""Decode a QR payload (``OAK|VOUCH-XYZ|...`` or bare voucher id) and
-	return voucher details. Read-only; safe to leave guest-accessible but
+	"""Decode a Booking Code QR payload (``OAK|OAK-XYZ`` or bare ``OAK-XYZ``)
+	and return its details. Read-only; safe to leave guest-accessible but
 	rate-limited per IP to discourage enumeration.
+
+	An ``Active`` Booking Code is the payment-cleared signal (a code is only
+	issued after the Cash invoice is paid / TOP credit cleared).
 
 	POST /api/v1/gate/validate-qr
 	"""
 	try:
-		voucher_id = _parse_qr_payload(qr_data)
+		code = _parse_booking_code_payload(qr_data)
 	except frappe.ValidationError as e:
 		return {"valid": False, "error": str(e)}
 
-	voucher_name = frappe.db.get_value("Voucher", {"voucher_id": voucher_id}, "name")
-	if not voucher_name:
-		return {"valid": False, "error": "Voucher not found"}
+	bc = frappe.db.get_value(
+		"Booking Code",
+		code,
+		["name", "state", "direction", "container", "container_no", "booking", "expires_at"],
+		as_dict=True,
+	)
+	if not bc:
+		return {"valid": False, "error": "Booking Code not found"}
 
-	doc = frappe.get_doc("Voucher", voucher_name)
 	return {
-		"valid": True,
-		"voucher_id": doc.voucher_id,
-		"voucher_type": doc.voucher_type,
-		"client": doc.client,
-		"principal": doc.principal,
-		"payment_status": bool(doc.payment_status),
-		"status": doc.status,
-		"containers": [
-			{
-				"container_no": c.container_no,
-				"status": c.status,
-				"container_type": c.container_type,
-			}
-			for c in doc.expected_containers
-		],
+		"valid": bc.state == "Active",
+		"booking_code": bc.name,
+		"state": bc.state,
+		"direction": bc.direction,
+		"container": bc.container,
+		"container_no": bc.container_no,
+		"booking": bc.booking,
+		"expires_at": str(bc.expires_at) if bc.expires_at else None,
 	}
 
 
@@ -210,43 +192,51 @@ def validate_qr(qr_data):
 
 
 @frappe.whitelist(methods=["POST"])
-def register_gate_entry(voucher_id, container_no, security_guard=None, truck_plate=None, driver_name=None):
-	"""Log a container arrival at the gate. Authenticated only.
+def register_gate_entry(booking_code, container_no, security_guard=None, truck_plate=None, driver_name=None):
+	"""Log a container arrival at the gate against a Booking Code. Authenticated
+	only.
+
+	The Booking Code must be ``Active`` or ``Used`` — an Active code already
+	encodes payment status, so no separate payment check is needed. The Gate
+	Entry's own ``validate`` re-checks the code and the container match.
 
 	POST /api/v1/gate/entry
 	"""
 	_require_authenticated_user()
-	voucher_id = _assert_voucher_id(voucher_id)
+	code = _parse_booking_code_payload(booking_code)
 	container_no = _normalize_container_no(container_no)
 
 	try:
-		voucher_name = frappe.db.get_value("Voucher", {"voucher_id": voucher_id}, "name")
-		if not voucher_name:
-			return {"success": False, "error": "Voucher not found"}
-		voucher = frappe.get_doc("Voucher", voucher_name)
-
-		if not voucher.payment_status:
-			return {"success": False, "error": "Payment not verified for this voucher"}
+		bc = frappe.db.get_value(
+			"Booking Code",
+			code,
+			["name", "state", "container_no", "booking"],
+			as_dict=True,
+		)
+		if not bc:
+			return {"success": False, "error": "Booking Code not found"}
+		if bc.state not in ("Active", "Used"):
+			return {"success": False, "error": f"Booking Code state is {bc.state}; cannot pass the gate"}
+		if bc.container_no and bc.container_no.upper() != container_no:
+			return {"success": False, "error": f"Container {container_no} does not match Booking Code container {bc.container_no}"}
 
 		container_name = frappe.db.get_value("Container", {"container_no": container_no})
 		if not container_name:
 			container = frappe.get_doc({
 				"doctype": "Container",
 				"container_no": container_no,
-				"container_type": voucher.expected_containers[0].container_type if voucher.expected_containers else "ISO Tank",
+				"container_type": "ISO Tank",
 				"status": "Gate_In",
-				"principal": _resolve_customer(voucher.principal),
+				"principal": _booking_customer(bc.booking),
 			})
 			# TODO(Phase 6): drop ignore_permissions once the SST service role is
 			# wired and the install.py blanket grant is replaced.
 			container.insert(ignore_permissions=True)
 			container_name = container.name
-		else:
-			container = frappe.get_doc("Container", container_name)
 
 		gate_entry = frappe.get_doc({
 			"doctype": "Gate Entry",
-			"voucher": voucher.name,
+			"booking_code": bc.name,
 			"container": container_name,
 			"container_no": container_no,
 			"security_guard": security_guard or frappe.session.user,
@@ -257,13 +247,6 @@ def register_gate_entry(voucher_id, container_no, security_guard=None, truck_pla
 		})
 		gate_entry.insert(ignore_permissions=True)
 		gate_entry.submit()
-
-		for vc in voucher.expected_containers:
-			if vc.container_no.upper() == container_no:
-				vc.status = "Gate_In"
-				vc.gate_in_status = "Pending"
-				voucher.save()
-				break
 
 		return {
 			"success": True,
@@ -284,29 +267,33 @@ def register_gate_entry(voucher_id, container_no, security_guard=None, truck_pla
 
 
 @frappe.whitelist(methods=["GET"], allow_guest=True)
-@rate_limit(key="voucher_id", limit=60, seconds=60)
-def get_pending_lifts(voucher_id=None, container_no=None):
-	"""Get containers pending lift for a voucher. Read-only.
+@rate_limit(key="booking_code", limit=60, seconds=60)
+def get_pending_lifts(booking_code=None, container_no=None):
+	"""Get the container pending lift for a Booking Code. Read-only.
 
 	GET /api/v1/yard/pending-lifts
 	"""
 	try:
 		containers = []
 
-		if voucher_id:
-			voucher_id = _assert_voucher_id(voucher_id)
-			voucher_name = frappe.db.get_value("Voucher", {"voucher_id": voucher_id}, "name")
-			if not voucher_name:
-				return {"success": False, "error": "Voucher not found"}
-			voucher = frappe.get_doc("Voucher", voucher_name)
-			for vc in voucher.expected_containers:
-				if vc.status in ["Expected", "Gate_In"]:
-					containers.append({
-						"container_no": vc.container_no,
-						"status": vc.status,
-						"container_type": vc.container_type,
-						"suggested_zone": get_suggested_zone(vc.container_type, "Needs_Cleaning"),
-					})
+		if booking_code:
+			code = _parse_booking_code_payload(booking_code)
+			bc = frappe.db.get_value(
+				"Booking Code",
+				code,
+				["container_no", "container", "state"],
+				as_dict=True,
+			)
+			if not bc:
+				return {"success": False, "error": "Booking Code not found"}
+			if bc.container_no:
+				container_type = frappe.db.get_value("Container", bc.container, "container_type") if bc.container else "ISO Tank"
+				containers.append({
+					"container_no": bc.container_no,
+					"status": bc.state,
+					"container_type": container_type or "ISO Tank",
+					"suggested_zone": get_suggested_zone(container_type or "ISO Tank", "Needs_Cleaning"),
+				})
 
 		elif container_no:
 			container_no = _normalize_container_no(container_no)
@@ -346,27 +333,6 @@ def update_container_location(container_no, yard_zone, lifted_by=None):
 		container.current_location = yard_zone
 		container.yard_zone = yard_zone
 		container.save(ignore_permissions=True)
-
-		vouchers_active = frappe.db.get_all(
-			"Voucher",
-			filters={"status": ("in", ["Active", "Partial"])},
-			pluck="name",
-		)
-		voucher_name = None
-		if vouchers_active:
-			voucher_name = frappe.db.get_value(
-				"Voucher Container",
-				{"container_no": container_no, "parent": ("in", vouchers_active)},
-				"parent",
-			)
-		if voucher_name:
-			voucher = frappe.get_doc("Voucher", voucher_name)
-			for vc in voucher.expected_containers:
-				if vc.container_no.upper() == container_no:
-					vc.yard_location = yard_zone
-					vc.lifted_by_reachstacker = lifted_by
-					voucher.save(ignore_permissions=True)
-					break
 
 		return {
 			"success": True,
@@ -461,12 +427,12 @@ def upload_inspection_evidence(container_no, photos, inspection_type="EIR-In", i
 # ---------------------------------------------------------------------------
 
 
-def generate_qr_code(voucher_id):
-	"""Generate a base64 PNG QR for a voucher payload (``OAK|<voucher_id>``)."""
+def generate_qr_code(code):
+	"""Generate a base64 PNG QR for an OAK payload (``OAK|<code>``)."""
 	import qrcode
 	from io import BytesIO
 
-	qr_data = f"OAK|{voucher_id}"
+	qr_data = f"OAK|{code}"
 	img = qrcode.make(qr_data)
 	buffered = BytesIO()
 	img.save(buffered, format="PNG")
@@ -526,7 +492,7 @@ def detect_intent(message):
 		"gate_in": ["gate in", "arrival", "arrive", "check in"],
 		"gate_out": ["gate out", "departure", "depart", "check out", "release"],
 		"upload_photo": ["upload", "photo", "picture", "image", "inspection"],
-		"check_payment": ["payment", "paid", "voucher", "bon"],
+		"check_payment": ["payment", "paid", "booking", "code"],
 		"cleaning_queue": ["cleaning", "clean", "queue", "bay"],
 		"repair_status": ["repair", "damage", "fix", "gasket"],
 		"help": ["help", "what can", "commands", "menu"],
@@ -587,24 +553,22 @@ def handle_check_status(message, from_user, session_id):
 
 def handle_gate_in(message, from_user, session_id):
 	upper = (message or "").upper()
-	voucher_match = re.search(r"VOUCH-[A-Z0-9]+", upper)
+	code_match = re.search(r"OAK-[A-F0-9]+", upper)
 	container_match = re.search(r"([A-Z]{4}\d{6}-?\d)", upper)
 
-	if not voucher_match:
-		return "Please provide a voucher number (e.g., VOUCH-ABCD1234) to proceed with gate-in."
+	if not code_match:
+		return "Please provide a booking code (e.g., OAK-ABC123) to proceed with gate-in."
 
 	try:
-		voucher_id = _assert_voucher_id(voucher_match.group(0))
+		code = _parse_booking_code_payload(code_match.group(0))
 	except frappe.ValidationError:
-		return "Voucher number format is invalid."
+		return "Booking code format is invalid."
 
-	voucher_name = frappe.db.get_value("Voucher", {"voucher_id": voucher_id}, "name")
-	if not voucher_name:
-		return f"Voucher {voucher_id} not found. Please verify the voucher number."
-
-	voucher_doc = frappe.get_doc("Voucher", voucher_name)
-	if not voucher_doc.payment_status:
-		return "⚠️ Payment not verified for this voucher. Please contact the office."
+	bc = frappe.db.get_value("Booking Code", code, ["state"], as_dict=True)
+	if not bc:
+		return f"Booking code {code} not found. Please verify the booking code."
+	if bc.state not in ("Active", "Used"):
+		return f"⚠️ Booking code {code} state is {bc.state}. Please contact the office."
 
 	if not container_match:
 		return "Please provide the container number (e.g., STLU123456-7) that has arrived."
@@ -615,7 +579,7 @@ def handle_gate_in(message, from_user, session_id):
 		return "Container number format is invalid."
 
 	result = register_gate_entry(
-		voucher_id=voucher_id,
+		booking_code=code,
 		container_no=container_no,
 		security_guard=from_user,
 	)
@@ -649,7 +613,7 @@ def handle_gate_out(message, from_user, session_id):
 		)
 	return (
 		f"✅ Container {container_no} is ready for gate-out.\n\n"
-		"Please proceed to gate with the release voucher.\n"
+		"Please proceed to gate with the release booking code.\n"
 		"Final inspection (EIR-Out) photos will be required."
 	)
 
@@ -664,34 +628,37 @@ def handle_upload_photo(message, from_user, session_id):
 
 
 def handle_check_payment(message, from_user, session_id):
-	voucher_match = re.search(r"VOUCH-[A-Z0-9]+", (message or "").upper())
-	if not voucher_match:
-		return "Please provide a voucher number (e.g., VOUCH-ABCD1234) to check payment status."
+	code_match = re.search(r"OAK-[A-F0-9]+", (message or "").upper())
+	if not code_match:
+		return "Please provide a booking code (e.g., OAK-ABC123) to check payment status."
 
 	try:
-		voucher_id = _assert_voucher_id(voucher_match.group(0))
+		code = _parse_booking_code_payload(code_match.group(0))
 	except frappe.ValidationError:
-		return "Voucher number format is invalid."
+		return "Booking code format is invalid."
 
-	voucher_name = frappe.db.get_value("Voucher", {"voucher_id": voucher_id}, "name")
-	if not voucher_name:
-		return f"Voucher {voucher_id} not found."
+	bc = frappe.db.get_value(
+		"Booking Code",
+		code,
+		["name", "state", "direction", "container_no", "booking", "expires_at"],
+		as_dict=True,
+	)
+	if not bc:
+		return f"Booking code {code} not found."
 
-	doc = frappe.get_doc("Voucher", voucher_name)
-	response = f"*Voucher Details: {doc.voucher_id}*\n"
-	response += f"Type: {(doc.voucher_type or '').replace('_', ' ')}\n"
-	response += f"Client: {doc.client}\n"
-	response += f"Principal: {doc.principal or 'N/A'}\n"
+	customer = _booking_customer(bc.booking)
+	response = f"*Booking Code: {bc.name}*\n"
+	response += f"Direction: {(bc.direction or '').replace('_', ' ')}\n"
+	response += f"Customer: {customer or 'N/A'}\n"
+	response += f"Container: {bc.container_no or 'N/A'}\n"
 
-	if doc.payment_status:
+	# An Active code is only issued after payment clears.
+	if bc.state == "Active":
 		response += "\n✅ Payment: VERIFIED\n\nYou may proceed with gate-in."
+	elif bc.state == "Used":
+		response += "\n✅ Payment: VERIFIED (code already used at the gate)."
 	else:
-		response += "\n❌ Payment: PENDING\n\nPlease complete payment before gate-in."
-
-	if doc.expected_containers:
-		response += "\n\n*Containers:*\n"
-		for c in doc.expected_containers:
-			response += f"- {c.container_no}: {(c.status or '').replace('_', ' ')}\n"
+		response += f"\n❌ Booking code state: {bc.state}\n\nPlease contact the office before gate-in."
 
 	return response
 
@@ -751,12 +718,12 @@ def handle_help(message, from_user, session_id):
    "Where is container ABCD123456-7?"
 
 🚪 *Gate-In*
-   "Gate in STLU123456-7 with voucher VOUCH-ABCD1234"
-   "Container arrived, voucher VOUCH-ABCD1234"
+   "Gate in STLU123456-7 with booking code OAK-ABC123"
+   "Container arrived, booking code OAK-ABC123"
 
 💰 *Check Payment*
-   "Check payment for VOUCH-ABCD1234"
-   "Is VOUCH-ABCD1234 paid?"
+   "Check payment for OAK-ABC123"
+   "Is OAK-ABC123 paid?"
 
 🧹 *Cleaning Queue*
    "Show cleaning queue"
@@ -771,7 +738,7 @@ def handle_help(message, from_user, session_id):
 ❓ *Help*
    "Help" or "What can you do?"
 
-*Tip:* Always include container numbers (e.g., STLU123456-7) or voucher numbers (e.g., VOUCH-ABCD1234) in your messages.
+*Tip:* Always include container numbers (e.g., STLU123456-7) or booking codes (e.g., OAK-ABC123) in your messages.
 """
 
 
@@ -780,8 +747,8 @@ def handle_unknown(message, from_user, session_id):
 
 Please try one of these:
 - "Check status of STLU123456-7"
-- "Gate in with voucher VOUCH-ABCD1234"
-- "Check payment for VOUCH-ABCD1234"
+- "Gate in with booking code OAK-ABC123"
+- "Check payment for OAK-ABC123"
 - "Show cleaning queue"
 - "Help" for more commands
 """
@@ -972,7 +939,7 @@ def get_agent_skills():
 			"endpoint": "/api/v1/gate/validate-qr",
 			"method": "POST",
 			"auth": "guest (rate-limited)",
-			"description": "Decode QR code and validate voucher. Returns voucher details including payment status and expected containers.",
+			"description": "Decode a Booking Code QR and validate it. Returns booking code details including state (Active = payment cleared), direction, and container.",
 			"parameters": ["qr_data"],
 		},
 		{
@@ -980,23 +947,23 @@ def get_agent_skills():
 			"endpoint": "/api/v1/gate/entry",
 			"method": "POST",
 			"auth": "authenticated (SST service user)",
-			"description": "Register container gate-in at security checkpoint. Creates gate entry record and updates container status.",
-			"parameters": ["voucher_id", "container_no", "security_guard", "truck_plate", "driver_name"],
+			"description": "Register container gate-in at security checkpoint against a Booking Code. Creates gate entry record and updates container status.",
+			"parameters": ["booking_code", "container_no", "security_guard", "truck_plate", "driver_name"],
 		},
 		{
 			"name": "get_pending_lifts",
 			"endpoint": "/api/v1/yard/pending-lifts",
 			"method": "GET",
 			"auth": "guest (rate-limited)",
-			"description": "Get list of containers pending lift for a voucher. Returns container numbers, status, and suggested yard zones.",
-			"parameters": ["voucher_id", "container_no"],
+			"description": "Get the container pending lift for a Booking Code. Returns container number, status, and suggested yard zone.",
+			"parameters": ["booking_code", "container_no"],
 		},
 		{
 			"name": "update_container_location",
 			"endpoint": "/api/v1/yard/update-location",
 			"method": "PATCH",
 			"auth": "authenticated (SST service user)",
-			"description": "Update container yard location after reachstacker lift. Updates both container and voucher records.",
+			"description": "Update container yard location after reachstacker lift. Updates the container record.",
 			"parameters": ["container_no", "yard_zone", "lifted_by"],
 		},
 		{

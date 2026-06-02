@@ -8,6 +8,7 @@ from container_depot.api import (
 	update_container_location,
 	upload_inspection_evidence
 )
+from container_depot.tests._booking_helpers import make_booking_code
 
 def run_tests():
 	print("🚀 Starting Container Depot Integration Tests...")
@@ -17,7 +18,7 @@ def run_tests():
 
 	try:
 		# 1. Setup Test Data
-		print("\n--- 1. Setting up test Container and Voucher ---")
+		print("\n--- 1. Setting up test Container and Booking Code ---")
 		container_no = "TSTU1234567"
 
 		# Seed Customer used as Container.principal (now Link Customer).
@@ -35,38 +36,26 @@ def run_tests():
 		container.insert(ignore_permissions=True)
 		print(f"✓ Created test Container: {container.name}")
 
-		# Create test voucher (voucher.principal is still free-text)
-		voucher = frappe.get_doc({
-			"doctype": "Voucher",
-			"voucher_id": "VOUCH-TST-9999",
-			"voucher_type": "Gate_In (Bon Bongkar)",
-			"client": "Test Client",
-			"principal": principal_customer,
-			"payment_status": 1,
-			"status": "Active",
-			"expected_containers": [
-				{
-					"container_no": container_no,
-					"container_type": "ISO Tank",
-					"status": "Expected"
-				}
-			]
-		})
-		voucher.insert(ignore_permissions=True)
-		print(f"✓ Created test Voucher: {voucher.name}")
+		# Create an Active Booking Code for this container.
+		code = make_booking_code(
+			customer=principal_customer,
+			container_no=container_no,
+			direction="Tank In",
+		)
+		print(f"✓ Created test Booking Code: {code.name}")
 
 		# 2. Test validate_qr API
 		print("\n--- 2. Testing validate_qr API ---")
-		qr_res = validate_qr("VOUCH-TST-9999")
+		qr_res = validate_qr(code.code)
 		print(f"validate_qr result: {json.dumps(qr_res, indent=2)}")
 		assert qr_res.get("valid") is True, "validate_qr failed"
-		assert qr_res.get("client") == "Test Client", "Client mismatch"
+		assert qr_res.get("booking_code") == code.name, "Booking Code mismatch"
 		print("✓ validate_qr API verified successfully.")
 
 		# 3. Test register_gate_entry API
 		print("\n--- 3. Testing register_gate_entry API ---")
 		entry_res = register_gate_entry(
-			voucher_id="VOUCH-TST-9999",
+			booking_code=code.code,
 			container_no=container_no,
 			security_guard="Administrator",
 			truck_plate="B-1234-XYZ",
@@ -99,7 +88,7 @@ def run_tests():
 
 		# 4. Test get_pending_lifts API
 		print("\n--- 4. Testing get_pending_lifts API ---")
-		lifts_res = get_pending_lifts(voucher_id="VOUCH-TST-9999")
+		lifts_res = get_pending_lifts(booking_code=code.code)
 		print(f"get_pending_lifts result: {json.dumps(lifts_res, indent=2)}")
 		assert lifts_res.get("success") is True, "get_pending_lifts failed"
 		assert len(lifts_res.get("containers")) > 0, "No pending lifts returned"
@@ -363,10 +352,15 @@ def cleanup_test_data():
 	
 	# Delete Container
 	frappe.db.delete("Container", {"container_no": "TSTU1234567"})
-	
-	# Delete Voucher
-	frappe.db.delete("Voucher", {"voucher_id": "VOUCH-TST-9999"})
-	
+
+	# Delete Booking Codes + their parent Bookings/Contracts for the test customer
+	test_bookings = frappe.db.get_values("Isotank Booking", {"customer": "Test Principal"}, "name", pluck=True)
+	if test_bookings:
+		frappe.db.delete("Booking Code", {"booking": ["in", test_bookings]})
+		frappe.db.delete("Isotank Booking Item", {"parent": ["in", test_bookings]})
+		frappe.db.delete("Isotank Booking", {"name": ["in", test_bookings]})
+	frappe.db.delete("Depot Contract", {"customer": "Test Principal"})
+
 	# Delete Fuel Log & Equipment
 	frappe.db.delete("Fuel Log", {"liters": 45.5, "cost_per_liter": 1.20})
 	frappe.db.delete("Equipment Maintenance", {"equipment_name": "Reachstacker #1"})
