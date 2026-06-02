@@ -28,6 +28,11 @@ export const labels = {
 	documents: "Dokumen", // Documents
 	noDocuments: "Belum ada dokumen", // No documents yet
 	viewPrint: "Lihat / Cetak", // View / Print
+	repairs: "Perbaikan", // Repairs
+	noRepairs: "Tidak ada perbaikan", // No repairs
+	estimateTotal: "Total Estimasi", // Estimate total
+	billing: "Penagihan", // Billing
+	technician: "Teknisi", // Technician
 	ptDue: "Tes Periodik Jatuh Tempo", // Periodic test due
 	ptDueFlag: "PT Jatuh Tempo", // PT due (short)
 }
@@ -53,4 +58,35 @@ export const statusColors = {
 
 export function statusLabel(bucket) {
 	return statusLabels[bucket] || bucket || "—"
+}
+
+// Repair Order raw statuses -> Indonesian (English fallback via the raw value).
+export const repairStatusLabels = {
+	Draft: "Draf",
+	"Pending Approval": "Menunggu Persetujuan",
+	Approved: "Disetujui",
+	"In Progress": "Dikerjakan",
+	Completed: "Selesai",
+	Cancelled: "Dibatalkan",
+}
+
+export const billingLabels = {
+	Unbilled: "Belum Ditagih",
+	"Client Billed": "Ditagih ke Klien",
+	"Principal Billed": "Ditagih ke Prinsipal",
+	Completed: "Selesai",
+}
+
+export function repairStatusLabel(s) {
+	return repairStatusLabels[s] || s || "—"
+}
+
+export function billingLabel(s) {
+	return billingLabels[s] || s || "—"
+}
+
+// Format a number as Indonesian Rupiah.
+export function rupiah(v) {
+	if (v === null || v === undefined || v === "") return "—"
+	return "Rp " + Number(v).toLocaleString("id-ID")
 }

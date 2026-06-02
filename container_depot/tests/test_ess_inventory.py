@@ -21,6 +21,7 @@ from container_depot.ess.inventory import (
 	get_tank_detail,
 )
 from container_depot.ess.documents import get_tank_documents, _pdf_url
+from container_depot.ess.repairs import get_tank_repairs, set_repair_status
 
 ESS_DEPOT = "ESST"
 # Raw status seeded per container -> expected derived bucket.
@@ -180,6 +181,54 @@ class TestEssInventory(FrappeTestCase):
 		self.assertIn("format=Cleaning+Certificate+Format", url)
 		# Standard format omits the format param entirely.
 		self.assertNotIn("format=", _pdf_url("Inspection", "EIR-2026-00001"))
+
+	def test_get_tank_repairs(self):
+		res = get_tank_repairs("ESST1000006")
+		self.assertTrue(res["success"])
+		self.assertEqual(len(res["repairs"]), 1)
+		ro = res["repairs"][0]
+		self.assertEqual(ro["status"], "Draft")
+		self.assertEqual(ro["billing_status"], "Unbilled")
+		self.assertEqual(ro["next_statuses"], ["Pending Approval", "Cancelled"])
+		self.assertIn("items", ro)
+
+	def test_set_repair_status_transitions(self):
+		# Self-contained: own container + RO, cleaned up so other tests are safe.
+		c = frappe.get_doc(
+			{
+				"doctype": "Container",
+				"container_no": "ESST1009999",
+				"container_type": "ISO Tank",
+				"status": "Needs_Repair",
+				"depot": ESS_DEPOT,
+			}
+		).insert(ignore_permissions=True)
+		ro = frappe.get_doc(
+			{
+				"doctype": "Repair Order",
+				"container": c.name,
+				"status": "Draft",
+				"billing_status": "Unbilled",
+			}
+		).insert(ignore_permissions=True)
+		try:
+			# Invalid jump rejected.
+			with self.assertRaises(frappe.ValidationError):
+				set_repair_status(ro.name, "Completed")
+
+			r1 = set_repair_status(ro.name, "Pending Approval")
+			self.assertEqual(r1["status"], "Pending Approval")
+
+			r2 = set_repair_status(ro.name, "Approved")
+			self.assertEqual(r2["status"], "Approved")
+			# Controller propagated the container status (reuse, not reimplement).
+			self.assertEqual(frappe.db.get_value("Container", c.name, "status"), "Repair_In_Progress")
+		finally:
+			for dt in ["Container Movement"]:
+				frappe.db.delete(dt, {"container": c.name})
+			frappe.delete_doc("Repair Order", ro.name, force=True, ignore_permissions=True)
+			frappe.delete_doc("Container", c.name, force=True, ignore_permissions=True)
+			frappe.db.commit()
 
 	def test_guest_is_rejected(self):
 		frappe.set_user("Guest")

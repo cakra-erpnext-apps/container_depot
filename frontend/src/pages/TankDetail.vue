@@ -69,15 +69,81 @@
 					</li>
 				</ul>
 			</section>
+
+			<!-- F3 — repair tracking & estimate -->
+			<section>
+				<h2 class="mb-2 text-sm font-semibold text-gray-700">{{ labels.repairs }}</h2>
+				<p v-if="repairs.loading && !repairs.data" class="text-sm text-gray-500">
+					{{ labels.loading }}
+				</p>
+				<p v-else-if="repairs.error" class="text-sm text-red-600">
+					{{ labels.error }}
+					<button class="underline" @click="repairs.reload()">{{ labels.retry }}</button>
+				</p>
+				<p v-else-if="!repairList.length" class="text-sm text-gray-500">
+					{{ labels.noRepairs }}
+				</p>
+				<ul v-else class="space-y-2">
+					<li
+						v-for="ro in repairList"
+						:key="ro.name"
+						class="rounded-lg border bg-white p-3"
+					>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-medium">{{ ro.repair_order_id || ro.name }}</span>
+							<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+								{{ repairStatusLabel(ro.status) }}
+							</span>
+						</div>
+						<div class="mt-1 flex justify-between text-xs text-gray-500">
+							<span>{{ labels.billing }}: {{ billingLabel(ro.billing_status) }}</span>
+							<span class="font-medium text-gray-900">
+								{{ labels.estimateTotal }}: {{ rupiah(ro.total_cost) }}
+							</span>
+						</div>
+
+						<ul v-if="ro.items.length" class="mt-2 divide-y border-t text-xs">
+							<li v-for="(it, i) in ro.items" :key="i" class="flex justify-between gap-2 py-1">
+								<span class="min-w-0 truncate text-gray-600">
+									{{ it.part_description || "—" }}
+								</span>
+								<span class="shrink-0 text-gray-900">
+									{{ rupiah((it.total_price || 0) + (it.labor_total || 0)) }}
+								</span>
+							</li>
+						</ul>
+
+						<div v-if="ro.next_statuses.length" class="mt-3 flex flex-wrap gap-2">
+							<button
+								v-for="ns in ro.next_statuses"
+								:key="ns"
+								class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
+								:disabled="repairAction.loading"
+								@click="advance(ro.name, ns)"
+							>
+								→ {{ repairStatusLabel(ns) }}
+							</button>
+						</div>
+						<p v-if="repairAction.error && actingOn === ro.name" class="mt-2 text-xs text-red-600">
+							{{ repairActionError }}
+						</p>
+					</li>
+				</ul>
+			</section>
 		</template>
 	</div>
 </template>
 
 <script setup>
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { createResource } from "frappe-ui"
 import StatusChip from "@/components/StatusChip.vue"
-import { labels } from "@/utils/labels"
+import {
+	labels,
+	repairStatusLabel,
+	billingLabel,
+	rupiah,
+} from "@/utils/labels"
 
 const props = defineProps({
 	name: { type: String, required: true },
@@ -98,6 +164,34 @@ const documents = createResource({
 })
 
 const docs = computed(() => documents.data?.documents || [])
+
+const repairs = createResource({
+	url: "container_depot.ess.repairs.get_tank_repairs",
+	method: "GET",
+	makeParams: () => ({ container: props.name }),
+	auto: true,
+})
+const repairList = computed(() => repairs.data?.repairs || [])
+
+// Approval action (POST). On success, refresh repairs + the detail card, since
+// advancing a repair propagates the container's derived status server-side.
+const actingOn = ref(null)
+const repairAction = createResource({
+	url: "container_depot.ess.repairs.set_repair_status",
+	method: "POST",
+	onSuccess() {
+		repairs.reload()
+		detail.reload()
+	},
+})
+const repairActionError = computed(
+	() => repairAction.error?.messages?.[0] || repairAction.error?.message || labels.error
+)
+
+function advance(repairOrder, status) {
+	actingOn.value = repairOrder
+	repairAction.submit({ repair_order: repairOrder, status })
+}
 
 function fmtNum(v, unit) {
 	if (v === null || v === undefined || v === "" || Number(v) === 0) return null
