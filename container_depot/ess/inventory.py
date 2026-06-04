@@ -7,11 +7,12 @@ Custom DocPerm matrix seeded by ``install.py`` *and* any ``User Permission``
 (e.g. depot scoping on ``Container.depot``) filter the results automatically.
 There is no permission logic in the PWA.
 
-Status is **derived server-side** here — the raw ``Container.status`` Select has
-a duplicated ``In_Workshop`` value and ~15 overlapping states (PRD §10), so the
-UI never trusts it. :func:`derive_status` collapses the raw status (kept in sync
-with the latest Container Movement by ``Container.on_update``) plus open
-Repair / Cleaning / Inspection records into five canonical buckets.
+Status is **derived server-side** here — the raw ``Container.status`` Select
+carries the full lifecycle (normalised in B0: duplicate removed, portal states
+added), but the UI only ever needs five buckets. :func:`derive_status` collapses
+the raw status (kept in sync with the latest Container Movement by
+``Container.on_update``) plus open Repair / Cleaning / Inspection records into
+those five canonical buckets.
 """
 
 from __future__ import annotations
@@ -25,23 +26,34 @@ from container_depot.tasks import PT_REMINDER_DAYS
 # Canonical ESS status buckets (keys are stable; labels live in the front-end).
 BUCKETS = ("in_depot", "cleaning", "repair_survey", "ready", "gate_out")
 
+# Raw statuses that are NOT physically in the depot yet and must be excluded from
+# live inventory counts/lists. `Booked` = a tank reserved by an Isotank Booking
+# whose Container master was created at booking time but has not yet gated in.
+EXCLUDED_FROM_INVENTORY = ("Booked",)
+
 # Open-state filters for the service doctypes that override a tank's bucket.
 OPEN_CLEANING = ("Pending", "In_Progress")
 OPEN_REPAIR = ("Draft", "Pending Approval", "Approved", "In Progress")
 OPEN_INSPECTION = ("Draft", "Submitted")
 
-# Raw Container.status values mapped to each bucket. `In_Workshop` (the
-# duplicated option) lands in repair_survey from a single place here.
-_GATE_OUT_RAW = {"Gate_Out"}
-_READY_RAW = {"Ready_For_Release", "Ready_For_Service"}
-_CLEANING_RAW = {"Needs_Cleaning", "Pending_Cleaning", "Cleaning_In_Progress"}
+# Raw Container.status values mapped to each canonical UI bucket. The status
+# enum was normalised (duplicate `In_Workshop` removed; portal lifecycle states
+# added) — these sets keep the five buckets stable across that change.
+_GATE_OUT_RAW = {"Gate_Out", "Released_Pending_Pickup"}
+_READY_RAW = {"Ready_For_Release", "Ready_For_Service", "Cleaning_Cert_Issued", "Empty_Clean"}
+_CLEANING_RAW = {
+	"Needs_Cleaning",
+	"Pending_Cleaning",
+	"Cleaning_In_Progress",
+	"Cleaning_Completed",
+	"Awaiting_Recleaning_Approval",
+	"Recleaning_In_Progress",
+}
 _REPAIR_RAW = {
-	"Needs_Repair",
-	"In_Workshop",
-	"Pending_Repair",
 	"Pending_Survey",
-	"Repair_In_Progress",
 	"Survey_In_Progress",
+	"Awaiting_MR_Approval",
+	"Repair_In_Progress",
 	"Inspecting",
 }
 
@@ -134,7 +146,7 @@ def get_inventory_summary(depot=None):
 	"""
 	_require_authenticated_user()
 
-	filters = {}
+	filters = {"status": ["not in", EXCLUDED_FROM_INVENTORY]}
 	if depot:
 		filters["depot"] = depot
 
@@ -186,7 +198,7 @@ def get_tank_list(
 	elif status not in BUCKETS:
 		frappe.throw(frappe._("Invalid status filter: {0}").format(status), frappe.ValidationError)
 
-	filters = {}
+	filters = {"status": ["not in", EXCLUDED_FROM_INVENTORY]}
 	if principal:
 		filters["principal"] = principal
 	if yard_zone:

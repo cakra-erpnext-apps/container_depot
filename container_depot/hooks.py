@@ -11,6 +11,22 @@ app_license = "MIT"
 after_install = "container_depot.install.after_install"
 after_migrate = "container_depot.install.after_migrate"
 
+# Document Events
+# ---------------
+
+doc_events = {
+	"Customer Portal User": {
+		"after_insert": "container_depot.portal.sync_portal_user_permission",
+		"on_update": "container_depot.portal.sync_portal_user_permission",
+	},
+	# Keep an Isotank Booking's payment_status in step with its Sales Invoice when
+	# a payment is recorded / reversed. Scoped to bookings only.
+	"Payment Entry": {
+		"on_submit": "container_depot.operations.doctype.isotank_booking.isotank_booking.on_payment_entry_change",
+		"on_cancel": "container_depot.operations.doctype.isotank_booking.isotank_booking.on_payment_entry_change",
+	},
+}
+
 # Scheduled Jobs
 # --------------
 
@@ -20,10 +36,15 @@ scheduler_events = {
 	],
 	"daily": [
 		"container_depot.tasks.remind_periodic_test_due",
+		"container_depot.tasks.notify_customers",
 	],
 	"cron": {
 		"*/5 * * * *": [
 			"container_depot.tasks.mark_stale_sst_heartbeats",
+		],
+		# 02:00 on the 1st of each month: bill the prior month.
+		"0 2 1 * *": [
+			"container_depot.tasks.generate_monthly_invoices",
 		],
 	},
 }

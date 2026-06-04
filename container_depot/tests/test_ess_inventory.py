@@ -30,7 +30,7 @@ TANKS = {
 	"ESST1000002": "Gate_Out",  # gate_out
 	"ESST1000003": "Ready_For_Release",  # ready
 	"ESST1000004": "Available",  # cleaning (open CO)
-	"ESST1000005": "In_Workshop",  # repair_survey (duplicated raw value)
+	"ESST1000005": "Repair_In_Progress",  # repair_survey
 	"ESST1000006": "Available",  # repair_survey (open RO)
 	"ESST1000007": "Available",  # repair_survey (open EIR)
 }
@@ -109,8 +109,14 @@ class TestEssInventory(FrappeTestCase):
 		self.assertEqual(derive_status("Gate_Out"), "gate_out")
 		self.assertEqual(derive_status("Ready_For_Release"), "ready")
 		self.assertEqual(derive_status("Ready_For_Service"), "ready")
-		# The duplicated In_Workshop value collapses into repair_survey.
-		self.assertEqual(derive_status("In_Workshop"), "repair_survey")
+		# New portal lifecycle states bucket correctly.
+		self.assertEqual(derive_status("Cleaning_Cert_Issued"), "ready")
+		self.assertEqual(derive_status("Empty_Clean"), "ready")
+		self.assertEqual(derive_status("Released_Pending_Pickup"), "gate_out")
+		self.assertEqual(derive_status("Awaiting_MR_Approval"), "repair_survey")
+		self.assertEqual(derive_status("Repair_In_Progress"), "repair_survey")
+		self.assertEqual(derive_status("Awaiting_Recleaning_Approval"), "cleaning")
+		self.assertEqual(derive_status("Cleaning_Completed"), "cleaning")
 		self.assertEqual(derive_status("Available"), "in_depot")
 		self.assertEqual(derive_status("Available", open_cleaning=True), "cleaning")
 		self.assertEqual(derive_status("Available", open_repair=True), "repair_survey")
@@ -199,7 +205,7 @@ class TestEssInventory(FrappeTestCase):
 				"doctype": "Container",
 				"container_no": "ESST1009999",
 				"container_type": "ISO Tank",
-				"status": "Needs_Repair",
+				"status": "Awaiting_MR_Approval",
 				"depot": ESS_DEPOT,
 			}
 		).insert(ignore_permissions=True)
