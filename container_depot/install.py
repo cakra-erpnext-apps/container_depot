@@ -221,6 +221,7 @@ def after_install():
 	ensure_roles_exist()
 	setup_permissions()
 	setup_custom_fields()
+	ensure_selling_settings()
 	setup_workspace()
 
 
@@ -232,6 +233,9 @@ def after_migrate():
 	setup_permissions()
 	# create_custom_fields is idempotent (upserts by dt+fieldname).
 	setup_custom_fields()
+	# Keep the depot-pricing invariant: Bertschi Product Bundles must bill at the
+	# bundle parent's flat Item Price, not a recomputed sum of component prices.
+	ensure_selling_settings()
 	# Workspace Sidebar JSON isn't picked up by Frappe's standard module-sync,
 	# so we re-import the file every migrate. Idempotent (force=True replaces
 	# the existing rows in-place).
@@ -253,6 +257,57 @@ CUSTOM_FIELDS = {
 			"in_standard_filter": 1,
 		}
 	],
+	# Depot-pricing fields (pricing spec §3.2). Repair services price as
+	# manhour × Price List manhour_rate + material_cost; packages are flagged so
+	# they can be filtered apart from single services.
+	"Item": [
+		{
+			"fieldname": "depot_pricing_section",
+			"label": "Depot Pricing",
+			"fieldtype": "Section Break",
+			"insert_after": "stock_uom",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "is_depot_package",
+			"label": "Is Depot Package",
+			"fieldtype": "Check",
+			"insert_after": "depot_pricing_section",
+			"in_standard_filter": 1,
+			"description": "Bundle parent sold at one flat price (e.g. a Bertschi package).",
+		},
+		{
+			"fieldname": "service_unit",
+			"label": "Service Unit",
+			"fieldtype": "Data",
+			"insert_after": "is_depot_package",
+			"description": "Billing unit from the rate card (tank / per / day / hour).",
+		},
+		{
+			"fieldname": "manhour",
+			"label": "Manhour",
+			"fieldtype": "Float",
+			"insert_after": "service_unit",
+			"description": "Standard labour hours for a repair service. Effective rate = manhour × Price List manhour rate + material cost.",
+		},
+		{
+			"fieldname": "material_cost",
+			"label": "Material Cost",
+			"fieldtype": "Currency",
+			"insert_after": "manhour",
+			"description": "Spare-part / material cost added on top of labour for a repair service.",
+		},
+	],
+	"Price List": [
+		{
+			"fieldname": "manhour_rate",
+			"label": "Manhour Rate",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"insert_after": "currency",
+			"description": "Labour rate per hour for repair services priced as manhour × rate + material (e.g. OAK 4.50, Bertschi 4.00).",
+		}
+	],
 }
 
 
@@ -262,6 +317,25 @@ def setup_custom_fields():
 
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
 	frappe.db.commit()
+
+
+def ensure_selling_settings():
+	"""Pin Selling Settings so Product Bundle parents bill at their own flat price.
+
+	With ``editable_bundle_item_rates`` ON, ERPNext recomputes a bundle's rate from
+	the sum of its component Item Prices (see erpnext stock ``packed_item``). The
+	Bertschi packages are sold at a single negotiated price held on the bundle
+	parent's Item Price, so we keep this OFF. Idempotent: only writes when needed,
+	and never breaks a migrate if Selling Settings is unavailable (frappe-only site).
+	"""
+	try:
+		if not frappe.db.exists("DocType", "Selling Settings"):
+			return
+		if frappe.db.get_single_value("Selling Settings", "editable_bundle_item_rates"):
+			frappe.db.set_single_value("Selling Settings", "editable_bundle_item_rates", 0)
+			frappe.db.commit()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "container_depot selling-settings sync failed")
 
 
 def sync_workspace_sidebar():

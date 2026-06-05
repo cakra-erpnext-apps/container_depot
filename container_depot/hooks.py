@@ -5,6 +5,14 @@ app_description = "Container and ISO Tank Management System"
 app_email = "info@oakdepot.com"
 app_license = "MIT"
 
+# Required apps
+# -------------
+# ERPNext is a hard dependency: the app imports erpnext (e.g. invoicing.py uses
+# erpnext.controllers.accounts_controller) and builds on ERPNext selling masters
+# (Item / Price List / Product Bundle / Sales Invoice). Declaring it here makes
+# `bench install-app` fail fast on a frappe-only site instead of erroring later.
+required_apps = ["erpnext"]
+
 # Installation
 # ------------
 
