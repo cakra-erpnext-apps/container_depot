@@ -130,6 +130,218 @@ class TestCashPaidInvoice(FrappeTestCase):
 		self.assertEqual(b.docstatus, 0)
 
 
+class TestWalkInPriceListPricing(FrappeTestCase):
+	"""Walk-in (no contract): the booking's default rate is resolved from the
+	customer's Price List instead of a contract tariff. The lift service name
+	(``Lift Off`` for Tank In) doubles as the catalog Item code."""
+
+	CUSTOMER = "Phase11 WalkIn Customer"
+	PRICE_LIST = "ZZ WalkIn PL"
+	LIFT_RATE = 175000.0  # IDR, matches the company currency so net_total is clean
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.customer = ensure_test_customer(cls.CUSTOMER)
+		# Walk-in has NO contract — _cleanup_customer_world clears any lingering one.
+		_cleanup_customer_world(cls.customer)
+
+		# Per-principal selling Price List the walk-in customer defaults to.
+		if not frappe.db.exists("Price List", cls.PRICE_LIST):
+			frappe.get_doc({
+				"doctype": "Price List",
+				"price_list_name": cls.PRICE_LIST,
+				"currency": "IDR",
+				"selling": 1,
+				"buying": 0,
+				"enabled": 1,
+			}).insert(ignore_permissions=True)
+		# "Lift Off" is a seeded catalog Item; create a minimal stand-in if the
+		# service-item seed has not run in this site.
+		if not frappe.db.exists("Item", "Lift Off"):
+			frappe.get_doc({
+				"doctype": "Item",
+				"item_code": "Lift Off",
+				"item_name": "Lift Off",
+				"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name")
+				or "All Item Groups",
+				"stock_uom": "Nos",
+				"is_stock_item": 0,
+				"is_sales_item": 1,
+			}).insert(ignore_permissions=True)
+		if not frappe.db.exists("Item Price", {"item_code": "Lift Off", "price_list": cls.PRICE_LIST}):
+			frappe.get_doc({
+				"doctype": "Item Price",
+				"item_code": "Lift Off",
+				"price_list": cls.PRICE_LIST,
+				"price_list_rate": cls.LIFT_RATE,
+				"selling": 1,
+			}).insert(ignore_permissions=True)
+		frappe.db.set_value("Customer", cls.customer, "default_price_list", cls.PRICE_LIST)
+		frappe.db.commit()
+
+	@classmethod
+	def tearDownClass(cls):
+		_cleanup_customer_world(cls.customer)
+		frappe.db.set_value("Customer", cls.customer, "default_price_list", None)
+		frappe.db.delete("Item Price", {"item_code": "Lift Off", "price_list": cls.PRICE_LIST})
+		frappe.db.delete("Price List", {"name": cls.PRICE_LIST})
+		frappe.db.commit()
+		super().tearDownClass()
+
+	def _walkin_booking(self):
+		# No ``contract`` key at all — this is the walk-in path.
+		return frappe.get_doc({
+			"doctype": "Isotank Booking",
+			"direction": "Tank In",  # Tank In -> derived lift_type "Lift Off"
+			"customer": self.customer,
+			"booking_status": "Pending Confirmation",
+			"do_reference": "DO-WALKIN",
+			"items": [{"container_no": "WALKIN00001"}],
+		})
+
+	def test_walkin_rate_resolved_from_price_list(self):
+		b = self._walkin_booking()
+		b.insert(ignore_permissions=True)
+		self.assertFalse(b.contract, "walk-in must carry no contract")
+		self.assertEqual(b.payment_type, "Cash", "walk-in defaults to Cash")
+		# Resolver picks the customer's Price List rate for the derived service.
+		self.assertEqual(b._resolve_service_rate("Lift Off"), self.LIFT_RATE)
+
+	def test_walkin_draft_invoice_priced_from_price_list(self):
+		b = self._walkin_booking()
+		b.insert(ignore_permissions=True)
+		self.assertTrue(b.sales_invoice, "walk-in Cash booking must auto-create a draft invoice")
+		self.assertEqual(
+			frappe.db.get_value("Sales Invoice", b.sales_invoice, "net_total"),
+			self.LIFT_RATE,  # 1 container x Price List Lift Off rate
+		)
+
+	def test_walkin_without_price_list_resolves_to_zero(self):
+		# Strip the customer's Price List: with no contract, the resolver falls
+		# back to the Selling Settings default list (where the lift service has no
+		# Item Price) and returns 0 — the Cashier fills the rate in. Graceful,
+		# never throws. (We assert the resolver, not the invoice net_total, which
+		# is subject to ERPNext's own price-list lookup on the generic line item.)
+		frappe.db.set_value("Customer", self.customer, "default_price_list", None)
+		try:
+			b = self._walkin_booking()
+			b.insert(ignore_permissions=True)
+			self.assertEqual(b._resolve_service_rate("Lift Off"), 0)
+		finally:
+			frappe.db.set_value("Customer", self.customer, "default_price_list", self.PRICE_LIST)
+
+
+class TestBookingCancel(FrappeTestCase):
+	"""Cancelling a submitted booking unwinds everything it created: status →
+	Cancelled, Active Booking Codes voided, auto-created phantom containers
+	deleted, and pre-existing tanks merely flipped to Booked reverted."""
+
+	CUSTOMER = "Phase11 Cancel Customer"
+	CONTAINERS = ("CXLPHANT001", "CXLEXIST001", "CXLHELD0001")
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.customer = ensure_test_customer(cls.CUSTOMER)
+		_cleanup_customer_world(cls.customer)
+		cls.contract = _make_active_contract(cls.customer, payment_type="Cash")
+
+	@classmethod
+	def tearDownClass(cls):
+		_cleanup_customer_world(cls.customer)
+		for cn in cls.CONTAINERS:
+			frappe.db.delete("Container Movement", {"container": cn})
+			frappe.db.delete("Container", {"container_no": cn})
+		frappe.db.commit()
+		super().tearDownClass()
+
+	def _submit_cash_booking(self, container_no):
+		b = frappe.get_doc({
+			"doctype": "Isotank Booking",
+			"direction": "Tank In",
+			"customer": self.customer,
+			"contract": self.contract,
+			"booking_status": "Pending Confirmation",
+			"do_reference": "DO-CXL",
+			"items": [{"container_no": container_no}],
+		}).insert(ignore_permissions=True)
+		# Cashier "acc": mark the auto-created draft invoice paid so submit passes.
+		if b.sales_invoice:
+			frappe.db.set_value(
+				"Sales Invoice", b.sales_invoice,
+				{"docstatus": 1, "status": "Paid", "outstanding_amount": 0},
+			)
+		b.reload()
+		b.submit()
+		return b
+
+	def test_cancel_voids_codes_and_sets_status(self):
+		b = self._submit_cash_booking("CXLPHANT001")
+		self.assertEqual(b.booking_status, "Confirmed")
+		self.assertTrue(frappe.db.exists("Booking Code", {"booking": b.name, "state": "Active"}))
+		b.cancel()
+		b.reload()
+		self.assertEqual(b.booking_status, "Cancelled")
+		self.assertFalse(
+			frappe.db.exists("Booking Code", {"booking": b.name, "state": "Active"}),
+			"Active booking codes must be voided on cancel",
+		)
+
+	def test_cancel_deletes_phantom_container(self):
+		b = self._submit_cash_booking("CXLPHANT001")
+		self.assertTrue(frappe.db.exists("Container", "CXLPHANT001"))
+		self.assertEqual(
+			frappe.db.get_value("Container", "CXLPHANT001", "created_by_booking"), b.name,
+			"pre-arrival phantom must be stamped with its booking",
+		)
+		b.cancel()
+		self.assertFalse(
+			frappe.db.exists("Container", "CXLPHANT001"),
+			"auto-created phantom container must be deleted on cancel",
+		)
+
+	def test_cancel_reverts_preexisting_container(self):
+		# A tank that already exists (NOT created by the booking).
+		if not frappe.db.exists("Container", "CXLEXIST001"):
+			frappe.get_doc({
+				"doctype": "Container",
+				"container_no": "CXLEXIST001",
+				"container_type": "ISO Tank",
+				"status": "Available",
+				"principal": self.customer,
+			}).insert(ignore_permissions=True)
+		b = self._submit_cash_booking("CXLEXIST001")
+		self.assertEqual(frappe.db.get_value("Container", "CXLEXIST001", "status"), "Booked")
+		self.assertFalse(frappe.db.get_value("Container", "CXLEXIST001", "created_by_booking"))
+		b.cancel()
+		self.assertTrue(
+			frappe.db.exists("Container", "CXLEXIST001"), "pre-existing tank must not be deleted"
+		)
+		self.assertEqual(
+			frappe.db.get_value("Container", "CXLEXIST001", "status"), "Available",
+			"flipped pre-existing tank must revert to Available on cancel",
+		)
+
+	def test_cancel_leaves_container_held_by_other_booking(self):
+		if not frappe.db.exists("Container", "CXLHELD0001"):
+			frappe.get_doc({
+				"doctype": "Container",
+				"container_no": "CXLHELD0001",
+				"container_type": "ISO Tank",
+				"status": "Available",
+				"principal": self.customer,
+			}).insert(ignore_permissions=True)
+		a = self._submit_cash_booking("CXLHELD0001")
+		b = self._submit_cash_booking("CXLHELD0001")  # second live booking on same tank
+		a.cancel()
+		self.assertEqual(
+			frappe.db.get_value("Container", "CXLHELD0001", "status"), "Booked",
+			"a tank still reserved by another live booking must stay Booked",
+		)
+		self.assertEqual(b.docstatus, 1)
+
+
 class TestTankOutGating(FrappeTestCase):
 	"""Direction=Tank Out requires every item Container to be Ready + have a
 	valid Cleaning Certificate."""

@@ -20,7 +20,7 @@ from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 from frappe.utils import add_to_date, getdate, now_datetime, today
 
-from container_depot import invoicing, pricing
+from container_depot import invoicing, pricing, pricing_model
 from container_depot.operations.doctype.booking_code.booking_code import (
 	CODE_TTL_HOURS,
 	generate_code,
@@ -69,18 +69,80 @@ class IsotankBooking(Document):
 		self._auto_invoice()
 
 	def on_cancel(self):
-		# Status is system-managed; a cancelled booking voids its still-Active codes.
+		"""Cancelling a booking unwinds everything it spun up:
+
+		1. ``booking_status`` → ``Cancelled`` (system-managed).
+		2. Every still-``Active`` Booking Code is voided — a cancelled booking must
+		   not keep live 72h gate-access codes.
+		3. The auto-created Cash Sales Invoice is discarded *iff* still an unpaid
+		   draft (a submitted/paid invoice is real accounting and is left for a
+		   deliberate Credit Note).
+		4. Pre-arrival containers are unwound (phantom deleted / flipped tank
+		   reverted) — see ``_release_pre_arrival_containers``.
+		"""
 		self.db_set("booking_status", "Cancelled", update_modified=False)
 		for code in frappe.get_all(
 			"Booking Code", filters={"booking": self.name, "state": "Active"}, pluck="name"
 		):
 			frappe.db.set_value("Booking Code", code, "state", "Cancelled", update_modified=False)
-
-	def on_cancel(self):
 		self._discard_unpaid_draft_invoice()
+		self._release_pre_arrival_containers()
 
 	def on_trash(self):
 		self._discard_unpaid_draft_invoice()
+		self._release_pre_arrival_containers()
+
+	def _release_pre_arrival_containers(self):
+		"""Unwind the Tank-In container reservations this booking made.
+
+		For each item's container that is still ``Booked`` and has **never gated
+		in** (``eir_in_date`` empty) and is not reserved by any *other* live
+		booking:
+
+		* **Phantom** (``created_by_booking == this booking``) — a master that
+		  only exists because of this booking → delete it (force, since the
+		  cancelled booking / voided codes still point at it).
+		* **Pre-existing** tank this booking merely flipped → revert to
+		  ``Available``.
+
+		Containers that have gated in, moved on in their lifecycle, or are held by
+		another active booking are left untouched."""
+		for item in self.items or []:
+			container = item.container
+			if not container or not frappe.db.exists("Container", container):
+				continue
+			row = frappe.db.get_value(
+				"Container", container, ["status", "eir_in_date", "created_by_booking"], as_dict=True
+			)
+			if not row or row.status != "Booked" or row.eir_in_date:
+				continue  # live / already moved on — never touch
+			if self._container_held_by_other_booking(container):
+				continue  # another live booking still reserves it
+			if row.created_by_booking == self.name:
+				# Phantom born for this booking: drop the dangling links (item ref,
+				# booking codes, and the auto-logged status Movement), then delete.
+				frappe.db.set_value("Isotank Booking Item", item.name, "container", None, update_modified=False)
+				frappe.db.delete("Booking Code", {"booking": self.name, "container": container})
+				frappe.db.delete("Container Movement", {"container": container})
+				frappe.delete_doc("Container", container, ignore_permissions=True, force=True)
+			else:
+				# Pre-existing tank we only flipped to Booked → release it.
+				frappe.db.set_value("Container", container, "status", "Available", update_modified=False)
+
+	def _container_held_by_other_booking(self, container):
+		"""True if a *different* non-cancelled Isotank Booking still has this
+		container on an item (so cancel must leave the reservation alone)."""
+		rows = frappe.db.sql(
+			"""
+			SELECT 1
+			FROM `tabIsotank Booking Item` i
+			JOIN `tabIsotank Booking` b ON b.name = i.parent
+			WHERE i.container = %s AND b.name != %s AND b.docstatus < 2
+			LIMIT 1
+			""",
+			(container, self.name),
+		)
+		return bool(rows)
 
 	def _sync_lift_type(self):
 		"""Lift type is the billing/crane view of the same move as ``direction`` —
@@ -146,15 +208,23 @@ class IsotankBooking(Document):
 				self._mark_pre_arrival(item.container)
 
 	def _create_pre_arrival_container(self, container_no, container_type=None):
-		"""Create a Container master for a pre-announced (not-yet-arrived) tank."""
+		"""Create a Container master for a pre-announced (not-yet-arrived) tank.
+
+		Stamped with ``created_by_booking`` so cancelling this booking can clean
+		the phantom up (delete it) — as opposed to a pre-existing tank that this
+		booking merely flipped to ``Booked``, which cancel only reverts."""
 		doc = frappe.get_doc({
 			"doctype": "Container",
 			"container_no": container_no,
 			"container_type": container_type or "ISO Tank",
 			"status": "Booked",
 			"principal": self.customer,
+			"created_by_booking": self.name,
 		})
-		doc.insert(ignore_permissions=True)
+		# This runs inside the booking's own validate — the booking row is not in
+		# the DB yet, so skip link validation on created_by_booking; it resolves as
+		# soon as the booking is inserted (same transaction, immediately after).
+		doc.insert(ignore_permissions=True, ignore_links=True)
 		return doc.name
 
 	def _mark_pre_arrival(self, container):
@@ -185,9 +255,27 @@ class IsotankBooking(Document):
 			frappe.throw(_("A Delivery Order reference is required to confirm this booking."))
 
 	# ---- billing --------------------------------------------------------
+	def _resolve_service_rate(self, service):
+		"""Per-unit selling rate for a booking's lift ``service``.
+
+		* **With a contract** → that contract's negotiated ``Tariff Rate`` (the
+		  live billing path — unchanged).
+		* **Without a contract (walk-in)** → the customer's Price List, where the
+		  service name doubles as the catalog Item code (``Lift On`` / ``Lift Off``
+		  are seeded Items): priced via ``pricing_model`` (flat Item Price, or the
+		  manhour formula for repair items).
+
+		Returns 0 when nothing prices it (walk-in with no Price List, or the list
+		has no Item Price for the service) so the Cashier can fill the rate in on
+		the draft invoice — same graceful fallback as before."""
+		if self.contract:
+			return pricing.resolve_tariff_rate(self.contract, service)
+		price_list = pricing_model.price_list_for_customer(self.customer)
+		return pricing_model.resolve_price(service, price_list) if price_list else 0
+
 	def _booking_amount(self):
 		service = self.lift_type or ("Lift Off" if self.direction == "Tank In" else "Lift On")
-		rate = pricing.resolve_tariff_rate(self.contract, service)
+		rate = self._resolve_service_rate(service)
 		qty = len(self.items or []) or 1
 		return rate * qty, rate, service
 
@@ -199,13 +287,14 @@ class IsotankBooking(Document):
 		Idempotent (skips once ``sales_invoice`` is set). Best-effort: a site that
 		isn't invoice-ready (no company) simply gets no invoice and the booking
 		stays a draft. Priced from the contract tariff when present; for a walk-in
-		without a tariff the line rate is 0 for the Cashier to fill in."""
+		without a contract the default rate comes from the customer's Price List
+		(0 only when neither prices it, leaving it for the Cashier to fill in)."""
 		if self.sales_invoice or self.docstatus != 0:
 			return
 		if (self.payment_type or "Cash") != "Cash":
 			return
 		service = self.lift_type or ("Lift Off" if self.direction == "Tank In" else "Lift On")
-		rate = pricing.resolve_tariff_rate(self.contract, service) if self.contract else 0
+		rate = self._resolve_service_rate(service)
 		qty = len(self.items or []) or 1
 		try:
 			si = invoicing.create_draft_sales_invoice(
