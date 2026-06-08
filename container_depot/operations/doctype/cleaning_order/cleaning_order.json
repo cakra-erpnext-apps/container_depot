@@ -107,8 +107,9 @@
     },
     {
       "fieldname": "last_cargo",
-      "fieldtype": "Data",
-      "label": "Last Cargo"
+      "fieldtype": "Link",
+      "label": "Last Cargo",
+      "options": "Cargo"
     },
     {
       "fieldname": "cleaning_type",
