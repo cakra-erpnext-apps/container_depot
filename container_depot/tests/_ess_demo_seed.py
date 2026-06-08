@@ -67,7 +67,7 @@ def seed():
 				"capacity": 26000 + i * 100,
 				"tare_weight": 3600 + i * 10,
 				"max_gross_weight": 36000,
-				"last_cargo": ["Methanol", "Ethanol", "Acetic Acid", "Glycol"][i % 4],
+				"last_cargo": ["Methanol", "Ethanol", "Acetic Acid", "Ethylene Glycol"][i % 4],
 				"last_test_date": add_days(today(), -400),
 			}
 		).insert(ignore_permissions=True)

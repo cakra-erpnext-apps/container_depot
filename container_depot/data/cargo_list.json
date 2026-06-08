@@ -1,0 +1,1052 @@
+[
+ {
+  "cargo_name": "Empty Clean",
+  "non_stolt_class": "Empty Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "1,3-Dioxolane",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "3-Dimethylaminopropylamine",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Acetic Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Acetone",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Acrylamide 50% or Less",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Akzo, Caprylic/Capric Acids Blend",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Alkyd Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Aphisot",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Aphisot NDC Palm",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Aquacid 105ex",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Arcol Polyol",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Armeen EA-13I",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Azko, Palmitic Acid 1698",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Bake Master",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Biodiesel",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Buthyl Acetate",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "BUTYL acetate-norm",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Butyl Acrylate-norm",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Butylene Glycol -1,4",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Butyraldehyde",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Calumet CW-190, Bulk",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Caprylic Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Casator Oil",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Caustic Soda Cair",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Caustics Soda 50%",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Cetyl Alcohol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "CFAG",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "CHSHOWNUTHEL Liquid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Clyclohexylamine",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Coconut Oil",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Coklat",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Costacid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "CPO",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Crude Glycerine",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Crude Sulfate Turpentine",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "CSA 3040",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "CSL Bulk",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Cyclopentanone",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Decanoic Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Deepwhite ABP Liquid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Dehydol Ls 1",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "DEODORIZER DISTILLATE",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Diethanolamine",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Diethyl Ethanolamine",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Diethylene Triamine",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Distilate (Petroleum) Hydrotreated Middle",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Distillates (Petroleum), Hydrotreated Light",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Dodiflow 4763",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Dodiflow 8014",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "DSD 552.01 Developmental Formulated Polyol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "EAC",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Ecolat KB1",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "EDC 95-11 Drilling Fluid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Edenor C18",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "EMAL",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Ethanol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Ethyl Acetate",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Ethylene diamine",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Ethylene Glycol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Ethylene Glycol Mono Buthyl Ether",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Ethylhexanol",
+  "non_stolt_class": "",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Ethylhexoic Acid-2",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Exxol D10 Fluid",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Exxol Hexane Fluid",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "FAL",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Fatty Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Fatty Acid Methyl Ester",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Faty Alcohol Policyteline",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Fennosize",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Formic Acid 85%",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Fructose",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Furanol TM 2000 LL Foliol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Gaprycil / Capric Acids C8-10",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Glucose",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Glucose Syrup",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Glycerin",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Glycerine",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Glyoxal 40% Solution",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "H2O2",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Hardened Topped Coconut Palm/Palm Kernel fatty Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "HCNO",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Heptane Standard S- G",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Hexane",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Hexane - Norm",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Hexylene glycol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Hitec 646E",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "HPKO",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "HSO 0",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Hydrocarbons, C12-C15, N-Alkanes, IsoAlkanes, Cyclics",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Hydroxy-2-4(Methyltio) Butanoic Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Hyvolt 1",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Infineum P5245",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Infineum P6003",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Infineum S1864",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "IPA",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Isododecene",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Isopar L",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Isopropanol Palmatic (Palmatic Acid, Isopropyl Est)",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Isoprophyl Alcohol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Isopropyl Alcohol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Isopropylamine Solution (70% or Less)",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Jefftreat AF-61 Antifoam",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Jefftreat MS-100",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "JTMS-300",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Kaoemulgen MB104L2",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "KM 32 / Potassium Methylate, Solution or Methanol 3",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "KMSC",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Lactic Acid",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Lauric Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Lauryl Myristyl Alcohol",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Lubad 1874",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Lube Oil, total Spindle Oil",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Lubrilam s 31 L",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Lubrizol 6586H",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Lubrizol 7418A",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Lupranol 2090/3",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Mascol 26",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "MEG",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Mess Paste 28%",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Methanol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Methyl Acetate",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Methyl Alcohol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Methyldiethanolamine",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Minyak nabati",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "MM-Melarine",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Mobiltrans HD 30",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "N, N-Dimethylformamide",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "N-Buthanol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "NaOH",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "NBAC",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "NBDPO",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Neopentyl Glycol 90% Solution",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Nitric Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "NPAC",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Oil engine Rp",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Oleic Microalgal Oil",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Olein",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Olein LGE",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Olein SF",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "P&G, Coco Fatty alcohol co-810",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Palm Kernel Fatty Acid C8/10",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Palm Oil",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Palmitic Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Palube",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Pan Century, Stearic Acid Tripple Pressed",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Pas liquid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Pentane-Norm",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Petrelab 550-Q",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "PFAD",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Phenol, 95%",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Phenol, Molten",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Phosporic Acid",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Phosporic Acid 75%-86%",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Phosporic Acid 85%",
+  "non_stolt_class": "",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Phosporic Acid 85-90% Food Grade",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Phosporic Acid Below 85%",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Polymer Polyols",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Polytetrahydrofurane 1800 s Ex BJL",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Prefere 70 5201L",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Premium krimer",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Propyl Acetate",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Propylane Glycol Industrial",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Propylane Glycol Usp",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "R12276A",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "RBD Palm Stearin",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "RBDCNO",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "RBDHPKS",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "RCO",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Refined Glycerine",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Resin liquid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "RHL",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Roll Oil 36S",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "RPKO",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "RPO Sania",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Salmon Oil",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Sanisol 50",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "SAP 191",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "SELFLOW 120",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Setal",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Shell GTL Solvent gs 270",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "SKC Polyol Y-5613C",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Smooth Fluid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Sodium",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Sodium 2-Hydroxyethanesulfonate 57% Aqueous Solution",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Sodium Methoxide Solution 30% in Methanol",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Sodium methylate",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Sodium Methylate 25% Solution",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Sodium Methylate Solutions (In Alcohol)",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Solvarex 10 Ln",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Somentor 35",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Sorbitol 70% Solution",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Soy bean Oil Distilate",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Stearic Acid Crude",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Stearid Acid",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Stearin",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Stepan Biodiesel SB-W",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Stepan C-42",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class C"
+ },
+ {
+  "cargo_name": "Stock 7057",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class A"
+ },
+ {
+  "cargo_name": "Styrene Monomer",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Surca",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Tego Betain",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Thaioil Hexane",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Toluene Sulfonic Acid-Para",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Toulene",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Triethylene Glycol",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": "Class B"
+ },
+ {
+  "cargo_name": "Trimex",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Use Cooking Oil",
+  "non_stolt_class": "Difficult Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Voranol Rp",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ },
+ {
+  "cargo_name": "Xylene Isomer",
+  "non_stolt_class": "Standard Clean",
+  "stolt_class": ""
+ }
+]

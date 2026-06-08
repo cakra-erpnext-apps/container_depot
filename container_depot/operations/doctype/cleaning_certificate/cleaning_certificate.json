@@ -57,8 +57,9 @@
     },
     {
       "fieldname": "prior_cargo",
-      "fieldtype": "Data",
-      "label": "Prior Cargo"
+      "fieldtype": "Link",
+      "label": "Prior Cargo",
+      "options": "Cargo"
     },
     {
       "fieldname": "cleaning_method",
