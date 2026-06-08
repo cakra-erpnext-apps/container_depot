@@ -52,3 +52,20 @@ def effective_item_rate(item_code: str, price_list: str) -> float:
 def resolve_price(item_code: str, price_list: str) -> float:
 	"""Public entry point billing will call to price a single service line."""
 	return effective_item_rate(item_code, price_list)
+
+
+def price_list_for_customer(customer: str | None) -> str | None:
+	"""Resolve the selling Price List to use for a *no-contract* (walk-in) booking.
+
+	A booking backed by a Depot Contract prices from that contract's tariff; a
+	walk-in has none, so the rate card falls back to a Price List. Preference:
+
+	  1. the Customer's own ``default_price_list`` (per-principal rate card);
+	  2. the site Selling Settings default selling price list;
+	  3. ``None`` — caller then leaves the rate 0 for the Cashier to fill in.
+	"""
+	if customer:
+		pl = frappe.db.get_value("Customer", customer, "default_price_list")
+		if pl:
+			return pl
+	return frappe.db.get_single_value("Selling Settings", "selling_price_list") or None
