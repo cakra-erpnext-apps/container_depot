@@ -40,7 +40,7 @@ def make_booking_code(
 	state: str = "Active",
 	offset_hours: int = 24,
 ):
-	"""Create a fresh Isotank Booking + Booking Code per call.
+	"""Create a fresh Container Booking + Booking Code per call.
 
 	Inlining the booking (rather than caching it across tests) avoids stale
 	names after FrappeTestCase rolls back per-test transactions. The parent
@@ -49,7 +49,7 @@ def make_booking_code(
 	"""
 	contract_name = make_contract(customer)
 	booking = frappe.get_doc({
-		"doctype": "Isotank Booking",
+		"doctype": "Container Booking",
 		"direction": "Tank In",
 		"customer": customer,
 		"contract": contract_name,

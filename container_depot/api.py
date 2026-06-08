@@ -74,10 +74,10 @@ def _resolve_customer(value) -> str | None:
 
 
 def _booking_customer(booking) -> str | None:
-	"""Return the Customer (already a Link) behind an Isotank Booking, or None."""
+	"""Return the Customer (already a Link) behind an Container Booking, or None."""
 	if not booking:
 		return None
-	return frappe.db.get_value("Isotank Booking", booking, "customer")
+	return frappe.db.get_value("Container Booking", booking, "customer")
 
 
 BOOKING_CODE_RE = re.compile(r"^OAK-[A-F0-9]{6,32}$")
@@ -859,7 +859,7 @@ def get_booking_pending_containers(booking):
 	Read-only; left unrestricted on HTTP method so the desk's ``frappe.call``
 	(which POSTs by default) can reach it."""
 	_require_authenticated_user()
-	if not booking or not frappe.db.exists("Isotank Booking", booking):
+	if not booking or not frappe.db.exists("Container Booking", booking):
 		frappe.throw(_("Booking {0} not found.").format(booking))
 	return frappe.get_all(
 		"Booking Code",
@@ -883,7 +883,7 @@ def generate_order_from_booking(booking, selected_codes, vehicle_data=None):
 	if isinstance(vd, str) and vd:
 		vd = json.loads(vd)
 	order_name = make_order(booking, selected_codes, vehicle_data=vd or {})
-	direction = frappe.db.get_value("Isotank Booking", booking, "direction")
+	direction = frappe.db.get_value("Container Booking", booking, "direction")
 	return {
 		"success": True,
 		"order_doctype": "Order Bongkar" if direction == "Tank In" else "Order Muat",

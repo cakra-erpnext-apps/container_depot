@@ -46,7 +46,7 @@ def _make_booking_code(*, direction, container_no, container=None, state="Active
 	# Always use Tank In for the parent booking to dodge Tank-Out gating —
 	# the Booking Code carries its own direction and that's what SST checks.
 	booking = frappe.get_doc({
-		"doctype": "Isotank Booking",
+		"doctype": "Container Booking",
 		"direction": "Tank In",
 		"customer": customer,
 		"contract": contract_name,

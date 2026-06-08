@@ -9,7 +9,7 @@ from frappe.utils import add_days, today
 
 from container_depot.tasks import notify_customers
 from container_depot.tests.test_api import ensure_test_customer
-from container_depot.tests.test_isotank_booking import _make_active_contract, _cleanup_customer_world
+from container_depot.tests.test_container_booking import _make_active_contract, _cleanup_customer_world
 
 
 class TestBookingGuards(FrappeTestCase):
@@ -24,7 +24,7 @@ class TestBookingGuards(FrappeTestCase):
 
 	def _booking(self, **kw):
 		doc = {
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -64,7 +64,7 @@ class TestTopBookingAccrual(FrappeTestCase):
 
 	def test_top_booking_accrues_without_invoice(self):
 		b = frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",  # Tank In -> Lift Off @ 250000 tariff line
 			"customer": self.customer,
 			"contract": self.contract,

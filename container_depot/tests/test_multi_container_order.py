@@ -51,7 +51,7 @@ def _booking_with_codes(*, code_direction, count, prefix, state="Active", offset
 	base = (prefix + "XXXXXXX")[:7]
 	cno = lambda i: f"{base}{i:04d}"
 	booking = frappe.get_doc({
-		"doctype": "Isotank Booking",
+		"doctype": "Container Booking",
 		"direction": "Tank In",
 		"customer": customer,
 		"contract": contract,
@@ -87,7 +87,7 @@ class TestMakeOrderCore(FrappeTestCase):
 		self.assertEqual(len(order.containers), 3)
 		self.assertEqual(order.booking, booking)
 		# Shipper defaults to the booking customer.
-		self.assertEqual(order.shipper, frappe.db.get_value("Isotank Booking", booking, "customer"))
+		self.assertEqual(order.shipper, frappe.db.get_value("Container Booking", booking, "customer"))
 		# Containers carry exactly the selected codes.
 		self.assertEqual(sorted(r.booking_code for r in order.containers), sorted(codes))
 		# All codes consumed.

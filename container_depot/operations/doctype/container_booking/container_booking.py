@@ -1,4 +1,4 @@
-"""Isotank Booking — the booking spine for PRO-OPS-08 Tank In / Tank Out.
+"""Container Booking — the booking spine for PRO-OPS-08 Tank In / Tank Out.
 
 Carries the three Phase-3 critical controllers:
 
@@ -33,7 +33,7 @@ from container_depot.operations.doctype.depot_contract.depot_contract import (
 CONTAINER_READY_STATUSES = {"Available", "Ready_For_Service", "Ready_For_Release", "Ready"}
 
 
-class IsotankBooking(Document):
+class ContainerBooking(Document):
 	# ---- naming ---------------------------------------------------------
 	def autoname(self):
 		prefix = "BKG-IN-" if self.direction == "Tank In" else "BKG-OUT-"
@@ -121,7 +121,7 @@ class IsotankBooking(Document):
 			if row.created_by_booking == self.name:
 				# Phantom born for this booking: drop the dangling links (item ref,
 				# booking codes, and the auto-logged status Movement), then delete.
-				frappe.db.set_value("Isotank Booking Item", item.name, "container", None, update_modified=False)
+				frappe.db.set_value("Container Booking Item", item.name, "container", None, update_modified=False)
 				frappe.db.delete("Booking Code", {"booking": self.name, "container": container})
 				frappe.db.delete("Container Movement", {"container": container})
 				frappe.delete_doc("Container", container, ignore_permissions=True, force=True)
@@ -130,13 +130,13 @@ class IsotankBooking(Document):
 				frappe.db.set_value("Container", container, "status", "Available", update_modified=False)
 
 	def _container_held_by_other_booking(self, container):
-		"""True if a *different* non-cancelled Isotank Booking still has this
+		"""True if a *different* non-cancelled Container Booking still has this
 		container on an item (so cancel must leave the reservation alone)."""
 		rows = frappe.db.sql(
 			"""
 			SELECT 1
-			FROM `tabIsotank Booking Item` i
-			JOIN `tabIsotank Booking` b ON b.name = i.parent
+			FROM `tabContainer Booking Item` i
+			JOIN `tabContainer Booking` b ON b.name = i.parent
 			WHERE i.container = %s AND b.name != %s AND b.docstatus < 2
 			LIMIT 1
 			""",
@@ -300,7 +300,7 @@ class IsotankBooking(Document):
 			si = invoicing.create_draft_sales_invoice(
 				self.customer,
 				[{
-					"description": f"Isotank Booking ({self.direction}) · {service} · {qty} ctr",
+					"description": f"Container Booking ({self.direction}) · {service} · {qty} ctr",
 					"qty": qty,
 					"rate": rate or 0,
 				}],
@@ -329,12 +329,12 @@ class IsotankBooking(Document):
 			si = invoicing.create_draft_sales_invoice(
 				self.customer,
 				[{
-					"description": f"Isotank Booking {self.name} · {service} · {len(self.items or [])} ctr",
+					"description": f"Container Booking {self.name} · {service} · {len(self.items or [])} ctr",
 					"qty": len(self.items or []) or 1,
 					"rate": rate,
 				}],
 				due_days=30,
-				remarks=f"Auto-generated from Isotank Booking {self.name}",
+				remarks=f"Auto-generated from Container Booking {self.name}",
 			)
 			if si:
 				self.db_set("sales_invoice", si, update_modified=False)
@@ -577,7 +577,7 @@ class IsotankBooking(Document):
 			}).insert(ignore_permissions=True)
 			# Persist the back-ref without re-validating the parent.
 			frappe.db.set_value(
-				"Isotank Booking Item",
+				"Container Booking Item",
 				item.name,
 				"booking_code",
 				code.name,
@@ -586,7 +586,7 @@ class IsotankBooking(Document):
 
 
 # ---- payment-status sync (booking ↔ its Sales Invoice) ----------------------
-# Scoped to Isotank Booking only: these helpers never touch monthly invoices or
+# Scoped to Container Booking only: these helpers never touch monthly invoices or
 # any other billing artefact.
 
 def _invoice_settlement(sales_invoice):
@@ -606,19 +606,19 @@ def _invoice_settlement(sales_invoice):
 
 
 def sync_bookings_for_invoice(sales_invoice):
-	"""Push a Sales Invoice's settlement state onto every Isotank Booking pinned to
+	"""Push a Sales Invoice's settlement state onto every Container Booking pinned to
 	it (draft or submitted)."""
 	target = _invoice_settlement(sales_invoice)
 	if not target:
 		return
-	for name in frappe.get_all("Isotank Booking", filters={"sales_invoice": sales_invoice}, pluck="name"):
-		if frappe.db.get_value("Isotank Booking", name, "payment_status") != target:
-			frappe.db.set_value("Isotank Booking", name, "payment_status", target, update_modified=False)
+	for name in frappe.get_all("Container Booking", filters={"sales_invoice": sales_invoice}, pluck="name"):
+		if frappe.db.get_value("Container Booking", name, "payment_status") != target:
+			frappe.db.set_value("Container Booking", name, "payment_status", target, update_modified=False)
 
 
 def on_payment_entry_change(doc, method=None):
 	"""doc_event (Payment Entry on_submit / on_cancel): refresh the ``payment_status``
-	of any Isotank Booking tied to the Sales Invoice(s) this payment settles. Runs
+	of any Container Booking tied to the Sales Invoice(s) this payment settles. Runs
 	after ERPNext has recomputed the invoice outstanding, so the read is current."""
 	seen = set()
 	for ref in (doc.get("references") or []):

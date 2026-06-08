@@ -166,7 +166,7 @@
       "fieldname": "items",
       "fieldtype": "Table",
       "label": "Items",
-      "options": "Isotank Booking Item",
+      "options": "Container Booking Item",
       "reqd": 1
     }
   ],
@@ -174,7 +174,7 @@
   "links": [],
   "modified": "2026-05-29",
   "module": "Operations",
-  "name": "Isotank Booking",
+  "name": "Container Booking",
   "search_fields": "customer, direction, booking_status",
   "sort_field": "creation",
   "sort_order": "DESC",

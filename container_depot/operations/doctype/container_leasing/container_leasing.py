@@ -1,4 +1,4 @@
-"""Isotank Leasing — lessee/period/status registry (PRD v0.2 §5).
+"""Container Leasing — lessee/period/status registry (PRD v0.2 §5).
 
 A standalone activity separate from the Tank In/Out booking spine: it records
 who is leasing a tank, for which period, the current status and a lifecycle
@@ -12,7 +12,7 @@ from frappe.model.document import Document
 from frappe.utils import getdate, today
 
 
-class IsotankLeasing(Document):
+class ContainerLeasing(Document):
 	def validate(self):
 		self._flag_overdue()
 

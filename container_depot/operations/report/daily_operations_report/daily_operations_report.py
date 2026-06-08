@@ -62,7 +62,7 @@ def _bookings_today():
 	rows = frappe.db.sql(
 		"""
 		SELECT booking_status, COUNT(*) AS c
-		FROM `tabIsotank Booking`
+		FROM `tabContainer Booking`
 		WHERE DATE(creation) = %s
 		GROUP BY booking_status
 		ORDER BY c DESC

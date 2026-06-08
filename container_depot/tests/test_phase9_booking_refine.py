@@ -1,4 +1,4 @@
-"""Phase 9 (B6) tests: Isotank Booking menu refinements.
+"""Phase 9 (B6) tests: Container Booking menu refinements.
 
 Covers the post-review decisions:
 - Depot is mandatory (Desk) and auto-filled for programmatic callers.
@@ -19,7 +19,7 @@ from frappe.utils import now_datetime
 from container_depot.ess import inventory
 from container_depot.state_machine import assert_transition, is_allowed
 from container_depot.tests.test_api import ensure_test_customer
-from container_depot.tests.test_isotank_booking import (
+from container_depot.tests.test_container_booking import (
 	_cleanup_customer_world,
 	_make_active_contract,
 )
@@ -41,7 +41,7 @@ def _ensure_test_depot() -> str:
 
 class TestDepotMandatory(FrappeTestCase):
 	def test_depot_field_is_mandatory(self):
-		self.assertEqual(frappe.get_meta("Isotank Booking").get_field("depot").reqd, 1)
+		self.assertEqual(frappe.get_meta("Container Booking").get_field("depot").reqd, 1)
 
 	def test_depot_autofilled_for_programmatic_caller(self):
 		_ensure_test_depot()
@@ -49,7 +49,7 @@ class TestDepotMandatory(FrappeTestCase):
 		_cleanup_customer_world(customer)
 		try:
 			b = frappe.get_doc({
-				"doctype": "Isotank Booking",
+				"doctype": "Container Booking",
 				"direction": "Tank In",
 				"lift_type": "Lift Off",
 				"customer": customer,
@@ -67,10 +67,10 @@ class TestLiftTypeDerived(FrappeTestCase):
 	(Tank In = Lift Off / drop at depot; Tank Out = Lift On / take from depot)."""
 
 	def test_lift_type_is_read_only(self):
-		self.assertEqual(frappe.get_meta("Isotank Booking").get_field("lift_type").read_only, 1)
+		self.assertEqual(frappe.get_meta("Container Booking").get_field("lift_type").read_only, 1)
 
 	def test_direction_maps_to_lift_type(self):
-		b = frappe.new_doc("Isotank Booking")
+		b = frappe.new_doc("Container Booking")
 		b.direction = "Tank In"
 		b._sync_lift_type()
 		self.assertEqual(b.lift_type, "Lift Off")
@@ -106,7 +106,7 @@ class TestCashContractFlow(FrappeTestCase):
 
 	def _booking(self):
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",  # Tank In -> Lift Off @ 250000 tariff line (derived)
 			"customer": self.customer,
 			"contract": self.contract,
@@ -169,7 +169,7 @@ class TestPaymentStatusSync(FrappeTestCase):
 
 	def _draft_cash_booking(self):
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -189,7 +189,7 @@ class TestPaymentStatusSync(FrappeTestCase):
 		self.assertEqual(b.payment_status, "Unpaid")  # draft invoice → still Unpaid
 
 	def test_sync_flips_to_paid_when_invoice_paid(self):
-		from container_depot.operations.doctype.isotank_booking.isotank_booking import (
+		from container_depot.operations.doctype.container_booking.container_booking import (
 			sync_bookings_for_invoice,
 		)
 
@@ -200,7 +200,7 @@ class TestPaymentStatusSync(FrappeTestCase):
 		self.assertEqual(b.payment_status, "Paid")
 
 	def test_payment_entry_hook_flips_booking(self):
-		from container_depot.operations.doctype.isotank_booking.isotank_booking import (
+		from container_depot.operations.doctype.container_booking.container_booking import (
 			on_payment_entry_change,
 		)
 
@@ -239,7 +239,7 @@ class TestDiscardCleansInvoice(FrappeTestCase):
 
 	def _draft(self, cn):
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -279,7 +279,7 @@ class TestWalkInNoContract(FrappeTestCase):
 
 	def test_walk_in_saves_without_contract(self):
 		b = frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"booking_status": "Pending Confirmation",
@@ -314,7 +314,7 @@ class TestContainerSingleInput(FrappeTestCase):
 
 	def _booking(self):
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"lift_type": "Lift Off",
 			"customer": self.customer,

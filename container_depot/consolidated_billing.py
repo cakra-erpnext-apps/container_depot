@@ -24,7 +24,7 @@ from container_depot.pricing import resolve_tariff_rate
 def _booking_lines(customer, lo, hi):
 	"""Unbilled (no ``sales_invoice``) submitted bookings → lift-charge lines."""
 	rows = frappe.get_all(
-		"Isotank Booking",
+		"Container Booking",
 		filters={
 			"customer": customer,
 			"docstatus": 1,
@@ -39,9 +39,9 @@ def _booking_lines(customer, lo, hi):
 		rate = resolve_tariff_rate(r.contract, service)
 		if not rate or rate <= 0:
 			continue
-		qty = frappe.db.count("Isotank Booking Item", {"parent": r.name}) or 1
+		qty = frappe.db.count("Container Booking Item", {"parent": r.name}) or 1
 		lines.append({"description": f"Booking {r.name} · {service} · {qty} ctr", "qty": qty, "rate": rate})
-		refs.append(("Isotank Booking", r.name))
+		refs.append(("Container Booking", r.name))
 	return lines, refs
 
 
@@ -143,7 +143,7 @@ def bill_customer(customer, from_date=None, to_date=None):
 
 	# Mark every swept source billed so it is never re-billed.
 	for dt, name in refs:
-		if dt == "Isotank Booking":
+		if dt == "Container Booking":
 			frappe.db.set_value(dt, name, {"sales_invoice": si, "payment_status": "Invoiced"}, update_modified=False)
 		elif dt == "Repair Order":
 			frappe.db.set_value(dt, name, "billing_status", "Client Billed", update_modified=False)

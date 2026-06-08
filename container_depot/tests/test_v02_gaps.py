@@ -4,7 +4,7 @@
 §2 Canonical cleaning types (PP Wash / Methanol Rinse / Steam Wash)
 §3 Depot master + depot field
 §4 Periodic Test due-date + TANK OUT gating when overdue
-§5 Isotank Leasing registry
+§5 Container Leasing registry
 §6 Inventory KPI per Principal report
 """
 
@@ -18,7 +18,7 @@ from container_depot.operations.report.inventory_kpi_per_principal.inventory_kpi
 	execute as kpi_execute,
 )
 from container_depot.tests.test_api import ensure_test_customer
-from container_depot.tests.test_isotank_booking import (
+from container_depot.tests.test_container_booking import (
 	_cleanup_customer_world,
 	_make_active_contract,
 )
@@ -188,7 +188,7 @@ class TestPeriodicTest(FrappeTestCase):
 
 	def _tank_out_booking(self):
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank Out",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -240,7 +240,7 @@ class TestPeriodicTest(FrappeTestCase):
 			frappe.db.set_value("Container", self.container, "next_pt_due", None, update_modified=False)
 
 
-class TestIsotankLeasing(FrappeTestCase):
+class TestContainerLeasing(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -255,14 +255,14 @@ class TestIsotankLeasing(FrappeTestCase):
 
 	@classmethod
 	def tearDownClass(cls):
-		frappe.db.delete("Isotank Leasing", {"lessee": cls.customer})
+		frappe.db.delete("Container Leasing", {"lessee": cls.customer})
 		frappe.db.delete("Container", {"container_no": V02_CONTAINER})
 		frappe.db.commit()
 		super().tearDownClass()
 
 	def test_active_lease_past_end_flagged_overdue(self):
 		lease = frappe.get_doc({
-			"doctype": "Isotank Leasing",
+			"doctype": "Container Leasing",
 			"lessee": self.customer,
 			"container": V02_CONTAINER,
 			"status": "Active",

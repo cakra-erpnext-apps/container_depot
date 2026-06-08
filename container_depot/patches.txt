@@ -1,4 +1,5 @@
 [pre_model_sync]
+container_depot.patches.v0_14.rename_isotank_to_container
 
 [post_model_sync]
 container_depot.patches.v0_2.migrate_container_principal_to_customer
@@ -21,3 +22,5 @@ container_depot.patches.v0_11.seed_product_bundles
 container_depot.patches.v0_11.seed_contract_template
 container_depot.patches.v0_12.seed_cargo
 container_depot.patches.v0_12.link_cargo_fields
+container_depot.patches.v0_13.set_customer_payment_terms
+container_depot.patches.v0_13.set_customer_billing_currency

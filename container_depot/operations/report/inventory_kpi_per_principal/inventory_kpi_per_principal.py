@@ -5,7 +5,7 @@ KPIs, optionally scoped to a single depot via the ``depot`` filter:
 
 - Stock In Depo   — containers currently in the depot (status != Gate_Out)
 - Dirty / Clean   — by Container.cleaning_status
-- Total IN / OUT  — submitted Isotank Booking items by direction
+- Total IN / OUT  — submitted Container Booking items by direction
 - Total Cleaned   — submitted Cleaning Certificates
 - Total PT2.5 / PT5 — Periodic Tests by type
 - PP Wash / Methanol / Steam — Cleaning Certificates by cleaning_method
@@ -116,8 +116,8 @@ def _booking_counts(depot, direction):
 	rows = frappe.db.sql(
 		f"""
 		SELECT c.principal AS principal, COUNT(*) AS c
-		FROM `tabIsotank Booking Item` it
-		JOIN `tabIsotank Booking` b ON it.parent = b.name
+		FROM `tabContainer Booking Item` it
+		JOIN `tabContainer Booking` b ON it.parent = b.name
 		JOIN `tabContainer` c ON it.container = c.name
 		WHERE b.direction = %s AND b.docstatus < 2
 		  AND c.principal IS NOT NULL AND c.principal != ''{clause}

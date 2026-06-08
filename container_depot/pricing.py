@@ -40,7 +40,7 @@ def contract_for_order(order):
 	booking = frappe.db.get_value("Booking Code", order.booking_code, "booking")
 	if not booking:
 		return None
-	return frappe.db.get_value("Isotank Booking", booking, "contract")
+	return frappe.db.get_value("Container Booking", booking, "contract")
 
 
 def order_amount(order):

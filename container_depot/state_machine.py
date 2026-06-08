@@ -29,7 +29,7 @@ from frappe import _
 # Edges cover the customer lifecycle (survey/M&R/re-cleaning/release) plus the
 # internal gate-ops moves that existing controllers and tests perform.
 CONTAINER_TRANSITIONS = {
-	# Pre-arrival: a tank reserved by an Isotank Booking but not yet physically
+	# Pre-arrival: a tank reserved by an Container Booking but not yet physically
 	# at the gate. Excluded from live inventory (see ess/inventory.py).
 	"Booked": ["Gate_In", "Available"],
 	"Available": ["Gate_In", "Inspecting", "Pending_Survey", "Needs_Cleaning", "Empty_Clean", "Booked"],

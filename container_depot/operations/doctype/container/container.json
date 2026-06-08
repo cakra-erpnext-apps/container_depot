@@ -93,11 +93,11 @@
       "options": "Customer"
     },
     {
-      "description": "Set when this Container master was auto-created as a pre-arrival reservation for an Isotank Booking (Tank In, container not yet in the system). On that booking's cancellation, the phantom is deleted if it never gated in; pre-existing containers are only reverted to Available.",
+      "description": "Set when this Container master was auto-created as a pre-arrival reservation for an Container Booking (Tank In, container not yet in the system). On that booking's cancellation, the phantom is deleted if it never gated in; pre-existing containers are only reverted to Available.",
       "fieldname": "created_by_booking",
       "fieldtype": "Link",
       "label": "Created by Booking",
-      "options": "Isotank Booking",
+      "options": "Container Booking",
       "read_only": 1
     },
     {
