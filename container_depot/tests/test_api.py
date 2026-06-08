@@ -354,11 +354,11 @@ def cleanup_test_data():
 	frappe.db.delete("Container", {"container_no": "TSTU1234567"})
 
 	# Delete Booking Codes + their parent Bookings/Contracts for the test customer
-	test_bookings = frappe.db.get_values("Isotank Booking", {"customer": "Test Principal"}, "name", pluck=True)
+	test_bookings = frappe.db.get_values("Container Booking", {"customer": "Test Principal"}, "name", pluck=True)
 	if test_bookings:
 		frappe.db.delete("Booking Code", {"booking": ["in", test_bookings]})
-		frappe.db.delete("Isotank Booking Item", {"parent": ["in", test_bookings]})
-		frappe.db.delete("Isotank Booking", {"name": ["in", test_bookings]})
+		frappe.db.delete("Container Booking Item", {"parent": ["in", test_bookings]})
+		frappe.db.delete("Container Booking", {"name": ["in", test_bookings]})
 	frappe.db.delete("Depot Contract", {"customer": "Test Principal"})
 
 	# Delete Fuel Log & Equipment

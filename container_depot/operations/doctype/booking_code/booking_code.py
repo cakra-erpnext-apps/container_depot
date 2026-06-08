@@ -1,5 +1,5 @@
 """Booking Code: a single-use, 72h-expiring code printed as QR and given to a
-truck driver / SST. Created (one per booking item) when an Isotank Booking is
+truck driver / SST. Created (one per booking item) when an Container Booking is
 confirmed and paid (or credit-approved for TOP).
 """
 

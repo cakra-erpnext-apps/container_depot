@@ -185,7 +185,7 @@
   "links": [],
   "modified": "2026-06-04",
   "module": "Operations",
-  "name": "Isotank Booking Item",
+  "name": "Container Booking Item",
   "sort_field": "creation",
   "sort_order": "DESC"
 }

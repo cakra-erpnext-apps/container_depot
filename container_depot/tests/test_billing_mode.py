@@ -25,7 +25,7 @@ from container_depot.install import (
 from container_depot.patches.v0_13 import set_customer_billing_currency as currency_patch
 from container_depot.patches.v0_13 import set_customer_payment_terms as backfill_patch
 from container_depot.tests.test_api import ensure_test_customer
-from container_depot.tests.test_isotank_booking import (
+from container_depot.tests.test_container_booking import (
 	_cleanup_customer_world,
 	_make_active_contract,
 )

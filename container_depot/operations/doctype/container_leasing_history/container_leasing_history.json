@@ -36,7 +36,7 @@
   "links": [],
   "modified": "2026-06-02",
   "module": "Operations",
-  "name": "Isotank Leasing History",
+  "name": "Container Leasing History",
   "sort_field": "creation",
   "sort_order": "DESC"
 }

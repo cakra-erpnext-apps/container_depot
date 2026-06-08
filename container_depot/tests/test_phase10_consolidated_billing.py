@@ -15,7 +15,7 @@ from frappe.utils import add_days, today
 
 from container_depot.consolidated_billing import bill_customer
 from container_depot.tests.test_api import ensure_test_customer
-from container_depot.tests.test_isotank_booking import _cleanup_customer_world, _make_active_contract
+from container_depot.tests.test_container_booking import _cleanup_customer_world, _make_active_contract
 
 
 def _purge(customer):
@@ -49,7 +49,7 @@ class TestTopConsolidatedBilling(FrappeTestCase):
 
 	def _booking(self, container_no):
 		b = frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",  # Tank In -> Lift Off @ 250000
 			"customer": self.customer,
 			"contract": self.contract,

@@ -54,7 +54,7 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None):
 		frappe.throw(_("Select between 1 and {0} containers.").format(MAX_CONTAINERS_PER_ORDER))
 	if len(set(codes)) != len(codes):
 		frappe.throw(_("The same container was selected more than once."))
-	if not booking or not frappe.db.exists("Isotank Booking", booking):
+	if not booking or not frappe.db.exists("Container Booking", booking):
 		frappe.throw(_("Booking {0} not found.").format(booking))
 
 	vehicle_data = vehicle_data or {}
@@ -96,7 +96,7 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None):
 			if r.expires_at and get_datetime(r.expires_at) < now_datetime():
 				frappe.throw(_("Container {0}'s booking code has expired.").format(label))
 
-		customer = frappe.db.get_value("Isotank Booking", booking, "customer")
+		customer = frappe.db.get_value("Container Booking", booking, "customer")
 		remarks = vehicle_data.get("remarks") or {}
 		order = frappe.new_doc(order_doctype)
 		order.booking = booking

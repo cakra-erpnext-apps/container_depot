@@ -47,7 +47,7 @@ PHASE6_ROLES = [
 # - Append-only logs (SST Activity Log, Container Movement) deny delete to
 #   everyone except System Manager.
 ROLE_DOCTYPE_PERMISSIONS = {
-	"Isotank Booking": {
+	"Container Booking": {
 		"Customer":          {"read": 1, "create": 1, "submit": 0, "report": 1, "export": 1},
 		"Commercial":        {"read": 1, "create": 1, "write": 1, "submit": 1, "cancel": 1, "amend": 1, "report": 1, "export": 1, "share": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "submit": 1, "cancel": 1, "report": 1},
@@ -165,7 +165,7 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Ops Supervisor":    {"read": 1, "write": 1, "report": 1},
 		"Management":        {"read": 1, "report": 1, "export": 1},
 	},
-	"Isotank Leasing": {
+	"Container Leasing": {
 		"Customer":          {"read": 1, "report": 1},
 		"Commercial":        {"read": 1, "create": 1, "write": 1, "report": 1, "export": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},

@@ -21,7 +21,7 @@ frappe.ui.form.on('Order Bongkar', {
 
 function _default_shipper(frm) {
 	if (frm.doc.booking && !frm.doc.shipper) {
-		frappe.db.get_value('Isotank Booking', frm.doc.booking, 'customer', (r) => {
+		frappe.db.get_value('Container Booking', frm.doc.booking, 'customer', (r) => {
 			if (r && r.customer) frm.set_value('shipper', r.customer);
 		});
 	}

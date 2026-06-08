@@ -1,7 +1,7 @@
 """Tests for the three Phase-3 critical controllers:
 
-1. TOP credit-block (Isotank Booking.before_submit).
-2. TANK OUT gating (Isotank Booking.validate when direction == 'Tank Out').
+1. TOP credit-block (Container Booking.before_submit).
+2. TANK OUT gating (Container Booking.validate when direction == 'Tank Out').
 3. 72h Booking Code expiry (container_depot.tasks.expire_booking_codes).
 """
 
@@ -21,11 +21,11 @@ CONTAINER_NO = "TSTU3334440"
 
 
 def _cleanup_customer_world(customer: str):
-	bookings = frappe.get_all("Isotank Booking", filters={"customer": customer}, pluck="name")
+	bookings = frappe.get_all("Container Booking", filters={"customer": customer}, pluck="name")
 	if bookings:
 		frappe.db.delete("Booking Code", {"booking": ("in", bookings)})
-		frappe.db.delete("Isotank Booking Item", {"parent": ("in", bookings)})
-		frappe.db.delete("Isotank Booking", {"name": ("in", bookings)})
+		frappe.db.delete("Container Booking Item", {"parent": ("in", bookings)})
+		frappe.db.delete("Container Booking", {"name": ("in", bookings)})
 	contracts = frappe.get_all("Depot Contract", filters={"customer": customer}, pluck="name")
 	if contracts:
 		frappe.db.delete("Tariff Rate", {"parent": ("in", contracts)})
@@ -77,7 +77,7 @@ class TestTopAccrual(FrappeTestCase):
 
 	def _booking(self):
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -113,7 +113,7 @@ class TestCashPaidInvoice(FrappeTestCase):
 
 	def test_cash_booking_held_pending_payment_without_invoice(self):
 		b = frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -192,7 +192,7 @@ class TestWalkInPriceListPricing(FrappeTestCase):
 	def _walkin_booking(self):
 		# No ``contract`` key at all — this is the walk-in path.
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",  # Tank In -> derived lift_type "Lift Off"
 			"customer": self.customer,
 			"booking_status": "Pending Confirmation",
@@ -258,7 +258,7 @@ class TestBookingCancel(FrappeTestCase):
 
 	def _submit_cash_booking(self, container_no):
 		b = frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -376,7 +376,7 @@ class TestTankOutGating(FrappeTestCase):
 
 	def _booking(self):
 		return frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank Out",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -461,7 +461,7 @@ class TestBookingCodeExpiry(FrappeTestCase):
 			generate_code,
 		)
 		b = frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
@@ -489,7 +489,7 @@ class TestBookingCodeExpiry(FrappeTestCase):
 			generate_code,
 		)
 		b = frappe.get_doc({
-			"doctype": "Isotank Booking",
+			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,

@@ -1,7 +1,7 @@
 // Copyright (c) 2026, Oak Depot Team and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on('Isotank Booking', {
+frappe.ui.form.on('Container Booking', {
 	refresh(frm) {
 		// A confirmed booking can spawn multiple bon/voucher (Order Bongkar/Muat),
 		// each carrying up to 3 of its still-pending containers.

@@ -140,7 +140,7 @@
       "fieldname": "history",
       "fieldtype": "Table",
       "label": "History",
-      "options": "Isotank Leasing History"
+      "options": "Container Leasing History"
     },
     {
       "fieldname": "remarks_section",
@@ -156,7 +156,7 @@
   "links": [],
   "modified": "2026-06-02",
   "module": "Operations",
-  "name": "Isotank Leasing",
+  "name": "Container Leasing",
   "search_fields": "lessee, container_no, status",
   "sort_field": "creation",
   "sort_order": "DESC",

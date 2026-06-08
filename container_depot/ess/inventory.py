@@ -27,7 +27,7 @@ from container_depot.tasks import PT_REMINDER_DAYS
 BUCKETS = ("in_depot", "cleaning", "repair_survey", "ready", "gate_out")
 
 # Raw statuses that are NOT physically in the depot yet and must be excluded from
-# live inventory counts/lists. `Booked` = a tank reserved by an Isotank Booking
+# live inventory counts/lists. `Booked` = a tank reserved by an Container Booking
 # whose Container master was created at booking time but has not yet gated in.
 EXCLUDED_FROM_INVENTORY = ("Booked",)
 

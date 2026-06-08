@@ -1,5 +1,5 @@
 from frappe.model.document import Document
 
 
-class IsotankBookingItem(Document):
+class ContainerBookingItem(Document):
 	pass

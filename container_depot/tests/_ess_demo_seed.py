@@ -113,7 +113,7 @@ def seed():
 		customer = _customer("Stolt")
 		booking = frappe.get_doc(
 			{
-				"doctype": "Isotank Booking",
+				"doctype": "Container Booking",
 				"direction": "Tank In",
 				"customer": customer,
 				"contract": make_contract(customer),
@@ -148,7 +148,7 @@ def clear():
 	booking = frappe.db.get_value("Booking Code", DEMO_CODE, "booking")
 	frappe.db.delete("Booking Code", {"name": DEMO_CODE})
 	if booking:
-		frappe.db.delete("Isotank Booking", {"name": booking})
+		frappe.db.delete("Container Booking", {"name": booking})
 	for dt in ["Container Movement", "Cleaning Order", "Repair Order", "Inspection", "Periodic Test"]:
 		frappe.db.delete(dt, {"container": ["in", names]})
 	frappe.db.delete("Container", {"name": ["in", names]})

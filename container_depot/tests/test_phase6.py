@@ -39,11 +39,11 @@ class TestPermissionMatrix(FrappeTestCase):
 				)
 
 	def test_customer_only_reads_bookings(self):
-		# Customer's matrix entry for Isotank Booking grants read+create+report+
+		# Customer's matrix entry for Container Booking grants read+create+report+
 		# export but not submit/write/delete.
 		perms = frappe.db.get_value(
 			"Custom DocPerm",
-			{"parent": "Isotank Booking", "role": "Customer"},
+			{"parent": "Container Booking", "role": "Customer"},
 			["read", "write", "create", "submit", "delete", "report"],
 			as_dict=True,
 		)

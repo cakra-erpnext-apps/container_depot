@@ -1,8 +1,8 @@
-"""Periodic Test — isotank pressure-test cycle (PRD v0.2 §4).
+"""Periodic Test — container pressure-test cycle (PRD v0.2 §4).
 
 Tracks the 2,5Y / 5Y periodic test flow: order/periodic dates, the prior test,
 the computed Due Date, and who is billed. The latest Due Date is denormalised
-onto ``Container.next_pt_due`` so TANK OUT gating (see Isotank Booking) can block
+onto ``Container.next_pt_due`` so TANK OUT gating (see Container Booking) can block
 a tank whose test has lapsed.
 """
 
