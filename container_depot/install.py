@@ -409,6 +409,19 @@ CUSTOM_FIELDS = {
 			"description": "Labour rate per hour for repair services priced as manhour × rate + material. Held per Item Price so each principal's rate card can carry its own rate (e.g. OAK 4.50, Bertschi 4.00).",
 		}
 	],
+	"Price List": [
+		{
+			"fieldname": "customer",
+			"label": "Customer",
+			"fieldtype": "Link",
+			"options": "Customer",
+			"insert_after": "currency",
+			"in_standard_filter": 1,
+			# Optional: a per-principal rate card can be tied to its Customer
+			# master; standard/shared price lists leave this blank.
+			"description": "Optional — the Customer this rate card belongs to. Leave blank for shared/standard price lists.",
+		}
+	],
 }
 
 
