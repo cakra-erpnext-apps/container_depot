@@ -24,3 +24,4 @@ container_depot.patches.v0_12.seed_cargo
 container_depot.patches.v0_12.link_cargo_fields
 container_depot.patches.v0_13.set_customer_payment_terms
 container_depot.patches.v0_13.set_customer_billing_currency
+container_depot.patches.v0_15.move_manhour_rate_to_item_price

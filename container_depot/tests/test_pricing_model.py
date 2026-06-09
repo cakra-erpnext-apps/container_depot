@@ -30,7 +30,7 @@ class TestPricingModel(FrappeTestCase):
 				"is_group": 0,
 			}).insert(ignore_permissions=True)
 
-		for name, rate in ((OAK_PL, 4.50), (BERT_PL, 4.00)):
+		for name in (OAK_PL, BERT_PL):
 			if not frappe.db.exists("Price List", name):
 				frappe.get_doc({
 					"doctype": "Price List",
@@ -39,7 +39,6 @@ class TestPricingModel(FrappeTestCase):
 					"selling": 1,
 					"buying": 0,
 					"enabled": 1,
-					"manhour_rate": rate,
 				}).insert(ignore_permissions=True)
 
 		# Repair item: priced dynamically (manhour × rate + material), no flat price.
@@ -55,6 +54,19 @@ class TestPricingModel(FrappeTestCase):
 				"manhour": 0.5,
 				"material_cost": 10.0,
 			}).insert(ignore_permissions=True)
+
+		# manhour_rate now lives on each Item Price row (per principal). The repair
+		# item carries no flat rate, just its per-list labour rate.
+		for pl, rate in ((OAK_PL, 4.50), (BERT_PL, 4.00)):
+			if not frappe.db.exists("Item Price", {"item_code": REPAIR_ITEM, "price_list": pl}):
+				frappe.get_doc({
+					"doctype": "Item Price",
+					"item_code": REPAIR_ITEM,
+					"price_list": pl,
+					"price_list_rate": 0,
+					"manhour_rate": rate,
+					"selling": 1,
+				}).insert(ignore_permissions=True)
 
 		# Fixed item: flat Item Price in the OAK list, no manhour.
 		if not frappe.db.exists("Item", FIXED_ITEM):
@@ -88,7 +100,7 @@ class TestPricingModel(FrappeTestCase):
 		super().tearDownClass()
 
 	def test_repair_item_priced_dynamically_per_principal(self):
-		# Same Item, different Price List manhour_rate -> different effective rate.
+		# Same Item, different Item Price manhour_rate -> different effective rate.
 		self.assertAlmostEqual(effective_item_rate(REPAIR_ITEM, OAK_PL), 0.5 * 4.50 + 10.0)
 		self.assertAlmostEqual(effective_item_rate(REPAIR_ITEM, BERT_PL), 0.5 * 4.00 + 10.0)
 

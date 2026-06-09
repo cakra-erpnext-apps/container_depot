@@ -3,12 +3,12 @@
 A single entry point that resolves the effective selling rate of a depot service
 Item under a given principal Price List, honouring the dynamic repair formula:
 
-    effective rate = manhour × Price List manhour_rate + material_cost
+    effective rate = manhour × Item Price manhour_rate + material_cost
 
 Fixed-price services (``Item.manhour == 0``) resolve to their flat Item Price in
-that list. Because rate lives on the Price List (not baked per-Item), one Item
-prices differently per principal — e.g. a repair item is OAK $4.50/hr vs
-Bertschi $4.00/hr from the same ``manhour`` + ``material_cost``.
+that list. Because the rate lives on each Item Price row (item + price list), one
+Item prices differently per principal — e.g. a repair item is OAK $4.50/hr vs
+Bertschi $4.00/hr via its Item Price ``manhour_rate`` in each list.
 
 This module is deliberately standalone: it does NOT touch the live Tariff-Rate
 billing path (pricing.py / invoicing.py / monthly_invoicing.py). Wiring billing
@@ -36,14 +36,20 @@ def effective_item_rate(item_code: str, price_list: str) -> float:
 	"""Effective per-unit selling rate for a depot service Item in a Price List.
 
 	Repair services (``Item.manhour`` > 0) are priced
-	``manhour × Price List manhour_rate + material_cost``; everything else
+	``manhour × Item Price manhour_rate + material_cost``; everything else
 	resolves to its flat Item Price (0.0 if none).
 	"""
 	if not item_code:
 		return 0.0
 	manhour = flt(frappe.db.get_value("Item", item_code, "manhour"))
 	if manhour > 0:
-		manhour_rate = flt(frappe.db.get_value("Price List", price_list, "manhour_rate"))
+		manhour_rate = flt(
+			frappe.db.get_value(
+				"Item Price",
+				{"item_code": item_code, "price_list": price_list, "selling": 1},
+				"manhour_rate",
+			)
+		)
 		material_cost = flt(frappe.db.get_value("Item", item_code, "material_cost"))
 		return manhour * manhour_rate + material_cost
 	return flt(item_price_rate(item_code, price_list))
