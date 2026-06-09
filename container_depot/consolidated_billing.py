@@ -18,7 +18,7 @@ from frappe.utils import add_days, getdate, today
 
 from container_depot import invoicing
 from container_depot.monthly_invoicing import _active_contract, _days_in_depot
-from container_depot.pricing import resolve_tariff_rate
+from container_depot.pricing import CLEANING_ITEM, STORAGE_ITEM, resolve_tariff_rate
 
 
 def _booking_lines(customer, lo, hi):
@@ -35,19 +35,19 @@ def _booking_lines(customer, lo, hi):
 	)
 	lines, refs = [], []
 	for r in rows:
-		service = r.lift_type or ("Lift Off" if r.direction == "Tank In" else "Lift On")
-		rate = resolve_tariff_rate(r.contract, service)
+		item = r.lift_type or ("Lift Off" if r.direction == "Tank In" else "Lift On")
+		rate = resolve_tariff_rate(r.contract, item)
 		if not rate or rate <= 0:
 			continue
 		qty = frappe.db.count("Container Booking Item", {"parent": r.name}) or 1
-		lines.append({"description": f"Booking {r.name} · {service} · {qty} ctr", "qty": qty, "rate": rate})
+		lines.append({"description": f"Booking {r.name} · {item} · {qty} ctr", "qty": qty, "rate": rate})
 		refs.append(("Container Booking", r.name))
 	return lines, refs
 
 
 def _cleaning_lines(customer, lo, hi):
 	"""Completed, not-yet-billed cleaning for the customer's tanks (tariff-priced)."""
-	rate = resolve_tariff_rate(_active_contract(customer), "Cleaning")
+	rate = resolve_tariff_rate(_active_contract(customer), CLEANING_ITEM)
 	if not rate or rate <= 0:
 		return [], []
 	rows = frappe.get_all(
@@ -88,7 +88,7 @@ def _mr_lines(customer, lo, hi):
 def _storage_lines(customer, from_date, to_date):
 	"""Storage days not yet billed (since each container's ``storage_billed_until``
 	watermark) × the Storage-per-Day tariff. Returns (lines, containers_to_advance)."""
-	rate = resolve_tariff_rate(_active_contract(customer), "Storage per Day")
+	rate = resolve_tariff_rate(_active_contract(customer), STORAGE_ITEM)
 	if not rate or rate <= 0:
 		return [], []
 	containers = frappe.get_all("Container", filters={"principal": customer}, pluck="name")

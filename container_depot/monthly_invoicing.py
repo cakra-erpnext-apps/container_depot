@@ -13,7 +13,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import add_months, get_first_day, get_last_day, getdate, today
 
-from container_depot.pricing import resolve_tariff_rate
+from container_depot.pricing import CLEANING_ITEM, STORAGE_ITEM, resolve_tariff_rate
 
 # Lift on/off charges are billed at the BOOKING (Cash: paid at submit; TOP: swept
 # by consolidated_billing). The voucher (Order Bongkar/Muat) is operational only,
@@ -39,13 +39,14 @@ def _active_contract(customer):
 
 
 def _is_postpaid(customer):
-	"""True if the customer's Active contract is TOP. TOP customers are billed
-	on-demand via ``consolidated_billing.bill_customer`` (postpaid accrual), so the
-	monthly scheduler must skip them to avoid double-billing."""
-	return (
-		frappe.db.get_value("Depot Contract", {"customer": customer, "status": "Active"}, "payment_type")
-		== "TOP"
-	)
+	"""True if the customer's Active contract carries a credit relationship (TOP or
+	Both). Such customers are billed on-demand via ``consolidated_billing.bill_customer``
+	(postpaid accrual), so the monthly scheduler must skip them to avoid double-billing.
+	A Both customer's per-booking Cash charges are still settled at the booking; only
+	their accruing (TOP / container-level) charges flow through consolidated billing."""
+	return frappe.db.get_value(
+		"Depot Contract", {"customer": customer, "status": "Active"}, "payment_type"
+	) in ("TOP", "Both")
 
 
 # --------------------------------------------------------------------------- #
@@ -73,7 +74,7 @@ def _mr_items(customer, from_date, to_date):
 
 def _cleaning_items(customer, from_date, to_date):
 	lo, hi = _bounds(from_date, to_date)
-	rate = resolve_tariff_rate(_active_contract(customer), "Cleaning")
+	rate = resolve_tariff_rate(_active_contract(customer), CLEANING_ITEM)
 	rows = frappe.get_all(
 		"Cleaning Order",
 		filters={"status": "Completed", "cleaning_end": ["between", [lo, hi]]},
@@ -97,7 +98,7 @@ def _cleaning_items(customer, from_date, to_date):
 def _storage_items(customer, from_date, to_date):
 	"""Best-effort storage accrual: days a tank sat in the depot during the
 	window (last gate-in -> gate-out / window end) x the Storage per Day tariff."""
-	rate = resolve_tariff_rate(_active_contract(customer), "Storage per Day")
+	rate = resolve_tariff_rate(_active_contract(customer), STORAGE_ITEM)
 	if not rate:
 		return []
 	containers = frappe.get_all("Container", filters={"principal": customer}, pluck="name")

@@ -23,11 +23,12 @@ def make_contract(customer: str) -> str:
 	return frappe.get_doc({
 		"doctype": "Depot Contract",
 		"customer": customer,
+		"currency": "IDR",
 		"status": "Active",
 		"payment_type": "Cash",
 		"valid_from": today(),
 		"valid_to": add_days(today(), 365),
-		"tariff_lines": [{"service": "Lift Off", "uom": "container", "rate": 250000, "currency": "IDR"}],
+		"tariff_lines": [{"item": "Lift Off", "rate": 250000}],
 	}).insert(ignore_permissions=True).name
 
 
