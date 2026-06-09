@@ -91,11 +91,11 @@
       "options": "Depot Contract"
     },
     {
-      "fetch_from": "contract.payment_type",
+      "description": "Actual mode for this booking. Locked to the contract, except a Both contract lets you choose; walk-ins are Cash.",
       "fieldname": "payment_type",
-      "fieldtype": "Data",
+      "fieldtype": "Select",
       "label": "Payment Type",
-      "read_only": 1
+      "options": "Cash\nTOP"
     },
     {
       "fieldname": "ownership_section",
@@ -172,7 +172,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-05-29",
+  "modified": "2026-06-12",
   "module": "Operations",
   "name": "Container Booking",
   "search_fields": "customer, direction, booking_status",

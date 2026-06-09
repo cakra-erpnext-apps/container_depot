@@ -6,37 +6,32 @@
   "editable_grid": 1,
   "engine": "InnoDB",
   "field_order": [
-    "service",
-    "cleaning_type",
+    "item",
     "uom",
     "rate",
+    "manhour_rate",
     "currency"
   ],
   "fields": [
     {
-      "fieldname": "service",
-      "fieldtype": "Select",
+      "fieldname": "item",
+      "fieldtype": "Link",
       "in_list_view": 1,
-      "label": "Service",
-      "options": "Lift Off\nLift On\nStorage per Day\nCleaning\nEIR\nPeriodic Test\nLeasing\nOther",
+      "label": "Item",
+      "options": "Item",
       "reqd": 1
     },
     {
-      "depends_on": "eval:doc.service=='Cleaning'",
-      "description": "Required when Service is Cleaning, so each wash type can be priced separately.",
-      "fieldname": "cleaning_type",
-      "fieldtype": "Select",
-      "in_list_view": 1,
-      "label": "Cleaning Type",
-      "options": "\nPP Wash\nMethanol Rinse\nSteam Wash\nHot Water\nChemical\nDetergent\nNitrogen Purge"
-    },
-    {
+      "description": "From the Item Price (read-only).",
       "fieldname": "uom",
-      "fieldtype": "Data",
+      "fieldtype": "Link",
       "in_list_view": 1,
-      "label": "UoM"
+      "label": "UoM",
+      "options": "UOM",
+      "read_only": 1
     },
     {
+      "description": "Defaults from the Item Price; editable.",
       "fieldname": "rate",
       "fieldtype": "Currency",
       "in_list_view": 1,
@@ -45,17 +40,26 @@
       "reqd": 1
     },
     {
-      "default": "IDR",
+      "description": "Defaults from the Item Price manhour rate; editable.",
+      "fieldname": "manhour_rate",
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Manhour",
+      "options": "currency"
+    },
+    {
+      "description": "Inherited from the contract / Base Price List currency.",
+      "fetch_from": "parent.currency",
       "fieldname": "currency",
       "fieldtype": "Link",
       "label": "Currency",
       "options": "Currency",
-      "reqd": 1
+      "read_only": 1
     }
   ],
   "istable": 1,
   "links": [],
-  "modified": "2026-05-29",
+  "modified": "2026-06-11",
   "module": "Operations",
   "name": "Tariff Rate",
   "sort_field": "creation",

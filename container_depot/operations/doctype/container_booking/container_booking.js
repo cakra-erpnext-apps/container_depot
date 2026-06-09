@@ -8,6 +8,31 @@ frappe.ui.form.on('Container Booking', {
 		if (!frm.is_new() && frm.doc.booking_status === 'Confirmed') {
 			frm.add_custom_button(__('Generate Bon / Order'), () => open_generate_dialog(frm));
 		}
+		frm.trigger('_apply_payment_type_lock');
+	},
+	contract(frm) {
+		frm.trigger('_apply_payment_type_lock');
+	},
+	_apply_payment_type_lock(frm) {
+		// Payment Type follows the contract: a Cash or TOP contract locks it to that
+		// mode, and a walk-in (no contract) is always Cash. Only a "Both" contract lets
+		// the operator choose Cash or TOP here. The server enforces the same on save.
+		const lock = (ro) => frm.set_df_property('payment_type', 'read_only', ro ? 1 : 0);
+		if (!frm.doc.contract) {
+			if (!frm.doc.payment_type) frm.set_value('payment_type', 'Cash');
+			lock(1);
+			return;
+		}
+		frappe.db.get_value('Depot Contract', frm.doc.contract, 'payment_type').then((r) => {
+			const cpt = r.message && r.message.payment_type;
+			if (cpt === 'Both') {
+				if (!frm.doc.payment_type) frm.set_value('payment_type', 'Cash');
+				lock(0);
+			} else if (cpt) {
+				frm.set_value('payment_type', cpt);
+				lock(1);
+			}
+		});
 	}
 });
 

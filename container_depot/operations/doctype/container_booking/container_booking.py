@@ -25,9 +25,6 @@ from container_depot.operations.doctype.booking_code.booking_code import (
 	CODE_TTL_HOURS,
 	generate_code,
 )
-from container_depot.operations.doctype.depot_contract.depot_contract import (
-	get_active_contract,
-)
 
 
 CONTAINER_READY_STATUSES = {"Available", "Ready_For_Service", "Ready_For_Release", "Ready"}
@@ -386,7 +383,13 @@ class ContainerBooking(Document):
 			frappe.throw(_("Contract {0} belongs to a different customer.").format(self.contract))
 		if contract.status != "Active":
 			frappe.throw(_("Contract {0} is not Active (status={1}).").format(self.contract, contract.status))
-		self.payment_type = contract.payment_type
+		if contract.payment_type == "Both":
+			# The customer may transact either way — keep the operator's pick (default Cash).
+			if self.payment_type not in ("Cash", "TOP"):
+				self.payment_type = "Cash"
+		else:
+			# Cash / TOP contract — the booking inherits the contract's single mode.
+			self.payment_type = contract.payment_type
 
 	def _validate_tank_out_gating(self):
 		"""TANK OUT requires every item to ref a clean+ready Container with a
@@ -457,8 +460,9 @@ class ContainerBooking(Document):
 		``_enforce_top_credit`` is retained (unused) in case credit gating is
 		reinstated as a setting later.
 		"""
-		contract = get_active_contract(self.customer)
-		payment_type = (contract.payment_type if contract else None) or self.payment_type or "Cash"
+		# self.payment_type is the booking's effective mode (synced from the contract in
+		# validate; a Both contract leaves the operator's Cash/TOP choice intact).
+		payment_type = self.payment_type or "Cash"
 		if payment_type == "TOP":
 			return  # accrual: free submit, billed later via consolidated billing
 		# Cash, or walk-in without a contract

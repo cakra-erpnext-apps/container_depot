@@ -30,6 +30,14 @@ def _cleanup_customer_world(customer: str):
 	if contracts:
 		frappe.db.delete("Tariff Rate", {"parent": ("in", contracts)})
 		frappe.db.delete("Depot Contract", {"name": ("in", contracts)})
+	# Price Lists an Active contract published for this customer (+ their Item Prices).
+	# Deleting the contract above orphans them; drop them too or they leak into the site
+	# and clutter the Base Price List picker.
+	price_lists = frappe.get_all("Price List", filters={"customer": customer}, pluck="name")
+	if price_lists:
+		frappe.db.delete("Item Price", {"price_list": ("in", price_lists)})
+		frappe.db.delete("Price List", {"name": ("in", price_lists)})
+	frappe.db.set_value("Customer", customer, "default_price_list", None, update_modified=False)
 	# Auto-created draft Cash invoices (B6) — drop drafts so they don't accumulate.
 	frappe.db.delete("Sales Invoice", {"customer": customer, "docstatus": 0})
 	# Pre-arrival (Booked) phantom containers spawned by booking resolution (B6).
@@ -44,13 +52,14 @@ def _make_active_contract(customer: str, *, payment_type: str, credit_limit=0, p
 	doc = frappe.get_doc({
 		"doctype": "Depot Contract",
 		"customer": customer,
+		"currency": "IDR",
 		"status": "Active",
 		"payment_type": payment_type,
 		"payment_terms": payment_terms,
 		"credit_limit": credit_limit,
 		"valid_from": today(),
 		"valid_to": add_days(today(), 365),
-		"tariff_lines": [{"service": "Lift Off", "uom": "container", "rate": 250000, "currency": "IDR"}],
+		"tariff_lines": [{"item": "Lift Off", "rate": 250000}],
 	}).insert(ignore_permissions=True)
 	return doc.name
 
