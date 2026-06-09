@@ -359,7 +359,7 @@ CUSTOM_FIELDS = {
 		}
 	],
 	# Depot-pricing fields (pricing spec §3.2). Repair services price as
-	# manhour × Price List manhour_rate + material_cost; packages are flagged so
+	# manhour × Item Price manhour_rate + material_cost; packages are flagged so
 	# they can be filtered apart from single services.
 	"Item": [
 		{
@@ -389,7 +389,7 @@ CUSTOM_FIELDS = {
 			"label": "Manhour",
 			"fieldtype": "Float",
 			"insert_after": "service_unit",
-			"description": "Standard labour hours for a repair service. Effective rate = manhour × Price List manhour rate + material cost.",
+			"description": "Standard labour hours for a repair service. Effective rate = manhour × Item Price manhour rate + material cost.",
 		},
 		{
 			"fieldname": "material_cost",
@@ -399,14 +399,14 @@ CUSTOM_FIELDS = {
 			"description": "Spare-part / material cost added on top of labour for a repair service.",
 		},
 	],
-	"Price List": [
+	"Item Price": [
 		{
 			"fieldname": "manhour_rate",
 			"label": "Manhour Rate",
 			"fieldtype": "Currency",
 			"options": "currency",
-			"insert_after": "currency",
-			"description": "Labour rate per hour for repair services priced as manhour × rate + material (e.g. OAK 4.50, Bertschi 4.00).",
+			"insert_after": "price_list_rate",
+			"description": "Labour rate per hour for repair services priced as manhour × rate + material. Held per Item Price so each principal's rate card can carry its own rate (e.g. OAK 4.50, Bertschi 4.00).",
 		}
 	],
 }
