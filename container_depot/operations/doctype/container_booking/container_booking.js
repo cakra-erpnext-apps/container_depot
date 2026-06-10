@@ -136,8 +136,10 @@ function open_generate_dialog(frm) {
 				frappe.msgprint(__('No pending containers left on this booking.'));
 				return;
 			}
-			const cont_by_code = {};
-			pending.forEach(p => { cont_by_code[p.booking_code] = p; });
+			// Key by container number — the picker shows the container no (not the
+			// internal booking code); we translate back to codes on Generate.
+			const by_value = {};
+			pending.forEach(p => { by_value[p.container_no || p.booking_code] = p; });
 			let last_first = null;
 
 			const d = new frappe.ui.Dialog({
@@ -150,22 +152,21 @@ function open_generate_dialog(frm) {
 						label: __('Containers (max {0})', [MAX_CONTAINERS_PER_ORDER]),
 						reqd: 1,
 						get_data: () => pending.map(p => ({
-							value: p.booking_code,
-							description: `${p.container_no || p.booking_code} · ${p.status_tag || ''}`,
+							value: p.container_no || p.booking_code,
 						})),
 						onchange() {
-							const codes = d.get_value('codes') || [];
-							if (codes.length > MAX_CONTAINERS_PER_ORDER) {
+							const picked = d.get_value('codes') || [];
+							if (picked.length > MAX_CONTAINERS_PER_ORDER) {
 								frappe.show_alert({
 									message: __('Max {0} containers per voucher.', [MAX_CONTAINERS_PER_ORDER]),
 									indicator: 'orange',
 								});
 							}
 							// Auto-fill the voucher from the FIRST picked container's booking line.
-							const first = codes[0];
+							const first = picked[0];
 							if (first && first !== last_first) {
 								last_first = first;
-								_fill_bongkar_detail(d, cont_by_code[first]);
+								_fill_bongkar_detail(d, by_value[first]);
 							}
 						},
 					},
@@ -188,11 +189,13 @@ function open_generate_dialog(frm) {
 				],
 				primary_action_label: __('Generate'),
 				primary_action(values) {
-					const codes = values.codes || [];
-					if (codes.length < 1 || codes.length > MAX_CONTAINERS_PER_ORDER) {
+					const picked = values.codes || [];
+					if (picked.length < 1 || picked.length > MAX_CONTAINERS_PER_ORDER) {
 						frappe.msgprint(__('Pick 1 to {0} containers.', [MAX_CONTAINERS_PER_ORDER]));
 						return;
 					}
+					// Translate the picked container numbers back to their Booking Codes.
+					const codes = picked.map(v => (by_value[v] || {}).booking_code).filter(Boolean);
 					const vehicle_data = {
 						shipper: values.shipper,
 						ex_vessel: values.ex_vessel,

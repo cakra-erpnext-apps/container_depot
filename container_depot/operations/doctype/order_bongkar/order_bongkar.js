@@ -26,8 +26,6 @@ frappe.ui.form.on('Order Bongkar', {
 			filters: { booking: frm.doc.booking },
 		}));
 		const grid = frm.fields_dict.containers.grid;
-		// A Bon Bongkar has no cleaning certificate.
-		grid.update_docfield_property('cleaning_certificate', 'hidden', 1);
 		_lock_actions(frm);
 		_strip_row_buttons(frm);
 		_enforce_max_rows(frm);
