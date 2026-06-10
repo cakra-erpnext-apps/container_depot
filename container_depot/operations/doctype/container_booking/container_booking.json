@@ -245,16 +245,17 @@
       "label": "Containers"
     },
     {
+      "description": "At least one container row is required — on a draft and to submit.",
       "fieldname": "items",
       "fieldtype": "Table",
       "label": "Containers",
-      "mandatory_depends_on": "eval:doc.docstatus==1",
-      "options": "Container Booking Item"
+      "options": "Container Booking Item",
+      "reqd": 1
     }
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-17",
+  "modified": "2026-06-18",
   "module": "Operations",
   "name": "Container Booking",
   "search_fields": "customer, branch, booking_status",

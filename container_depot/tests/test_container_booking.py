@@ -186,15 +186,11 @@ class TestTankInFlow(FrappeTestCase):
 			"the draft invoice is cancelled (kept), not deleted",
 		)
 
-	def test_draft_empty_items_ok_submit_requires_them(self):
-		# An empty Containers table is tolerated on a draft (so the DO can be attached
-		# before the tanks are listed)…
+	def test_empty_items_rejected_on_draft(self):
+		# At least one container row is required even to save a draft.
 		b = self._booking(self.customer, lift_item="Lift Off", items=[])
-		b.insert(ignore_permissions=True)
-		self.assertEqual(b.docstatus, 0)
-		# …but confirmation requires at least one container line.
-		with self.assertRaises(frappe.ValidationError):
-			b.submit()
+		with self.assertRaises(frappe.exceptions.MandatoryError):
+			b.insert(ignore_permissions=True)
 
 	def test_status_tag_derived_from_condition(self):
 		# The Clean/Dirty gate tag is derived from a line's condition at booking-code
@@ -398,7 +394,7 @@ class TestBookingCancel(FrappeTestCase):
 	deleted, and pre-existing tanks merely flipped to Booked reverted."""
 
 	CUSTOMER = "Phase11 Cancel Customer"
-	CONTAINERS = ("CXLPHANT001", "CXLEXIST001", "CXLHELD0001")
+	CONTAINERS = ("CXLPHANT001", "CXLEXIST001", "CXLHELD0001", "CXLNODEL001")
 
 	@classmethod
 	def setUpClass(cls):
@@ -513,15 +509,14 @@ class TestBookingCancel(FrappeTestCase):
 		self.assertEqual(b.payment_status, "Cancelled")
 
 	def test_booking_cannot_be_deleted(self):
-		# A booking is never permanently deleted — only voided/cancelled. Empty items keep
-		# the test isolated (no pre-arrival phantom to leak).
+		# A booking is never permanently deleted — only voided/cancelled.
 		b = frappe.get_doc({
 			"doctype": "Container Booking",
 			"direction": "Tank In",
 			"customer": self.customer,
 			"contract": self.contract,
 			"do_reference": "DO-CXL-DR",
-			"items": [],
+			"items": [{"container_no": "CXLNODEL001"}],
 		}).insert(ignore_permissions=True)
 		with self.assertRaises(frappe.ValidationError):
 			frappe.delete_doc("Container Booking", b.name, ignore_permissions=True)

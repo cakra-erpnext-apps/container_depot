@@ -262,14 +262,7 @@ class TestVoidCancelsInvoice(FrappeTestCase):
 		)
 
 	def test_booking_cannot_be_deleted(self):
-		b = frappe.get_doc({
-			"doctype": "Container Booking",
-			"direction": "Tank In",
-			"customer": self.customer,
-			"contract": self.contract,
-			"do_reference": "DO-DISC",
-			"items": [],
-		}).insert(ignore_permissions=True)
+		b = self._draft("B6NODEL0001")
 		with self.assertRaises(frappe.ValidationError):
 			b.delete(ignore_permissions=True)
 
