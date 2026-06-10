@@ -144,6 +144,10 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None):
 
 		if direction == "Tank In":
 			order.ex_vessel = vehicle_data.get("ex_vessel")
+			# Actual unload date for the bon; defaults to the row's estimation Tgl. Bongkar.
+			order.tanggal_bongkar = (
+				vehicle_data.get("tanggal_bongkar_actual") or vehicle_data.get("tanggal_bongkar")
+			)
 			_build_bongkar_rows(order, booking, codes, by_name, vehicle_data)
 		else:
 			remarks = vehicle_data.get("remarks") or {}

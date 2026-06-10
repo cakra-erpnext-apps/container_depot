@@ -48,6 +48,8 @@ class TestB1Fields(FrappeTestCase):
 		# Order Bongkar reuses the booking's Container Booking Item child: truck / driver /
 		# R-O / condition / cargo / Tgl. Bongkar live per row, not on the header.
 		self._assert_field("Order Bongkar", "containers", "Table", ["Container Booking Item"])
+		# Actual unload date for the bon (defaults from the booking line's estimation).
+		self._assert_field("Order Bongkar", "tanggal_bongkar", "Date")
 		# Order Muat (Tank Out) keeps its own Order Container Item child + header fields.
 		self._assert_field("Order Muat", "containers", "Table", ["Order Container Item"])
 		self._assert_field("Order Muat", "ro", "Data")

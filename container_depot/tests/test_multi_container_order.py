@@ -272,6 +272,21 @@ class TestGenerateOrderFromBookingAPI(FrappeTestCase):
 		self.assertEqual(item.truck_plate, "B-9-XY")
 		self.assertEqual(item.driver, "Andi")
 
+	def test_bongkar_actual_unload_date_on_header(self):
+		# The generate dialog's "Tanggal Bongkar" (actual) lands on the Order Bongkar header.
+		booking, codes = _booking_with_codes(code_direction="Tank In", count=1, prefix="MCAD0")
+		name = make_order(
+			booking, codes,
+			vehicle_data={"tanggal_bongkar": today(), "tanggal_bongkar_actual": "2026-07-01"},
+		)
+		self.assertEqual(str(frappe.db.get_value("Order Bongkar", name, "tanggal_bongkar")), "2026-07-01")
+
+	def test_bongkar_actual_date_defaults_to_estimation(self):
+		# With no explicit actual date, the header falls back to the row's estimation.
+		booking, codes = _booking_with_codes(code_direction="Tank In", count=1, prefix="MCAE0")
+		name = make_order(booking, codes, vehicle_data={"tanggal_bongkar": "2026-07-02"})
+		self.assertEqual(str(frappe.db.get_value("Order Bongkar", name, "tanggal_bongkar")), "2026-07-02")
+
 	def test_pending_excludes_used_and_expired(self):
 		booking, codes = _booking_with_codes(code_direction="Tank In", count=3, prefix="MCPND0")
 		# Consume one, expire another by flipping state.

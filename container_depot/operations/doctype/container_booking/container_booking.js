@@ -172,7 +172,10 @@ function open_generate_dialog(frm) {
 					{ fieldtype: 'Section Break', label: __('Detail (auto-isi dari container pertama)') },
 					{ fieldname: 'condition', fieldtype: 'Select', label: __('Condition'), options: 'EMPTY CLEAN\nEMPTY DIRTY\nLADEN' },
 					{ fieldname: 'cargo', fieldtype: 'Link', label: __('Cargo'), options: 'Cargo' },
-					{ fieldname: 'tanggal_bongkar', fieldtype: 'Date', label: __('Estimation Tanggal Bongkar'), default: frappe.datetime.get_today() },
+					// Estimation carried from the booking line (auto-filled, written back to the row) — hidden here.
+					{ fieldname: 'tanggal_bongkar', fieldtype: 'Date', label: __('Estimation Tanggal Bongkar'), hidden: 1 },
+					// Actual unload date for the bon; defaults to the estimation above.
+					{ fieldname: 'tanggal_bongkar_actual', fieldtype: 'Date', label: __('Tanggal Bongkar'), default: frappe.datetime.get_today() },
 					{ fieldtype: 'Column Break' },
 					{ fieldname: 'truck_plate', fieldtype: 'Data', label: __('Truck Number') },
 					{ fieldname: 'driver', fieldtype: 'Data', label: __('Name Driver') },
@@ -190,7 +193,11 @@ function open_generate_dialog(frm) {
 						frappe.msgprint(__('Pick 1 to {0} containers.', [MAX_CONTAINERS_PER_ORDER]));
 						return;
 					}
-					const vehicle_data = { shipper: values.shipper, ex_vessel: values.ex_vessel };
+					const vehicle_data = {
+						shipper: values.shipper,
+						ex_vessel: values.ex_vessel,
+						tanggal_bongkar_actual: values.tanggal_bongkar_actual,
+					};
 					BONGKAR_DETAIL_FIELDS.forEach((f) => { vehicle_data[f] = values[f]; });
 					submit_generation(frm, d, codes, vehicle_data);
 				},
@@ -206,6 +213,8 @@ function _fill_bongkar_detail(d, p) {
 	BONGKAR_DETAIL_FIELDS.forEach((f) => {
 		if (p[f] != null && p[f] !== '') d.set_value(f, p[f]);
 	});
+	// Default the actual unload date from the line's estimation Tgl. Bongkar.
+	if (p.tanggal_bongkar) d.set_value('tanggal_bongkar_actual', p.tanggal_bongkar);
 }
 
 function submit_generation(frm, dialog, codes, vehicle_data) {

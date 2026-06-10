@@ -10,6 +10,7 @@
     "column_break_1",
     "shipper",
     "ex_vessel",
+    "tanggal_bongkar",
     "containers",
     "notes",
     "sst_section",
@@ -61,6 +62,13 @@
       "label": "Ex Vessel"
     },
     {
+      "description": "Actual unload date for this bon. Defaults to the booking line's Estimation Tanggal Bongkar.",
+      "fieldname": "tanggal_bongkar",
+      "fieldtype": "Date",
+      "in_list_view": 1,
+      "label": "Tanggal Bongkar"
+    },
+    {
       "description": "Containers on this bon (max 2). Same shape as the booking's container lines (Container Booking Item) — truck / driver / R-O / condition / cargo / Tgl. Bongkar live per row.",
       "fieldname": "containers",
       "fieldtype": "Table",
@@ -99,7 +107,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-19",
+  "modified": "2026-06-20",
   "module": "Operations",
   "name": "Order Bongkar",
   "search_fields": "booking, shipper",
