@@ -2,7 +2,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
-from container_depot.state_machine import assert_transition
+from container_depot.state_machine import assert_transition, stage_for_status
 
 
 class Container(Document):
@@ -22,9 +22,11 @@ class Container(Document):
 			assert_transition(previous.status if previous else None, self.status)
 
 	def before_save(self):
-		"""Auto-format container number"""
+		"""Auto-format container number + keep the monitoring stage in step with the
+		raw status (every ORM save: gate entry, inspection, cleaning, repair, release)."""
 		if self.container_no:
 			self.container_no = self.container_no.upper()
+		self.inventory_stage = stage_for_status(self.status)
 
 	def on_update(self):
 		"""Audit-trail: log a Container Movement row whenever ``status`` changes.

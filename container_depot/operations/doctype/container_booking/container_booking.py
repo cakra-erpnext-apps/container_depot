@@ -28,6 +28,7 @@ from container_depot.operations.doctype.booking_code.booking_code import (
 from container_depot.operations.doctype.depot_contract.depot_contract import (
 	get_active_contract,
 )
+from container_depot.state_machine import stage_for_status
 
 
 CONTAINER_READY_STATUSES = {"Available", "Ready_For_Service", "Ready_For_Release", "Ready"}
@@ -146,8 +147,14 @@ class ContainerBooking(Document):
 				frappe.db.delete("Container Movement", {"container": container})
 				frappe.delete_doc("Container", container, ignore_permissions=True, force=True)
 			else:
-				# Pre-existing tank we only flipped to Booked → release it.
-				frappe.db.set_value("Container", container, "status", "Available", update_modified=False)
+				# Pre-existing tank we only flipped to Booked → release it. Direct
+				# set_value bypasses Container.before_save, so set the stage too.
+				frappe.db.set_value(
+					"Container",
+					container,
+					{"status": "Available", "inventory_stage": stage_for_status("Available")},
+					update_modified=False,
+				)
 
 	def _container_held_by_other_booking(self, container):
 		"""True if a *different* non-cancelled Container Booking still has this

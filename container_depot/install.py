@@ -239,6 +239,9 @@ def after_migrate():
 	setup_permissions()
 	# create_custom_fields is idempotent (upserts by dt+fieldname).
 	setup_custom_fields()
+	# Container Inventory monitoring dashboard (Number Cards + Charts). Idempotent
+	# upsert by name; safe to re-run every migrate.
+	setup_inventory_dashboard()
 	# Keep the depot-pricing invariant: Bertschi Product Bundles must bill at the
 	# bundle parent's flat Item Price, not a recomputed sum of component prices.
 	ensure_selling_settings()
@@ -443,6 +446,104 @@ def setup_custom_fields():
 	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True)
+	frappe.db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Container Inventory dashboard — Number Cards + Dashboard Charts (native
+# records, no custom source). Seeded idempotently so the "Container Inventory"
+# workspace lights up on fresh install and stays in sync on every migrate.
+# "In Depo" = every inventory_stage except Pre-Arrival / Departed.
+# ---------------------------------------------------------------------------
+
+_IN_DEPO_FILTER = [["inventory_stage", "not in", ["Pre-Arrival", "Departed"]]]
+
+# Number Card autonames from ``label`` and Dashboard Chart from ``chart_name``,
+# so those fields ARE the record name — keep them unique + readable; the
+# Container Inventory workspace references them by exactly these strings.
+INVENTORY_NUMBER_CARDS = [
+	{"label": "Stock In Depo",
+	 "document_type": "Container", "filters_json": _IN_DEPO_FILTER},
+	{"label": "Dirty Tank",
+	 "document_type": "Container", "filters_json": [["cleaning_status", "in", ["Pending", "In_Progress"]]]},
+	{"label": "Clean Tank",
+	 "document_type": "Container", "filters_json": [["cleaning_status", "=", "Completed"]]},
+	{"label": "Tanks In Cleaning",
+	 "document_type": "Container", "filters_json": [["inventory_stage", "=", "Cleaning"]]},
+	{"label": "Tanks In Survey or Repair",
+	 "document_type": "Container", "filters_json": [["inventory_stage", "in", ["Survey", "Repair (M&R)"]]]},
+	{"label": "Tanks Ready for Release",
+	 "document_type": "Container", "filters_json": [["inventory_stage", "=", "Ready"]]},
+	{"label": "Tank In Today",
+	 "document_type": "Gate Entry", "filters_json": [["gate_in_timestamp", "Timespan", "today"]]},
+	{"label": "Tank Out Today",
+	 "document_type": "Container Movement",
+	 "filters_json": [["to_status", "=", "Gate_Out"], ["movement_timestamp", "Timespan", "today"]]},
+]
+
+INVENTORY_CHARTS = [
+	{"chart_name": "Tanks by Stage",
+	 "document_type": "Container", "chart_type": "Group By", "group_by_type": "Count",
+	 "group_by_based_on": "inventory_stage", "type": "Bar", "filters_json": _IN_DEPO_FILTER},
+	{"chart_name": "Tanks by Principal",
+	 "document_type": "Container", "chart_type": "Group By", "group_by_type": "Count",
+	 "group_by_based_on": "principal", "type": "Donut", "number_of_groups": 10, "filters_json": _IN_DEPO_FILTER},
+	{"chart_name": "Tanks by Yard Zone",
+	 "document_type": "Container", "chart_type": "Group By", "group_by_type": "Count",
+	 "group_by_based_on": "yard_zone", "type": "Bar", "filters_json": _IN_DEPO_FILTER},
+	{"chart_name": "Tank IN (Last Month)",
+	 "document_type": "Gate Entry", "chart_type": "Count", "based_on": "gate_in_timestamp",
+	 "timespan": "Last Month", "time_interval": "Daily", "type": "Line", "timeseries": 1},
+	{"chart_name": "Tank OUT (Last Month)",
+	 "document_type": "Container Movement", "chart_type": "Count", "based_on": "movement_timestamp",
+	 "timespan": "Last Month", "time_interval": "Daily", "type": "Line", "timeseries": 1,
+	 "filters_json": [["to_status", "=", "Gate_Out"]]},
+]
+
+
+def _ensure_dashboard_doc(doctype: str, name: str, values: dict) -> None:
+	"""Upsert a Number Card / Dashboard Chart by its (autonamed) name — idempotent.
+
+	``name`` must equal the value of the doctype's naming field (Number Card.label
+	/ Dashboard Chart.chart_name), since both autoname from it."""
+	import json
+
+	payload = dict(values)
+	if "filters_json" in payload:
+		payload["filters_json"] = json.dumps(payload["filters_json"])
+	if frappe.db.exists(doctype, name):
+		doc = frappe.get_doc(doctype, name)
+		doc.update(payload)
+		doc.save(ignore_permissions=True)
+	else:
+		doc = frappe.get_doc({"doctype": doctype, **payload})
+		doc.insert(ignore_permissions=True)
+
+
+def setup_inventory_dashboard():
+	"""Seed the Container Inventory Number Cards + Dashboard Charts (idempotent).
+
+	Skipped quietly if the dashboard doctypes or the inventory_stage column aren't
+	present yet (e.g. very early in a fresh bootstrap)."""
+	if not frappe.db.has_column("Container", "inventory_stage"):
+		return
+	for card in INVENTORY_NUMBER_CARDS:
+		# Number Card autonames from label → that is the record name.
+		_ensure_dashboard_doc("Number Card", card["label"], {
+			"is_public": 1,
+			"function": "Count",
+			"type": "Document Type",
+			**card,
+		})
+	for chart in INVENTORY_CHARTS:
+		spec = dict(chart)
+		spec.setdefault("filters_json", [])  # Dashboard Chart requires filters_json.
+		# Dashboard Chart autonames from chart_name → that is the record name.
+		_ensure_dashboard_doc("Dashboard Chart", chart["chart_name"], {
+			"is_public": 1,
+			"chart_type": "Group By",
+			**spec,
+		})
 	frappe.db.commit()
 
 

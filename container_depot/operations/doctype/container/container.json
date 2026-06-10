@@ -10,6 +10,7 @@
     "container_type",
     "size",
     "status",
+    "inventory_stage",
     "column_break_1",
     "principal",
     "created_by_booking",
@@ -81,6 +82,16 @@
       "label": "Status",
       "options": "Booked\nAvailable\nGate_In\nInspecting\nEmpty_Clean\nNeeds_Cleaning\nPending_Cleaning\nCleaning_In_Progress\nCleaning_Completed\nPending_Survey\nSurvey_In_Progress\nAwaiting_MR_Approval\nRepair_In_Progress\nAwaiting_Recleaning_Approval\nRecleaning_In_Progress\nCleaning_Cert_Issued\nReady_For_Release\nReleased_Pending_Pickup\nGate_Out\nReady_For_Service",
       "reqd": 1
+    },
+    {
+      "description": "Monitoring stage derived from Status (auto-maintained). Pre-Arrival and Departed are excluded from in-depo stock.",
+      "fieldname": "inventory_stage",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "Inventory Stage",
+      "options": "\nPre-Arrival\nIncoming\nCleaning\nSurvey\nRepair (M&R)\nReady\nOutgoing\nDeparted",
+      "read_only": 1
     },
     {
       "fieldname": "column_break_1",
@@ -280,7 +291,7 @@
     }
   ],
   "links": [],
-  "modified": "2026-05-16",
+  "modified": "2026-06-20",
   "module": "Operations",
   "name": "Container",
   "search_fields": "container_no, container_type, status, principal",

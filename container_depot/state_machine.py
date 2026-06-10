@@ -60,6 +60,64 @@ CONTAINER_TRANSITIONS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Inventory stage — a legible grouping of the ~20 raw statuses into the eight
+# monitoring buckets ops actually thinks in (Container Inventory dashboard +
+# report). Stored on Container.inventory_stage, kept in step in
+# Container.before_save via stage_for_status(). Single source of truth.
+# ---------------------------------------------------------------------------
+
+# Ordered for display (matches the physical In → process → Out flow).
+INVENTORY_STAGES = [
+	"Pre-Arrival",
+	"Incoming",
+	"Cleaning",
+	"Survey",
+	"Repair (M&R)",
+	"Ready",
+	"Outgoing",
+	"Departed",
+]
+
+# Stages that count as physically present in the depo (everything but the
+# pre-arrival reservation and a tank that has already gated out).
+IN_DEPO_STAGES = ["Incoming", "Cleaning", "Survey", "Repair (M&R)", "Ready", "Outgoing"]
+
+STAGE_BY_STATUS = {
+	"Booked": "Pre-Arrival",
+	"Gate_In": "Incoming",
+	"Inspecting": "Incoming",
+	"Needs_Cleaning": "Cleaning",
+	"Pending_Cleaning": "Cleaning",
+	"Cleaning_In_Progress": "Cleaning",
+	"Awaiting_Recleaning_Approval": "Cleaning",
+	"Recleaning_In_Progress": "Cleaning",
+	"Cleaning_Completed": "Cleaning",
+	"Pending_Survey": "Survey",
+	"Survey_In_Progress": "Survey",
+	"Awaiting_MR_Approval": "Repair (M&R)",
+	"Repair_In_Progress": "Repair (M&R)",
+	"Available": "Ready",
+	"Empty_Clean": "Ready",
+	"Cleaning_Cert_Issued": "Ready",
+	"Ready_For_Service": "Ready",
+	"Ready_For_Release": "Ready",
+	"Released_Pending_Pickup": "Outgoing",
+	"Gate_Out": "Departed",
+}
+
+
+def stage_for_status(status):
+	"""Map a raw ``Container.status`` onto its monitoring stage.
+
+	Returns ``None`` for an empty/unknown status so the caller can leave the
+	field blank rather than invent a bucket.
+	"""
+	if not status:
+		return None
+	return STAGE_BY_STATUS.get(status)
+
+
 def is_allowed(old, new) -> bool:
 	"""Pure predicate: may a container move from ``old`` to ``new``?"""
 	if not old or old == new:

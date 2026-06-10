@@ -33,3 +33,4 @@ container_depot.patches.v0_15.move_manhour_rate_to_item_price
 container_depot.patches.v0_17.migrate_quoted_status
 container_depot.patches.v0_18.migrate_rejected_status
 container_depot.patches.v0_19.backfill_depot_branch
+container_depot.patches.v0_22.backfill_inventory_stage
