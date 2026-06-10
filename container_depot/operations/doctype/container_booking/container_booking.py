@@ -85,9 +85,9 @@ class ContainerBooking(Document):
 		1. ``booking_status`` → ``Cancelled`` (system-managed).
 		2. Every still-``Active`` Booking Code is voided — a cancelled booking must
 		   not keep live 72h gate-access codes.
-		3. The auto-created Cash Sales Invoice is discarded *iff* still an unpaid
-		   draft (a submitted/paid invoice is real accounting and is left for a
-		   deliberate Credit Note).
+		3. The auto-created Sales Invoice is rolled back — an unpaid draft is deleted; a
+		   submitted invoice is cancelled (its settling Payment Entries reversed first)
+		   so a voided booking carries no live charge.
 		4. Pre-arrival containers are unwound (phantom deleted / flipped tank
 		   reverted) — see ``_release_pre_arrival_containers``.
 		"""
@@ -96,11 +96,11 @@ class ContainerBooking(Document):
 			"Booking Code", filters={"booking": self.name, "state": "Active"}, pluck="name"
 		):
 			frappe.db.set_value("Booking Code", code, "state", "Cancelled", update_modified=False)
-		self._discard_unpaid_draft_invoice()
+		self._rollback_invoice()
 		self._release_pre_arrival_containers()
 
 	def on_trash(self):
-		self._discard_unpaid_draft_invoice()
+		self._rollback_invoice()
 		self._release_pre_arrival_containers()
 
 	def _release_pre_arrival_containers(self):
@@ -361,12 +361,16 @@ class ContainerBooking(Document):
 			si = invoicing.create_draft_sales_invoice(
 				self.customer,
 				[{
+					"item_code": service,
 					"description": f"Container Booking ({self.direction}) · {service} · {qty} ctr",
 					"qty": qty,
 					"rate": rate or 0,
 				}],
 				due_days=30,
 				remarks=f"Cash booking for {self.customer} ({self.direction}). Cashier to confirm payment.",
+				currency=self.currency,
+				selling_price_list=self.price_list,
+				branch=self.branch,
 			)
 			if si:
 				self.sales_invoice = si
@@ -390,12 +394,16 @@ class ContainerBooking(Document):
 			si = invoicing.create_draft_sales_invoice(
 				self.customer,
 				[{
+					"item_code": service,
 					"description": f"Container Booking {self.name} · {service} · {len(self.items or [])} ctr",
 					"qty": len(self.items or []) or 1,
 					"rate": rate,
 				}],
 				due_days=30,
 				remarks=f"Auto-generated from Container Booking {self.name}",
+				currency=self.currency,
+				selling_price_list=self.price_list,
+				branch=self.branch,
 			)
 			if si:
 				self.db_set("sales_invoice", si, update_modified=False)
@@ -411,21 +419,52 @@ class ContainerBooking(Document):
 		if target:
 			self.payment_status = target
 
-	def _discard_unpaid_draft_invoice(self):
-		"""Cancelling or discarding a booking must not leave its auto-created Cash
-		Sales Invoice behind as an orphan. If that invoice is still an *unpaid
-		draft* (no ledger impact) delete it and unlink. A submitted / paid invoice
-		is a real accounting document and is left untouched for the operator to
-		handle deliberately (e.g. issue a credit note)."""
+	def _rollback_invoice(self):
+		"""Roll back the booking's auto-created Sales Invoice when the booking is
+		cancelled / deleted, so a voided booking never leaves a live charge behind:
+
+		* **Draft** (unpaid, no ledger impact) → unlink + delete.
+		* **Submitted** → reverse settlement first (cancel any submitted Payment Entries
+		  that reference it), then cancel the invoice (its GL is reversed). The cancelled
+		  invoice is kept as an audit record; only the booking link is dropped.
+
+		Best-effort: a failure here is logged and never blocks the booking cancel."""
 		si = self.sales_invoice
 		if not si or not frappe.db.exists("Sales Invoice", si):
 			return
-		row = frappe.db.get_value("Sales Invoice", si, ["docstatus"], as_dict=True)
-		if not row or row.docstatus != 0:
-			return  # submitted / cancelled invoice — never auto-delete real accounting docs
-		# Unlink first so the invoice has no inbound Link, then delete the orphan.
+		docstatus = frappe.db.get_value("Sales Invoice", si, "docstatus")
+		# Drop the booking → invoice link up front, regardless of what follows below.
 		frappe.db.set_value(self.doctype, self.name, "sales_invoice", None, update_modified=False)
-		frappe.delete_doc("Sales Invoice", si, ignore_permissions=True, force=True)
+		try:
+			if docstatus == 1:
+				self._cancel_linked_payments(si)
+				inv = frappe.get_doc("Sales Invoice", si)
+				inv.flags.ignore_permissions = True
+				inv.cancel()
+			else:
+				# Draft (or already cancelled) → no ledger impact, drop the record.
+				frappe.delete_doc("Sales Invoice", si, ignore_permissions=True, force=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"booking invoice rollback failed: {self.name}")
+
+	def _cancel_linked_payments(self, sales_invoice):
+		"""Cancel every submitted Payment Entry that settles ``sales_invoice`` so the
+		invoice can then be cancelled (a paid invoice can't be cancelled while live
+		payments still reference it)."""
+		payments = frappe.get_all(
+			"Payment Entry Reference",
+			filters={
+				"reference_doctype": "Sales Invoice",
+				"reference_name": sales_invoice,
+				"docstatus": 1,
+			},
+			pluck="parent",
+		)
+		for pe in set(payments):
+			if frappe.db.get_value("Payment Entry", pe, "docstatus") == 1:
+				doc = frappe.get_doc("Payment Entry", pe)
+				doc.flags.ignore_permissions = True
+				doc.cancel()
 
 	# ---- helpers --------------------------------------------------------
 	def _sync_payment_type_from_contract(self):

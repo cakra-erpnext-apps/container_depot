@@ -153,6 +153,18 @@ class TestTankInFlow(FrappeTestCase):
 		self.assertTrue(b.branch)                        # branch fell back
 		self.assertEqual(b.principal, self.customer)     # principal defaulted to customer
 
+	def test_cash_invoice_follows_price_list_and_branch(self):
+		# The auto-created Cash invoice bills off the customer's active price list: its
+		# currency, the price list itself, the lift Item, and the booking's branch.
+		b = self._booking(self.customer, lift_item="Lift Off")
+		b.insert(ignore_permissions=True)
+		self.assertTrue(b.sales_invoice, "Cash booking must auto-create a draft invoice")
+		si = frappe.get_doc("Sales Invoice", b.sales_invoice)
+		self.assertEqual(si.currency, "IDR")                  # from the price list
+		self.assertEqual(si.selling_price_list, self.price_list)
+		self.assertEqual(si.branch, b.branch)
+		self.assertEqual(si.items[0].item_code, "Lift Off")   # lift Item, not generic service
+
 	def test_draft_empty_items_ok_submit_requires_them(self):
 		# An empty Containers table is tolerated on a draft (so the DO can be attached
 		# before the tanks are listed)…
@@ -467,6 +479,37 @@ class TestBookingCancel(FrappeTestCase):
 			"a tank still reserved by another live booking must stay Booked",
 		)
 		self.assertEqual(b.docstatus, 1)
+
+	def test_cancel_rolls_back_submitted_invoice(self):
+		# Cancelling a confirmed booking must not leave its invoice live — the booking
+		# link is dropped and the invoice rolled back.
+		b = self._submit_cash_booking("CXLPHANT001")
+		self.assertTrue(b.sales_invoice)
+		b.cancel()
+		b.reload()
+		self.assertFalse(b.sales_invoice, "invoice must be unlinked / rolled back on cancel")
+
+	def test_delete_draft_booking_removes_invoice(self):
+		# A draft Cash booking auto-creates a draft Sales Invoice; deleting the booking
+		# must take that draft invoice with it (no orphan charge).
+		b = frappe.get_doc({
+			"doctype": "Container Booking",
+			"direction": "Tank In",
+			"customer": self.customer,
+			"contract": self.contract,
+			"do_reference": "DO-CXL-DR",
+			"items": [{"container_no": "CXLPHANT001"}],
+		}).insert(ignore_permissions=True)
+		si = b.sales_invoice
+		self.assertTrue(
+			si and frappe.db.exists("Sales Invoice", si),
+			"draft Cash booking must auto-create a draft invoice",
+		)
+		frappe.delete_doc("Container Booking", b.name, ignore_permissions=True)
+		self.assertFalse(
+			frappe.db.exists("Sales Invoice", si),
+			"draft invoice must be deleted with the booking",
+		)
 
 
 class TestTankOutGating(FrappeTestCase):

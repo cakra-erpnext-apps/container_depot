@@ -422,6 +422,19 @@ CUSTOM_FIELDS = {
 			"description": "Optional — the Customer this rate card belongs to. Leave blank for shared/standard price lists.",
 		}
 	],
+	# Stamp the depot Branch on receivables so invoices can be filtered / reported per
+	# branch (Sales Invoice has no native branch field). Set from the Container Booking.
+	"Sales Invoice": [
+		{
+			"fieldname": "branch",
+			"label": "Branch",
+			"fieldtype": "Link",
+			"options": "Branch",
+			"insert_after": "customer",
+			"in_standard_filter": 1,
+			"description": "Depot branch this invoice was raised for (carried from the Container Booking).",
+		}
+	],
 }
 
 

@@ -53,20 +53,27 @@ def _resolve_tax_template(title_or_name, company):
 
 
 def create_draft_sales_invoice(
-	customer, lines, due_days=30, posting_date=None, remarks=None, taxes_and_charges=None
+	customer, lines, due_days=30, posting_date=None, remarks=None, taxes_and_charges=None,
+	currency=None, selling_price_list=None, branch=None,
 ):
 	"""Create (and return the name of) a Draft Sales Invoice.
 
-	``lines`` is a list of {description, qty, rate}. ``taxes_and_charges`` is an
-	optional Sales Taxes and Charges Template name (e.g. PPN). Returns None if the
-	site is not invoice-ready (no company / no customer).
+	``lines`` is a list of {item_code, description, qty, rate}; ``item_code`` falls back
+	to the generic depot service item when absent or unknown. ``taxes_and_charges`` is an
+	optional Sales Taxes and Charges Template name (e.g. PPN).
+
+	``currency`` / ``selling_price_list`` make the invoice follow the booking's chosen
+	rate card — the price-list currency (USD / IDR) is used as-is with conversion_rate 1
+	(no exchange-rate conversion), so a USD price list yields a USD invoice. ``branch``
+	is stamped on the app's Sales Invoice custom field. Returns None if the site is not
+	invoice-ready (no company / no customer).
 	"""
 	company = get_default_company()
 	if not company or not customer:
 		return None
 
 	income_account = frappe.db.get_value("Company", company, "default_income_account")
-	item = ensure_service_item()
+	service_item = ensure_service_item()
 	posting = posting_date or today()
 
 	si = frappe.new_doc("Sales Invoice")
@@ -77,11 +84,24 @@ def create_draft_sales_invoice(
 	si.due_date = add_days(posting, due_days)
 	if remarks:
 		si.remarks = remarks
+	if branch and frappe.db.exists("Branch", branch):
+		si.branch = branch
+	if selling_price_list:
+		si.selling_price_list = selling_price_list
+	if currency:
+		# Bill in the price-list currency, value-as-is: no FX conversion (rate 1), so a
+		# USD list bills USD and an IDR list bills IDR. ERPNext only needs a non-zero rate.
+		si.currency = currency
+		si.conversion_rate = 1
+		si.plc_conversion_rate = 1
 
 	for ln in lines:
+		item_code = ln.get("item_code")
+		if not item_code or not frappe.db.exists("Item", item_code):
+			item_code = service_item
 		si.append("items", {
-			"item_code": item,
-			"description": ln.get("description") or item,
+			"item_code": item_code,
+			"description": ln.get("description") or item_code,
 			"qty": ln.get("qty") or 1,
 			"rate": ln.get("rate") or 0,
 			"income_account": income_account,
@@ -96,5 +116,15 @@ def create_draft_sales_invoice(
 			si.append("taxes", tax)
 
 	si.flags.ignore_permissions = True
-	si.insert(ignore_permissions=True)
+	# A foreign-currency invoice (e.g. a USD price list under an IDR-base company) carries
+	# conversion_rate 1 by design here — we bill the price-list value as-is, no FX. That
+	# trips ERPNext's *non-blocking* "Conversion rate is 1.00, but document currency is
+	# different…" msgprint (accounts_controller.check_conversion_rate). Mute it for this
+	# programmatic insert so an auto-created draft invoice raises no popup.
+	prev_mute = frappe.flags.mute_messages
+	frappe.flags.mute_messages = True
+	try:
+		si.insert(ignore_permissions=True)
+	finally:
+		frappe.flags.mute_messages = prev_mute
 	return si.name
