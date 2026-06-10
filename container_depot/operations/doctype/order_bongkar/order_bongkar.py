@@ -1,7 +1,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import get_datetime, now_datetime
+from frappe.utils import cint, get_datetime, now_datetime
 
 # A single bon/voucher may carry at most this many containers.
 MAX_CONTAINERS_PER_ORDER = 2
@@ -26,12 +26,33 @@ def _order_rows(doc: Document):
 
 def _sync_booking(doc: Document):
 	"""Derive the header ``booking`` from the first container row's Booking Code
-	(so a bon always belongs to exactly one booking)."""
+	(so a bon always belongs to exactly one booking), then carry the booking's
+	Principal (Tank Owner) onto the header."""
 	rows = _order_rows(doc)
 	if not doc.get("booking") and rows and rows[0].booking_code:
 		booking = frappe.db.get_value("Booking Code", rows[0].booking_code, "booking")
 		if booking:
 			doc.booking = booking
+	if doc.get("booking") and doc.meta.has_field("principal") and not doc.get("principal"):
+		doc.principal = frappe.db.get_value("Container Booking", doc.booking, "principal")
+
+
+def _resolve_code_from_container(doc: Document, row) -> None:
+	"""Manual grid add: the operator picks a Container (not the hidden Booking
+	Code). Resolve its still-pending (``Active``) Booking Code on THIS voucher's
+	booking so the row carries a code — keeping a single bon to one booking."""
+	if row.booking_code or not doc.get("booking"):
+		return
+	if not (row.get("container") or row.get("container_no")):
+		return
+	base = {"booking": doc.booking, "state": "Active"}
+	code = None
+	if row.get("container"):
+		code = frappe.db.get_value("Booking Code", {**base, "container": row.container}, "name")
+	if not code and row.get("container_no"):
+		code = frappe.db.get_value("Booking Code", {**base, "container_no": row.container_no}, "name")
+	if code:
+		row.booking_code = code
 
 
 def _code_owned_by_order(doc: Document, code: str) -> bool:
@@ -61,6 +82,8 @@ def _validate_booking_code(doc: Document, expected_direction: str):
 		)
 	seen = set()
 	for row in rows:
+		# Manual add picks a Container; back-resolve its Active Booking Code first.
+		_resolve_code_from_container(doc, row)
 		if not row.booking_code:
 			frappe.throw(_("Row {0}: Booking Code is required.").format(row.idx))
 		if row.booking_code in seen:
@@ -143,3 +166,29 @@ def _release_codes(doc: Document):
 	for r in _order_rows(doc):
 		if r.booking_code and frappe.db.get_value("Booking Code", r.booking_code, "state") == "Used":
 			frappe.db.set_value("Booking Code", r.booking_code, "state", "Active", update_modified=False)
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def pending_container_query(doctype, txt, searchfield, start, page_len, filters):
+	"""Containers still issuable onto a bon for a booking: those carrying an
+	``Active`` Booking Code on that booking (i.e. not yet placed on a voucher).
+	Drives the manual container picker in an Order Bongkar grid so one voucher
+	can only mix containers from the SAME booking."""
+	booking = (filters or {}).get("booking")
+	if not booking:
+		return []
+	like = f"%{txt or ''}%"
+	return frappe.db.sql(
+		"""
+		SELECT DISTINCT c.name, c.container_no
+		FROM `tabContainer` c
+		INNER JOIN `tabBooking Code` bc
+			ON (bc.container = c.name OR bc.container_no = c.container_no)
+		WHERE bc.booking = %(booking)s AND bc.state = 'Active'
+		  AND (c.name LIKE %(like)s OR c.container_no LIKE %(like)s)
+		ORDER BY c.container_no
+		LIMIT {start}, {page_len}
+		""".format(start=cint(start), page_len=cint(page_len)),
+		{"booking": booking, "like": like},
+	)

@@ -9,6 +9,7 @@
     "order_status",
     "column_break_1",
     "shipper",
+    "principal",
     "ex_vessel",
     "tanggal_bongkar",
     "containers",
@@ -55,6 +56,15 @@
       "in_standard_filter": 1,
       "label": "Shipper",
       "options": "Customer"
+    },
+    {
+      "description": "Tank Owner, carried from the booking.",
+      "fieldname": "principal",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Principal / Tank Owner",
+      "options": "Customer",
+      "read_only": 1
     },
     {
       "fieldname": "ex_vessel",

@@ -50,6 +50,8 @@ class TestB1Fields(FrappeTestCase):
 		self._assert_field("Order Bongkar", "containers", "Table", ["Container Booking Item"])
 		# Actual unload date for the bon (defaults from the booking line's estimation).
 		self._assert_field("Order Bongkar", "tanggal_bongkar", "Date")
+		# Principal (Tank Owner) carried from the booking onto the voucher header.
+		self._assert_field("Order Bongkar", "principal", "Link", ["Customer"])
 		# Order Muat (Tank Out) keeps its own Order Container Item child + header fields.
 		self._assert_field("Order Muat", "containers", "Table", ["Order Container Item"])
 		self._assert_field("Order Muat", "ro", "Data")

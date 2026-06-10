@@ -143,6 +143,7 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None):
 		order.shipper = vehicle_data.get("shipper") or customer
 
 		if direction == "Tank In":
+			order.principal = frappe.db.get_value("Container Booking", booking, "principal")
 			order.ex_vessel = vehicle_data.get("ex_vessel")
 			# Actual unload date for the bon; defaults to the row's estimation Tgl. Bongkar.
 			order.tanggal_bongkar = (

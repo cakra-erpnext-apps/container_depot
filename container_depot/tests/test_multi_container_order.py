@@ -287,6 +287,54 @@ class TestGenerateOrderFromBookingAPI(FrappeTestCase):
 		name = make_order(booking, codes, vehicle_data={"tanggal_bongkar": "2026-07-02"})
 		self.assertEqual(str(frappe.db.get_value("Order Bongkar", name, "tanggal_bongkar")), "2026-07-02")
 
+	def test_order_bongkar_carries_booking_principal(self):
+		# The voucher inherits the booking's Principal (Tank Owner) on its header.
+		booking, codes = _booking_with_codes(code_direction="Tank In", count=1, prefix="MCPR0")
+		principal = frappe.db.get_value("Container Booking", booking, "principal")
+		name = make_order(booking, codes)
+		self.assertTrue(principal)
+		self.assertEqual(frappe.db.get_value("Order Bongkar", name, "principal"), principal)
+
+	def test_manual_container_add_resolves_booking_code(self):
+		# A grid row added by Container (booking_code left blank) back-resolves the
+		# container's Active Booking Code on this voucher's booking.
+		container = frappe.get_doc({
+			"doctype": "Container", "container_no": "MCMAN000099",
+			"container_type": "ISO Tank", "status": "Available",
+		}).insert(ignore_permissions=True).name
+		booking, codes = _booking_with_codes(
+			code_direction="Tank In", count=1, prefix="MCMAN0", containers=[container],
+		)
+		order = frappe.get_doc({
+			"doctype": "Order Bongkar",
+			"booking": booking,
+			"order_status": "Issued",
+			"containers": [{"container": container}],
+		})
+		order.insert(ignore_permissions=True)
+		self.assertEqual(order.containers[0].booking_code, codes[0])
+
+	def test_pending_query_scoped_to_booking(self):
+		# The manual picker only surfaces containers with an Active code on THIS booking.
+		from container_depot.operations.doctype.order_bongkar.order_bongkar import (
+			pending_container_query,
+		)
+		c1 = frappe.get_doc({
+			"doctype": "Container", "container_no": "MCPQ0000001",
+			"container_type": "ISO Tank", "status": "Available",
+		}).insert(ignore_permissions=True).name
+		b1, _ = _booking_with_codes(code_direction="Tank In", count=1, prefix="MCPQA0", containers=[c1])
+		c2 = frappe.get_doc({
+			"doctype": "Container", "container_no": "MCPQ0000002",
+			"container_type": "ISO Tank", "status": "Available",
+		}).insert(ignore_permissions=True).name
+		_booking_with_codes(code_direction="Tank In", count=1, prefix="MCPQB0", containers=[c2])
+		names = [r[0] for r in pending_container_query(
+			"Container", "", "name", 0, 20, {"booking": b1},
+		)]
+		self.assertIn(c1, names)
+		self.assertNotIn(c2, names)
+
 	def test_pending_excludes_used_and_expired(self):
 		booking, codes = _booking_with_codes(code_direction="Tank In", count=3, prefix="MCPND0")
 		# Consume one, expire another by flipping state.
