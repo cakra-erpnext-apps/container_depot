@@ -8,7 +8,12 @@
 // container_depot/operations/eir.py:create_eir — keep the two in sync.
 
 frappe.ui.form.on('Inspection', {
+	onload(frm) {
+		frm.trigger('_set_queries');
+	},
+
 	refresh(frm) {
+		frm.trigger('_set_queries');
 		if (!frm.is_new() && frm.doc.inspection_type === 'EIR-In') {
 			frm.add_custom_button(__('Check Photo Completion'), () => check_photo_completion(frm));
 		}
@@ -30,6 +35,60 @@ frappe.ui.form.on('Inspection', {
 	// taxonomy and defaults the reqd Damage Entry fields the same way the server does.
 	has_damage(frm) {
 		if (frm.doc.has_damage) add_damage_entry(frm);
+	},
+
+	_set_queries(frm) {
+		// Booking codes that are still live — issued (Active) or consumed at the
+		// gate (Used) — never expired/cancelled/reissued.
+		frm.set_query('booking_code', () => ({ filters: { state: ['in', ['Active', 'Used']] } }));
+	},
+
+	// Picking a Booking Code prefills the EIR header from the SAME whitelisted
+	// function the PWA uses (see prefill_from_booking) — one prefill implementation.
+	booking_code(frm) {
+		if (frm.doc.booking_code) prefill_from_booking(frm);
+	},
+});
+
+// --- B-D2: Damage Entry grid fetch triggers (manual in-grid editing) ---
+// Mirror create_eir's mapping so a row built by hand matches one built by the
+// checklist dialog / PWA: checklist item -> component + area, repair code ->
+// estimated hours, damage code -> description + default severity.
+frappe.ui.form.on('Damage Entry', {
+	checklist_item(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row.checklist_item) return;
+		frappe.db
+			.get_value('EIR Checklist Item', row.checklist_item, ['printed_no', 'item_name', 'area'])
+			.then((r) => {
+				const ci = r.message || {};
+				frappe.model.set_value(cdt, cdn, 'component', `${ci.printed_no}. ${ci.item_name}`);
+				frappe.model.set_value(cdt, cdn, 'area', ci.area);
+			});
+	},
+
+	repair_code(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row.repair_code || row.estimated_repair_hours) return;
+		frappe.db.get_value('EIR Repair Code', row.repair_code, 'standard_hours').then((r) => {
+			const hours = (r.message || {}).standard_hours;
+			if (hours) frappe.model.set_value(cdt, cdn, 'estimated_repair_hours', hours);
+		});
+	},
+
+	damage_type(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row.damage_type) return;
+		if (!row.severity) frappe.model.set_value(cdt, cdn, 'severity', 'Minor');
+		if (!row.damage_description) {
+			frappe.db.get_value('EIR Damage Code', row.damage_type, 'description').then((r) => {
+				const desc = (r.message || {}).description;
+				const fresh = locals[cdt][cdn];
+				if (desc && fresh && !fresh.damage_description) {
+					frappe.model.set_value(cdt, cdn, 'damage_description', desc);
+				}
+			});
+		}
 	},
 });
 
@@ -96,5 +155,50 @@ function append_damage_row(frm, values) {
 				.then((r) => finish((r.message || {}).description));
 		}
 		return finish('');
+	});
+}
+
+// --- B-D4: prefill the EIR header from a Booking Code ---
+// Calls the SAME whitelisted function the PWA uses
+// (container_depot.ess.inspections.eir_prefill -> operations.eir.prefill). There is
+// exactly one prefill implementation; Desk is just another caller of it. Only blank
+// fields are filled, so manual input is never clobbered, and the derived ISO 6346
+// prefix/number/cd are shown as a dashboard comment (display-only, never stored).
+function prefill_from_booking(frm) {
+	frappe.call({
+		method: 'container_depot.ess.inspections.eir_prefill',
+		args: { booking_code: frm.doc.booking_code },
+		callback(r) {
+			const d = r.message;
+			if (!d) return;
+			const fills = {
+				container: d.container,
+				vessel: d.ex_vessel,
+				serial_no: d.serial_no,
+				manufacture_date: d.manufacture_date,
+				capacity: d.capacity,
+				tare_weight: d.tare_weight,
+				max_gross_weight: d.max_gross_weight,
+				last_test_date: d.last_test_date,
+				last_cargo: d.last_cargo,
+				depot: d.depot,
+				tank_owner: d.principal,
+			};
+			Object.keys(fills).forEach((f) => {
+				if (fills[f] != null && fills[f] !== '' && !frm.doc[f]) frm.set_value(f, fills[f]);
+			});
+			if (d.prefix || d.number || d.cd) {
+				frm.dashboard.clear_comment();
+				frm.dashboard.add_comment(
+					__('ISO 6346 — Prefix: {0} · Number: {1} · Cd: {2}', [
+						d.prefix || '—',
+						d.number || '—',
+						d.cd || '—',
+					]),
+					'blue',
+					true,
+				);
+			}
+		},
 	});
 }

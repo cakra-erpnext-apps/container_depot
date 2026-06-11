@@ -50,7 +50,6 @@
       "description": "Component / item inspected (e.g. Manlid, Foot Valve, Frame). Free text per the EIR template AREA/ITEM list.",
       "fieldname": "component",
       "fieldtype": "Data",
-      "in_list_view": 1,
       "label": "Component / Item"
     },
     {
@@ -65,12 +64,14 @@
       "description": "OAK repair-action code (30-54, X) from the EIR template.",
       "fieldname": "repair_code",
       "fieldtype": "Link",
+      "in_list_view": 1,
       "label": "Repair Code",
       "options": "EIR Repair Code"
     },
     {
       "fieldname": "damage_description",
       "fieldtype": "Small Text",
+      "in_list_view": 1,
       "label": "Description",
       "reqd": 1
     },
@@ -135,7 +136,7 @@
   "index_web_pages_for_search": 1,
   "istable": 1,
   "links": [],
-  "modified": "2026-05-16",
+  "modified": "2026-06-11 09:00:00.000000",
   "module": "Operations",
   "name": "Damage Entry"
 }
