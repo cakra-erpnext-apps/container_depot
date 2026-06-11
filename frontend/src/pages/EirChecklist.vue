@@ -420,7 +420,11 @@ const voucherError = computed(() => {
 const voucherPlaceholder = computed(() => (eirType.value === "EIR-In" ? "ORD-BKR-…" : "ORD-MT-…"))
 const voucherHint = computed(() => (eirType.value === "EIR-In" ? labels.voucherHintIn : labels.voucherHintOut))
 function doVoucherFetch() {
-	voucherRes.submit({ voucher: referredVoucher.value || "", inspection_type: eirType.value })
+	voucherRes.submit({
+		voucher: referredVoucher.value || "",
+		inspection_type: eirType.value,
+		container: header.value?.container || containerNo.value || "",
+	})
 }
 
 // Restore the draft's saved checklist lines + photos onto the (master) rows.

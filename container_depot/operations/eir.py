@@ -58,13 +58,30 @@ def _voucher_doctype(inspection_type: str | None) -> str:
 	return "Order Bongkar" if inspection_type == "EIR-In" else "Order Muat"
 
 
-def fetch_voucher(voucher: str | None, inspection_type: str = "EIR-In") -> dict:
+_VOUCHER_CHILD = {
+	"Order Bongkar": "Container Booking Item",
+	"Order Muat": "Order Container Item",
+}
+
+
+def _voucher_has_container(doctype: str, voucher: str, container: str) -> bool:
+	"""True if ``container`` is one of the bon's container rows."""
+	return bool(frappe.db.exists(
+		_VOUCHER_CHILD[doctype],
+		{"parent": voucher, "parenttype": doctype, "container": container},
+	))
+
+
+def fetch_voucher(voucher: str | None, inspection_type: str = "EIR-In", container: str | None = None) -> dict:
 	"""Read the EIR's read-only shipment snapshot from a referred voucher (bon).
 
 	EIR-In → Order Bongkar (shipper only; the unloading bon has no truck/driver).
 	EIR-Out → Order Muat (truck plate, driver, driver phone, shipper). Missing fields
 	come back as ``None``. The voucher's fields are entered when the bon is generated;
 	here they are pulled read-only. ``voucher=None`` yields an all-None snapshot.
+
+	The voucher must be **submitted** and (when ``container`` is given) must actually
+	carry that container — an EIR can only reference the bon the tank is really on.
 	"""
 	doctype = _voucher_doctype(inspection_type)
 	snap = {
@@ -77,8 +94,13 @@ def fetch_voucher(voucher: str | None, inspection_type: str = "EIR-In") -> dict:
 	}
 	if not voucher:
 		return snap
-	if not frappe.db.exists(doctype, voucher):
+	vdoc = frappe.db.get_value(doctype, voucher, ["name", "docstatus"], as_dict=True)
+	if not vdoc:
 		frappe.throw(_("{0} {1} not found.").format(doctype, voucher))
+	if vdoc.docstatus != 1:
+		frappe.throw(_("{0} {1} is not submitted yet.").format(doctype, voucher))
+	if container and not _voucher_has_container(doctype, voucher, container):
+		frappe.throw(_("Container {0} is not on {1} {2}.").format(container, doctype, voucher))
 	snap["referred_voucher"] = voucher
 	if doctype == "Order Muat":
 		row = frappe.db.get_value(
@@ -97,7 +119,7 @@ def fetch_voucher(voucher: str | None, inspection_type: str = "EIR-In") -> dict:
 def _apply_voucher(doc, referred_voucher: str | None) -> None:
 	"""Stamp the read-only shipment snapshot from ``referred_voucher`` onto an Inspection
 	(or clear it when no voucher). The voucher doctype follows the inspection type."""
-	snap = fetch_voucher(referred_voucher, doc.inspection_type)
+	snap = fetch_voucher(referred_voucher, doc.inspection_type, container=doc.container)
 	doc.voucher_doctype = snap["voucher_doctype"]
 	doc.referred_voucher = snap["referred_voucher"]
 	doc.truck_no = snap["truck_no"]

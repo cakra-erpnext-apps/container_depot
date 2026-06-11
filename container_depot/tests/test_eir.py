@@ -28,25 +28,31 @@ def _ensure_cargo(name):
 	return name
 
 
-def _make_order_muat(shipper, *, truck="B-9001-XY", driver="Budi", phone="08110001"):
-	"""Minimal Order Muat (loading bon) for voucher tests — validation + mandatory are
-	bypassed; we only read truck / driver / shipper back via fetch_voucher."""
+def _make_order_muat(shipper, container, *, truck="B-9001-XY", driver="Budi", phone="08110001", submit=True):
+	"""Minimal Order Muat (loading bon) carrying ``container`` — validation + mandatory
+	are bypassed; ``submit`` forces docstatus=1 so fetch_voucher accepts it."""
 	doc = frappe.get_doc({
 		"doctype": "Order Muat", "shipper": shipper,
 		"truck_plate": truck, "driver_name": driver, "driver_phone": phone,
+		"containers": [{"container": container, "container_no": container}],
 	})
 	doc.flags.ignore_validate = True
 	doc.insert(ignore_permissions=True, ignore_mandatory=True)
+	if submit:
+		frappe.db.set_value("Order Muat", doc.name, "docstatus", 1, update_modified=False)
 	return doc.name
 
 
-def _make_order_bongkar(shipper, *, ex_vessel="MV TEST"):
-	"""Minimal Order Bongkar (unloading bon) for voucher tests."""
+def _make_order_bongkar(shipper, container, *, ex_vessel="MV TEST", submit=True):
+	"""Minimal Order Bongkar (unloading bon) carrying ``container``."""
 	doc = frappe.get_doc({
 		"doctype": "Order Bongkar", "shipper": shipper, "ex_vessel": ex_vessel,
+		"containers": [{"container": container, "container_no": container}],
 	})
 	doc.flags.ignore_validate = True
 	doc.insert(ignore_permissions=True, ignore_mandatory=True)
+	if submit:
+		frappe.db.set_value("Order Bongkar", doc.name, "docstatus", 1, update_modified=False)
 	return doc.name
 
 
@@ -319,8 +325,9 @@ class TestEirDraft(FrappeTestCase):
 class TestEirVoucher(FrappeTestCase):
 	def test_fetch_voucher_order_muat_for_eir_out(self):
 		cust = ensure_test_customer("EIR Voucher Cust")
-		om = _make_order_muat(cust)
-		snap = eir.fetch_voucher(om, "EIR-Out")
+		c = _make_container("EIRV1000010")
+		om = _make_order_muat(cust, c)
+		snap = eir.fetch_voucher(om, "EIR-Out", container=c)
 		self.assertEqual(snap["voucher_doctype"], "Order Muat")
 		self.assertEqual(snap["referred_voucher"], om)
 		self.assertEqual(snap["truck_no"], "B-9001-XY")
@@ -331,8 +338,9 @@ class TestEirVoucher(FrappeTestCase):
 	def test_fetch_voucher_order_bongkar_for_eir_in(self):
 		# EIR-In references the unloading bon — shipper only, no truck/driver.
 		cust = ensure_test_customer("EIR Voucher Cust")
-		ob = _make_order_bongkar(cust)
-		snap = eir.fetch_voucher(ob, "EIR-In")
+		c = _make_container("EIRV1000011")
+		ob = _make_order_bongkar(cust, c)
+		snap = eir.fetch_voucher(ob, "EIR-In", container=c)
 		self.assertEqual(snap["voucher_doctype"], "Order Bongkar")
 		self.assertEqual(snap["shipper"], cust)
 		self.assertIsNone(snap["truck_no"])
@@ -348,11 +356,28 @@ class TestEirVoucher(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			eir.fetch_voucher("ORD-MT-9999-99999", "EIR-Out")
 
+	def test_fetch_voucher_rejects_unsubmitted(self):
+		# Only submitted vouchers may be referenced.
+		cust = ensure_test_customer("EIR Voucher Cust")
+		c = _make_container("EIRV1000012")
+		om = _make_order_muat(cust, c, submit=False)
+		with self.assertRaises(frappe.ValidationError):
+			eir.fetch_voucher(om, "EIR-Out", container=c)
+
+	def test_fetch_voucher_rejects_container_not_on_voucher(self):
+		# The referenced bon must actually carry the inspected container.
+		cust = ensure_test_customer("EIR Voucher Cust")
+		c1 = _make_container("EIRV1000013")
+		c2 = _make_container("EIRV1000014")
+		om = _make_order_muat(cust, c1)
+		with self.assertRaises(frappe.ValidationError):
+			eir.fetch_voucher(om, "EIR-Out", container=c2)
+
 	def test_save_draft_applies_muat_voucher(self):
 		# Saving a draft with a referred voucher snapshots truck/driver/shipper onto it.
 		cust = ensure_test_customer("EIR Voucher Cust")
-		om = _make_order_muat(cust, truck="B-7", driver="Sari", phone="0822")
-		_make_container("EIRV1000001")
+		c = _make_container("EIRV1000001")
+		om = _make_order_muat(cust, c, truck="B-7", driver="Sari", phone="0822")
 		d = eir.open_draft(container_no="EIRV1000001", inspection_type="EIR-Out")
 		eir.save_draft(inspection=d["inspection"], inspection_type="EIR-Out",
 					   referred_voucher=om, lines=[])
