@@ -28,6 +28,11 @@ const routes = [
 		name: "EirChecklist",
 		component: () => import("@/pages/EirChecklist.vue"),
 	},
+	{
+		path: "/eir/history",
+		name: "EirHistory",
+		component: () => import("@/pages/EirHistory.vue"),
+	},
 ]
 
 const router = createRouter({

@@ -34,6 +34,18 @@ def eir_prefill(container=None, container_no=None, booking_code=None, order_bong
 
 
 @frappe.whitelist(methods=["GET"])
+def eir_history(search=None, start=0, page_length=10):
+	"""GET /api/v1/ess/eir-history — the caller's own EIRs (newest first, paginated).
+
+	Searchable by container number / EIR id. Scoped to the logged-in user's own EIRs.
+	"""
+	_require_authenticated_user()
+	return eir.list_my_eirs(
+		user=frappe.session.user, search=search, start=start, page_length=page_length
+	)
+
+
+@frappe.whitelist(methods=["GET"])
 def eir_voucher(voucher=None, inspection_type="EIR-In", container=None):
 	"""GET /api/v1/ess/eir-voucher — read-only shipment snapshot from a referred voucher.
 

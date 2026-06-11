@@ -32,6 +32,14 @@
 			<p class="font-medium">{{ labels.eir }}</p>
 			<p class="text-sm text-gray-500">{{ labels.eirDesc }}</p>
 		</router-link>
+
+		<router-link
+			to="/eir/history"
+			class="block rounded-lg border bg-white p-4 hover:bg-gray-50"
+		>
+			<p class="font-medium">{{ labels.eirHistoryTitle }}</p>
+			<p class="text-sm text-gray-500">{{ labels.eirHistoryDesc }}</p>
+		</router-link>
 	</div>
 </template>
 

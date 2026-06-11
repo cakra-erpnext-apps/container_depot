@@ -2,9 +2,12 @@
 	<div class="mx-auto w-full max-w-lg space-y-4">
 		<div class="flex items-center justify-between gap-2">
 			<h1 class="text-lg font-semibold">{{ labels.eirTitle }}</h1>
-			<button v-if="header" class="shrink-0 text-sm text-blue-600 underline" @click="reset">
-				{{ labels.newEir }}
-			</button>
+			<div class="flex shrink-0 items-center gap-3 text-sm">
+				<router-link to="/eir/history" class="text-blue-600 underline">{{ labels.eirHistory }}</router-link>
+				<button v-if="header" class="text-blue-600 underline" @click="reset">
+					{{ labels.newEir }}
+				</button>
+			</div>
 		</div>
 
 		<!-- Step 1 — source: container number + EIR type -->

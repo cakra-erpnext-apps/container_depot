@@ -100,6 +100,16 @@ export const labels = {
 	draftSaved: "Tersimpan", // Saved
 	eirSubmitted: "EIR berhasil disubmit", // EIR submitted
 	newEir: "EIR container lain", // Start another container
+	// EIR history (the user's own EIRs)
+	eirHistory: "Riwayat", // History (short link on the checklist)
+	eirHistoryTitle: "Riwayat EIR", // EIR history
+	eirHistoryDesc: "Daftar EIR yang Anda buat", // EIRs you created
+	eirHistorySearch: "Cari no. container / EIR…", // Search container no / EIR id
+	prev: "Sebelumnya", // Previous
+	next: "Berikutnya", // Next
+	eirStatusDraft: "Draf", // Draft
+	eirStatusSubmitted: "Submit", // Submitted
+	eirStatusCancelled: "Batal", // Cancelled
 	// Virtual signature (EIR creator)
 	signature: "Tanda Tangan Pembuat EIR", // EIR creator signature
 	signedBy: "Ditandatangani oleh", // Signed by

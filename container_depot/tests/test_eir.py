@@ -445,3 +445,45 @@ class TestEirCargoAndExVessel(FrappeTestCase):
 		res = eir.create_eir(inspection_type="EIR-In", container=c, tank_status="Laden",
 							 lines=[], submit=False)
 		self.assertEqual(frappe.db.get_value("Inspection", res["name"], "tank_status"), "Laden")
+
+
+class TestEirHistory(FrappeTestCase):
+	def test_my_history_scoping_order_search_pagination(self):
+		me = "eir-hist-me@example.com"
+		other = "eir-hist-other@example.com"
+		for u in (me, other):
+			if not frappe.db.exists("User", u):
+				frappe.get_doc({"doctype": "User", "email": u, "first_name": "Hist",
+								"send_welcome_email": 0, "roles": []}).insert(ignore_permissions=True)
+
+		def mine(cno, when):
+			res = eir.create_eir(inspection_type="EIR-In", container=_make_container(cno), lines=[])
+			frappe.db.set_value("Inspection", res["name"],
+								{"owner": me, "creation": when}, update_modified=False)
+			return res["name"]
+
+		mine("EIRH1000001", "2026-01-01 10:00:00")
+		mine("EIRH1000002", "2026-01-02 10:00:00")
+		mine("EIRH1000003", "2026-01-03 10:00:00")
+		# Someone else's EIR must never surface in my history.
+		ot = eir.create_eir(inspection_type="EIR-In", container=_make_container("EIRH1000099"), lines=[])
+		frappe.db.set_value("Inspection", ot["name"], "owner", other, update_modified=False)
+
+		# Scoping + newest-first.
+		res = eir.list_my_eirs(user=me)
+		self.assertEqual(res["total"], 3)
+		cnos = [r["container_no"] for r in res["items"]]
+		self.assertEqual(cnos, ["EIRH1000003", "EIRH1000002", "EIRH1000001"])
+		self.assertNotIn("EIRH1000099", cnos)
+
+		# Pagination.
+		p1 = eir.list_my_eirs(user=me, start=0, page_length=2)
+		self.assertEqual([r["container_no"] for r in p1["items"]], ["EIRH1000003", "EIRH1000002"])
+		p2 = eir.list_my_eirs(user=me, start=2, page_length=2)
+		self.assertEqual([r["container_no"] for r in p2["items"]], ["EIRH1000001"])
+		self.assertEqual(p2["total"], 3)
+
+		# Search by container number.
+		s = eir.list_my_eirs(user=me, search="EIRH1000002")
+		self.assertEqual(s["total"], 1)
+		self.assertEqual(s["items"][0]["container_no"], "EIRH1000002")
