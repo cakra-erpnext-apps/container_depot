@@ -47,6 +47,38 @@ export const labels = {
 	reset: "Ulangi", // Reset/again
 	ptDue: "Tes Periodik Jatuh Tempo", // Periodic test due
 	ptDueFlag: "PT Jatuh Tempo", // PT due (short)
+	// EIR (Equipment Interchange Receipt) checklist
+	eir: "EIR",
+	eirDesc: "Buat laporan kondisi kontainer (EIR)", // Create container condition report
+	eirTitle: "Checklist EIR",
+	eirSource: "Sumber Data", // Source
+	eirFetch: "Ambil Data", // Fetch
+	eirType: "Tipe EIR", // EIR type
+	eirHeader: "Data Tank", // Tank header
+	prefix: "Prefix",
+	number: "Number",
+	checkDigit: "Cd",
+	vessel: "Vessel",
+	serialNo: "Serial No",
+	dateManufacture: "Tgl. Manufaktur", // Date of manufacture
+	tanggal: "Tanggal", // Date
+	tankStatus: "Status Tank", // Tank status
+	emptyClean: "Empty Clean",
+	emptyDirty: "Empty Dirty",
+	checklist: "Checklist Pemeriksaan", // Inspection checklist
+	colItem: "Item",
+	colDamage: "Kode Kerusakan", // Damage code
+	colRepair: "Kode Perbaikan", // Repair code
+	colRemarks: "Keterangan", // Remarks
+	acceptableHint: "Kosongkan baris yang kondisinya baik (Acceptable).", // Leave good rows blank
+	signOff: "Tanda Tangan & Catatan", // Sign-off
+	truckNo: "No. Truk", // Truck no
+	emkl: "EMKL",
+	eirRemarks: "Catatan", // Remarks
+	officer: "Petugas", // Officer
+	saveDraft: "Simpan Draf", // Save draft
+	submitEir: "Submit EIR",
+	eirCreated: "EIR berhasil dibuat", // EIR created
 }
 
 // Canonical 5-bucket status labels (Indonesian primary / English).

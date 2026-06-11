@@ -23,6 +23,11 @@ const routes = [
 		name: "GateEntry",
 		component: () => import("@/pages/GateEntry.vue"),
 	},
+	{
+		path: "/eir",
+		name: "EirChecklist",
+		component: () => import("@/pages/EirChecklist.vue"),
+	},
 ]
 
 const router = createRouter({

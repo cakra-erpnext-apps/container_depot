@@ -24,6 +24,14 @@
 			<p class="font-medium">{{ labels.gate }}</p>
 			<p class="text-sm text-gray-500">{{ labels.gateDesc }}</p>
 		</router-link>
+
+		<router-link
+			to="/eir"
+			class="block rounded-lg border bg-white p-4 hover:bg-gray-50"
+		>
+			<p class="font-medium">{{ labels.eir }}</p>
+			<p class="text-sm text-gray-500">{{ labels.eirDesc }}</p>
+		</router-link>
 	</div>
 </template>
 
