@@ -5,50 +5,30 @@
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [
+    "tab_eir",
     "inspection_info",
-    "inspection_id",
     "inspection_type",
     "status",
-    "column_break_1",
+    "booking_code",
     "container",
     "container_no",
-    "booking_code",
     "depot",
-    "order_section",
-    "order_doctype",
-    "order_ref",
-    "reference_eir_in",
-    "client_uuid",
-    "survey_section",
-    "survey_type",
-    "priority",
-    "deadline",
-    "column_break_sr",
-    "requested_by",
-    "tank_owner",
-    "surveyor_company",
-    "section_break_2",
+    "column_break_1",
     "inspector",
-    "driver",
-    "truck_no",
-    "emkl",
-    "driver_signature",
-    "remarks",
-    "timestamps",
     "gate_in_timestamp",
-    "column_break_3",
     "gate_out_timestamp",
-    "tank_template_section",
     "vessel",
-    "tank_status",
+    "tank_template_section",
     "serial_no",
     "manufacture_date",
+    "last_test_date",
     "column_break_tank",
     "capacity",
     "tare_weight",
     "max_gross_weight",
-    "last_test_date",
     "last_cargo",
+    "column_break_tank2",
+    "tank_status",
     "seal_section",
     "seal_manhole",
     "seal_airline",
@@ -61,23 +41,46 @@
     "damage_section",
     "has_damage",
     "damage_log",
+    "signoff_section",
+    "truck_no",
+    "emkl",
+    "column_break_signoff1",
+    "driver",
+    "driver_signature",
+    "column_break_signoff2",
+    "remarks",
+    "tab_survey",
+    "survey_section",
+    "survey_type",
+    "priority",
+    "deadline",
+    "column_break_sr",
+    "requested_by",
+    "tank_owner",
+    "surveyor_company",
+    "survey_ref_section",
+    "reference_eir_in",
     "section_break_4",
     "repair_estimate",
     "total_estimate",
-    "approval_status"
+    "approval_status",
+    "tab_system",
+    "order_section",
+    "inspection_id",
+    "order_doctype",
+    "order_ref",
+    "client_uuid"
   ],
   "fields": [
     {
-      "fieldname": "inspection_info",
-      "fieldtype": "Section Break",
-      "label": "Inspection Information"
+      "fieldname": "tab_eir",
+      "fieldtype": "Tab Break",
+      "label": "EIR"
     },
     {
-      "bold": 1,
-      "fieldname": "inspection_id",
-      "fieldtype": "Data",
-      "label": "Inspection ID",
-      "read_only": 1
+      "fieldname": "inspection_info",
+      "fieldtype": "Section Break",
+      "label": "Identitas"
     },
     {
       "fieldname": "inspection_type",
@@ -95,8 +98,11 @@
       "reqd": 1
     },
     {
-      "fieldname": "column_break_1",
-      "fieldtype": "Column Break"
+      "fieldname": "booking_code",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Booking Code",
+      "options": "Booking Code"
     },
     {
       "fieldname": "container",
@@ -112,13 +118,6 @@
       "read_only": 1
     },
     {
-      "fieldname": "booking_code",
-      "fieldtype": "Link",
-      "in_standard_filter": 1,
-      "label": "Booking Code",
-      "options": "Booking Code"
-    },
-    {
       "fieldname": "depot",
       "fieldtype": "Link",
       "in_standard_filter": 1,
@@ -126,38 +125,210 @@
       "options": "Depot"
     },
     {
-      "collapsible": 1,
-      "fieldname": "order_section",
-      "fieldtype": "Section Break",
-      "label": "Order Reference"
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
     },
     {
-      "fieldname": "order_doctype",
+      "fieldname": "inspector",
       "fieldtype": "Link",
-      "label": "Order DocType",
-      "options": "DocType"
+      "label": "Inspector/Technician",
+      "options": "User",
+      "reqd": 1
     },
     {
-      "fieldname": "order_ref",
-      "fieldtype": "Dynamic Link",
-      "label": "Order",
-      "options": "order_doctype"
+      "fieldname": "gate_in_timestamp",
+      "fieldtype": "Datetime",
+      "label": "Gate-In Timestamp"
     },
     {
-      "description": "For EIR-Out: link to the matching EIR-In so the surveyor can diff photos and damage entries.",
-      "fieldname": "reference_eir_in",
-      "fieldtype": "Link",
-      "label": "Reference EIR-In",
-      "options": "Inspection"
+      "fieldname": "gate_out_timestamp",
+      "fieldtype": "Datetime",
+      "label": "Gate-Out Timestamp"
     },
     {
-      "description": "Idempotency key for offline-EIR batch ingestion (Phase 7). Dedup is enforced in code; blank rows are allowed.",
-      "fieldname": "client_uuid",
+      "fieldname": "vessel",
       "fieldtype": "Data",
-      "label": "Offline Client UUID"
+      "label": "Vessel"
+    },
+    {
+      "fieldname": "tank_template_section",
+      "fieldtype": "Section Break",
+      "label": "Kondisi Tank"
+    },
+    {
+      "fetch_from": "container.serial_no",
+      "fieldname": "serial_no",
+      "fieldtype": "Data",
+      "label": "Serial No",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.manufacture_date",
+      "fieldname": "manufacture_date",
+      "fieldtype": "Date",
+      "label": "Date of Manufacture",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.last_test_date",
+      "fieldname": "last_test_date",
+      "fieldtype": "Date",
+      "label": "Last Test Date",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_tank",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fetch_from": "container.capacity",
+      "fieldname": "capacity",
+      "fieldtype": "Float",
+      "label": "Capacity (L)",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.tare_weight",
+      "fieldname": "tare_weight",
+      "fieldtype": "Float",
+      "label": "Tare Weight (kg)",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.max_gross_weight",
+      "fieldname": "max_gross_weight",
+      "fieldtype": "Float",
+      "label": "Max Gross Weight / MWG (kg)",
+      "read_only": 1
+    },
+    {
+      "fetch_from": "container.last_cargo",
+      "fieldname": "last_cargo",
+      "fieldtype": "Link",
+      "label": "Last Cargo",
+      "options": "Cargo",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_tank2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "bold": 1,
+      "fieldname": "tank_status",
+      "fieldtype": "Select",
+      "label": "Tank Status",
+      "options": "\nEmpty Clean\nEmpty Dirty"
     },
     {
       "collapsible": 1,
+      "description": "5-point seal numbers recorded by the surveyor (feed Container + Release DO).",
+      "fieldname": "seal_section",
+      "fieldtype": "Section Break",
+      "label": "Seals"
+    },
+    {
+      "fieldname": "seal_manhole",
+      "fieldtype": "Data",
+      "label": "Manhole Seal"
+    },
+    {
+      "fieldname": "seal_airline",
+      "fieldtype": "Data",
+      "label": "Airline Seal"
+    },
+    {
+      "fieldname": "seal_bottom_outlet",
+      "fieldtype": "Data",
+      "label": "Bottom Outlet Seal"
+    },
+    {
+      "fieldname": "column_break_seal2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "seal_top_discharge",
+      "fieldtype": "Data",
+      "label": "Top Discharge Seal"
+    },
+    {
+      "fieldname": "seal_vapour_valve",
+      "fieldtype": "Data",
+      "label": "Vapour Valve Seal"
+    },
+    {
+      "fieldname": "eir_photos_section",
+      "fieldtype": "Section Break",
+      "label": "Foto Eksterior"
+    },
+    {
+      "fieldname": "exterior_photos",
+      "fieldtype": "Table",
+      "label": "Exterior Photos",
+      "options": "Inspection Photo"
+    },
+    {
+      "fieldname": "damage_section",
+      "fieldtype": "Section Break",
+      "label": "Checklist Kerusakan"
+    },
+    {
+      "default": "0",
+      "fieldname": "has_damage",
+      "fieldtype": "Check",
+      "label": "Has Damage"
+    },
+    {
+      "fieldname": "damage_log",
+      "fieldtype": "Table",
+      "label": "Damage Details",
+      "options": "Damage Entry"
+    },
+    {
+      "fieldname": "signoff_section",
+      "fieldtype": "Section Break",
+      "label": "Sign-off"
+    },
+    {
+      "fieldname": "truck_no",
+      "fieldtype": "Data",
+      "label": "Truck No"
+    },
+    {
+      "fieldname": "emkl",
+      "fieldtype": "Data",
+      "label": "EMKL / Forwarder"
+    },
+    {
+      "fieldname": "column_break_signoff1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "driver",
+      "fieldtype": "Data",
+      "label": "Driver Name"
+    },
+    {
+      "fieldname": "driver_signature",
+      "fieldtype": "Attach Image",
+      "label": "Driver Signature"
+    },
+    {
+      "fieldname": "column_break_signoff2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "remarks",
+      "fieldtype": "Small Text",
+      "label": "Remarks"
+    },
+    {
+      "depends_on": "eval:['Detailed Survey','Post-Repair'].includes(doc.inspection_type)",
+      "fieldname": "tab_survey",
+      "fieldtype": "Tab Break",
+      "label": "Survey & M&R"
+    },
+    {
       "description": "Set when this inspection fulfils a customer survey request (Detailed Survey).",
       "fieldname": "survey_section",
       "fieldtype": "Section Break",
@@ -203,199 +374,21 @@
       "options": "Surveyor Company"
     },
     {
-      "fieldname": "section_break_2",
-      "fieldtype": "Section Break",
-      "label": "Personnel"
+      "fieldname": "survey_ref_section",
+      "fieldtype": "Section Break"
     },
     {
-      "fieldname": "inspector",
+      "description": "For EIR-Out: link to the matching EIR-In so the surveyor can diff photos and damage entries.",
+      "fieldname": "reference_eir_in",
       "fieldtype": "Link",
-      "label": "Inspector/Technician",
-      "options": "User",
-      "reqd": 1
+      "label": "Reference EIR-In",
+      "options": "Inspection"
     },
     {
-      "fieldname": "driver",
-      "fieldtype": "Data",
-      "label": "Driver Name"
-    },
-    {
-      "fieldname": "truck_no",
-      "fieldtype": "Data",
-      "label": "Truck No"
-    },
-    {
-      "fieldname": "emkl",
-      "fieldtype": "Data",
-      "label": "EMKL / Forwarder"
-    },
-    {
-      "fieldname": "driver_signature",
-      "fieldtype": "Attach Image",
-      "label": "Driver Signature"
-    },
-    {
-      "fieldname": "remarks",
-      "fieldtype": "Small Text",
-      "label": "Remarks"
-    },
-    {
-      "fieldname": "timestamps",
-      "fieldtype": "Section Break",
-      "label": "Timestamps"
-    },
-    {
-      "fieldname": "gate_in_timestamp",
-      "fieldtype": "Datetime",
-      "label": "Gate-In Timestamp"
-    },
-    {
-      "fieldname": "column_break_3",
-      "fieldtype": "Column Break"
-    },
-    {
-      "fieldname": "gate_out_timestamp",
-      "fieldtype": "Datetime",
-      "label": "Gate-Out Timestamp"
-    },
-    {
-      "fieldname": "tank_template_section",
-      "fieldtype": "Section Break",
-      "label": "Tank / EIR Template"
-    },
-    {
-      "fieldname": "vessel",
-      "fieldtype": "Data",
-      "label": "Vessel"
-    },
-    {
-      "fieldname": "tank_status",
-      "fieldtype": "Select",
-      "label": "Tank Status",
-      "options": "\nEmpty Clean\nEmpty Dirty"
-    },
-    {
-      "fetch_from": "container.serial_no",
-      "fieldname": "serial_no",
-      "fieldtype": "Data",
-      "label": "Serial No",
-      "read_only": 1
-    },
-    {
-      "fetch_from": "container.manufacture_date",
-      "fieldname": "manufacture_date",
-      "fieldtype": "Date",
-      "label": "Date of Manufacture",
-      "read_only": 1
-    },
-    {
-      "fieldname": "column_break_tank",
-      "fieldtype": "Column Break"
-    },
-    {
-      "fetch_from": "container.capacity",
-      "fieldname": "capacity",
-      "fieldtype": "Float",
-      "label": "Capacity (L)",
-      "read_only": 1
-    },
-    {
-      "fetch_from": "container.tare_weight",
-      "fieldname": "tare_weight",
-      "fieldtype": "Float",
-      "label": "Tare Weight (kg)",
-      "read_only": 1
-    },
-    {
-      "fetch_from": "container.max_gross_weight",
-      "fieldname": "max_gross_weight",
-      "fieldtype": "Float",
-      "label": "Max Gross Weight / MWG (kg)",
-      "read_only": 1
-    },
-    {
-      "fetch_from": "container.last_test_date",
-      "fieldname": "last_test_date",
-      "fieldtype": "Date",
-      "label": "Last Test Date",
-      "read_only": 1
-    },
-    {
-      "fetch_from": "container.last_cargo",
-      "fieldname": "last_cargo",
-      "fieldtype": "Link",
-      "label": "Last Cargo",
-      "options": "Cargo",
-      "read_only": 1
-    },
-    {
-      "collapsible": 1,
-      "description": "5-point seal numbers recorded by the surveyor (feed Container + Release DO).",
-      "fieldname": "seal_section",
-      "fieldtype": "Section Break",
-      "label": "Seals"
-    },
-    {
-      "fieldname": "seal_manhole",
-      "fieldtype": "Data",
-      "label": "Manhole Seal"
-    },
-    {
-      "fieldname": "seal_airline",
-      "fieldtype": "Data",
-      "label": "Airline Seal"
-    },
-    {
-      "fieldname": "seal_bottom_outlet",
-      "fieldtype": "Data",
-      "label": "Bottom Outlet Seal"
-    },
-    {
-      "fieldname": "column_break_seal2",
-      "fieldtype": "Column Break"
-    },
-    {
-      "fieldname": "seal_top_discharge",
-      "fieldtype": "Data",
-      "label": "Top Discharge Seal"
-    },
-    {
-      "fieldname": "seal_vapour_valve",
-      "fieldtype": "Data",
-      "label": "Vapour Valve Seal"
-    },
-    {
-      "fieldname": "eir_photos_section",
-      "fieldtype": "Section Break",
-      "label": "Exterior Photos (EIR)"
-    },
-    {
-      "fieldname": "exterior_photos",
-      "fieldtype": "Table",
-      "label": "Exterior Photos",
-      "options": "Inspection Photo"
-    },
-    {
-      "fieldname": "damage_section",
-      "fieldtype": "Section Break",
-      "label": "Damage Log"
-    },
-    {
-      "default": "0",
-      "fieldname": "has_damage",
-      "fieldtype": "Check",
-      "label": "Has Damage"
-    },
-    {
-      "fieldname": "damage_log",
-      "fieldtype": "Table",
-      "label": "Damage Details",
-      "options": "Damage Entry"
-    },
-    {
+      "depends_on": "eval:doc.has_damage",
       "fieldname": "section_break_4",
       "fieldtype": "Section Break",
-      "label": "Repair Estimate"
+      "label": "Estimasi Perbaikan"
     },
     {
       "fieldname": "repair_estimate",
@@ -406,18 +399,55 @@
     {
       "fieldname": "total_estimate",
       "fieldtype": "Currency",
-      "label": "Total Estimate"
+      "label": "Total Estimate",
+      "read_only": 1
     },
     {
       "fieldname": "approval_status",
       "fieldtype": "Select",
       "label": "Principal Approval",
       "options": "Not Required\nPending\nApproved\nRejected"
+    },
+    {
+      "fieldname": "tab_system",
+      "fieldtype": "Tab Break",
+      "label": "Sistem"
+    },
+    {
+      "fieldname": "order_section",
+      "fieldtype": "Section Break",
+      "label": "Sistem / Order"
+    },
+    {
+      "bold": 1,
+      "fieldname": "inspection_id",
+      "fieldtype": "Data",
+      "label": "Inspection ID",
+      "read_only": 1
+    },
+    {
+      "fieldname": "order_doctype",
+      "fieldtype": "Link",
+      "label": "Order DocType",
+      "options": "DocType"
+    },
+    {
+      "fieldname": "order_ref",
+      "fieldtype": "Dynamic Link",
+      "label": "Order",
+      "options": "order_doctype"
+    },
+    {
+      "description": "Idempotency key for offline-EIR batch ingestion (Phase 7). Dedup is enforced in code; blank rows are allowed.",
+      "fieldname": "client_uuid",
+      "fieldtype": "Data",
+      "hidden": 1,
+      "label": "Offline Client UUID"
     }
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-05-16",
+  "modified": "2026-06-11 09:00:00.000000",
   "module": "Operations",
   "name": "Inspection",
   "search_fields": "inspection_id, container_no, inspection_type, status",
