@@ -30,14 +30,6 @@ class Inspection(Document):
 			if 0 < len(exterior_views) < 4:
 				frappe.msgprint(f"Warning: Only {len(exterior_views)} exterior photos uploaded. 4 views (Front, Back, Left, Right) recommended for EIR-In.")
 
-	SEAL_FIELDS = (
-		"seal_manhole",
-		"seal_airline",
-		"seal_bottom_outlet",
-		"seal_top_discharge",
-		"seal_vapour_valve",
-	)
-
 	def on_submit(self):
 		"""Update container status + last cargo when inspection is submitted"""
 		from container_depot.operations.container_activity import log_container_activity
@@ -85,12 +77,6 @@ class Inspection(Document):
 		* dirty (no dmg) -> Awaiting_Recleaning_Approval
 		* clean          -> Available
 		"""
-		# Carry the surveyor's seal readings onto the container.
-		for f in self.SEAL_FIELDS:
-			val = self.get(f)
-			if val:
-				container.set(f, val)
-
 		if self.has_damage:
 			container.status = "Awaiting_MR_Approval"
 			container.repair_status = "Awaiting_Approval"

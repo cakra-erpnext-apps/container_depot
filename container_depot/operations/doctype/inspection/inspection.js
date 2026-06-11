@@ -8,19 +8,7 @@
 // container_depot/operations/eir.py:create_eir — keep the two in sync.
 
 frappe.ui.form.on('Inspection', {
-	onload(frm) {
-		frm.trigger('_set_queries');
-	},
-
 	refresh(frm) {
-		frm.trigger('_set_queries');
-		// Full-grid checklist entry (parity with the PWA) — drafts only.
-		if (frm.doc.docstatus === 0) {
-			frm.add_custom_button(__('Isi Checklist EIR'), () => open_checklist_dialog(frm));
-		}
-		if (!frm.is_new() && frm.doc.inspection_type === 'EIR-In') {
-			frm.add_custom_button(__('Check Photo Completion'), () => check_photo_completion(frm));
-		}
 		// Surface an inconsistency without blocking: damage flagged but no rows.
 		if (!frm.is_new() && frm.doc.has_damage && (frm.doc.damage_log || []).length === 0) {
 			frappe.warn(
@@ -39,12 +27,6 @@ frappe.ui.form.on('Inspection', {
 	// taxonomy and defaults the reqd Inspection Damage Entry fields the same way the server does.
 	has_damage(frm) {
 		if (frm.doc.has_damage) add_damage_entry(frm);
-	},
-
-	_set_queries(frm) {
-		// Booking codes that are still live — issued (Active) or consumed at the
-		// gate (Used) — never expired/cancelled/reissued.
-		frm.set_query('booking_code', () => ({ filters: { state: ['in', ['Active', 'Used']] } }));
 	},
 
 	// The EIR inspects a physical container, so picking the Container prefills the
@@ -96,16 +78,6 @@ frappe.ui.form.on('Inspection Damage Entry', {
 		}
 	},
 });
-
-function check_photo_completion(frm) {
-	const views = (frm.doc.exterior_photos || []).map((p) => p.photo_view);
-	const missing = ['Front', 'Back', 'Left', 'Right'].filter((v) => !views.includes(v));
-	if (missing.length) {
-		frappe.msgprint(__('Missing exterior photos: {0}', [missing.join(', ')]));
-	} else {
-		frappe.msgprint(__('All 4 exterior photos uploaded!'));
-	}
-}
 
 function add_damage_entry(frm) {
 	const d = new frappe.ui.Dialog({
@@ -206,126 +178,4 @@ function prefill_from_container(frm) {
 			}
 		},
 	});
-}
-
-// --- B-D3: "Isi Checklist EIR" — full 50-row grid dialog (parity with the PWA) ---
-// Loads the checklist + code lists once (same masters as the PWA), pre-populates from
-// existing checklist-linked Inspection Damage Entry rows so the button REVISES (matched by
-// checklist_item) instead of duplicating, and on Terapkan upserts only the filled
-// rows — applying the same mapping as operations/eir.py:create_eir.
-function open_checklist_dialog(frm) {
-	frappe.call({
-		method: 'container_depot.ess.inspections.eir_masters',
-		callback(r) {
-			const m = r.message || {};
-			const checklist = m.checklist || [];
-			const damageCodes = m.damage_codes || [];
-			const repairCodes = m.repair_codes || [];
-			const descByCode = {};
-			damageCodes.forEach((c) => {
-				descByCode[c.code] = c.description;
-			});
-
-			// Existing checklist-linked rows -> pre-populate (idempotent revise).
-			const existing = {};
-			(frm.doc.damage_log || []).forEach((row) => {
-				if (row.checklist_item) existing[row.checklist_item] = row;
-			});
-
-			const d = new frappe.ui.Dialog({
-				title: __('Isi Checklist EIR'),
-				size: 'extra-large',
-				fields: [{ fieldname: 'grid_html', fieldtype: 'HTML' }],
-				primary_action_label: __('Terapkan'),
-				primary_action() {
-					apply_checklist(frm, d, checklist, descByCode);
-					d.hide();
-				},
-			});
-
-			const $w = d.fields_dict.grid_html.$wrapper;
-			$w.html(render_checklist_html(checklist, damageCodes, repairCodes, existing));
-			// Pre-select the existing code values (selects can't be set via markup here).
-			Object.keys(existing).forEach((code) => {
-				const row = existing[code];
-				if (row.damage_type) $w.find(`.eir-dmg[data-item="${code}"]`).val(row.damage_type);
-				if (row.repair_code) $w.find(`.eir-rep[data-item="${code}"]`).val(row.repair_code);
-			});
-			d.show();
-		},
-	});
-}
-
-function render_checklist_html(checklist, damageCodes, repairCodes, existing) {
-	const esc = frappe.utils.escape_html;
-	const opts = (list) =>
-		['<option value=""></option>']
-			.concat(list.map((c) => `<option value="${esc(c.code)}">${esc(c.code)} — ${esc(c.description || '')}</option>`))
-			.join('');
-	const dmgOpts = opts(damageCodes);
-	const repOpts = opts(repairCodes);
-
-	let html = `<div style="max-height:60vh;overflow:auto">
-		<table class="table table-bordered" style="font-size:12px;margin-bottom:0">
-			<thead><tr>
-				<th style="width:34%">${__('Item')}</th>
-				<th style="width:22%">${__('Kode Kerusakan')}</th>
-				<th style="width:22%">${__('Kode Perbaikan')}</th>
-				<th style="width:22%">${__('Keterangan')}</th>
-			</tr></thead><tbody>`;
-
-	let lastArea = null;
-	checklist.forEach((item) => {
-		if (item.area !== lastArea) {
-			lastArea = item.area;
-			html += `<tr style="background:#f5f5f5"><td colspan="4"><b>${esc(item.area)}</b></td></tr>`;
-		}
-		const ex = existing[item.item_code] || {};
-		const rmk = ex.damage_description ? esc(ex.damage_description) : '';
-		html += `<tr>
-			<td>${esc(item.printed_no)}. ${esc(item.item_name)}</td>
-			<td><select class="form-control eir-dmg" data-item="${esc(item.item_code)}">${dmgOpts}</select></td>
-			<td><select class="form-control eir-rep" data-item="${esc(item.item_code)}">${repOpts}</select></td>
-			<td><input class="form-control eir-rmk" data-item="${esc(item.item_code)}" type="text" value="${rmk}"></td>
-		</tr>`;
-	});
-	html += '</tbody></table></div>';
-	return html;
-}
-
-function apply_checklist(frm, d, checklist, descByCode) {
-	const $w = d.fields_dict.grid_html.$wrapper;
-	const existingByItem = {};
-	(frm.doc.damage_log || []).forEach((row) => {
-		if (row.checklist_item) existingByItem[row.checklist_item] = row;
-	});
-
-	const keep = new Set();
-	checklist.forEach((item) => {
-		const code = item.item_code;
-		const dmg = ($w.find(`.eir-dmg[data-item="${code}"]`).val() || '').trim();
-		const rep = ($w.find(`.eir-rep[data-item="${code}"]`).val() || '').trim();
-		const rmk = ($w.find(`.eir-rmk[data-item="${code}"]`).val() || '').trim();
-		if (!dmg && !rep && !rmk) return; // Acceptable / cleared — not stored.
-
-		const desc = rmk || (dmg ? descByCode[dmg] : '') || item.item_name;
-		let row = existingByItem[code];
-		if (!row) row = frm.add_child('damage_log', { checklist_item: code });
-		row.component = `${item.printed_no}. ${item.item_name}`;
-		row.area = item.area;
-		row.damage_type = dmg || null;
-		row.repair_code = rep || null;
-		row.damage_description = desc;
-		if (!row.severity) row.severity = 'Minor';
-		keep.add(code);
-	});
-
-	// Drop checklist-linked rows the user cleared; leave manual (non-checklist) rows.
-	frm.doc.damage_log = (frm.doc.damage_log || []).filter(
-		(row) => !row.checklist_item || keep.has(row.checklist_item),
-	);
-	// has_damage reflects any real damage code (not "v") across the whole log.
-	const hasDamage = (frm.doc.damage_log || []).some((row) => row.damage_type && row.damage_type !== 'v');
-	frm.set_value('has_damage', hasDamage ? 1 : 0);
-	frm.refresh_field('damage_log');
 }

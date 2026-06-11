@@ -421,7 +421,6 @@ def create_eir(
 	doc.inspection_type = inspection_type
 	doc.container = container
 	doc.tank_status = tank_status
-	doc.booking_code = booking_code
 	doc.vessel = vessel
 	doc.truck_no = truck_no
 	doc.emkl = emkl

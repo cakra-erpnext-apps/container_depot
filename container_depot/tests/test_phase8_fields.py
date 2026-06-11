@@ -67,14 +67,14 @@ class TestB1Fields(FrappeTestCase):
 			self._assert_field("Container", seal, "Data")
 		self._assert_field("Container", "shipper", "Link", ["Customer"])
 
-	def test_inspection_survey_and_seal_fields(self):
+	def test_inspection_survey_fields(self):
 		self._assert_field("Inspection", "survey_type", "Select", ["Cleanliness Survey", "M&R Pre-Inspection"])
 		self._assert_field("Inspection", "priority", "Select", ["High", "Medium", "Low"])
 		self._assert_field("Inspection", "deadline", "Date")
 		self._assert_field("Inspection", "requested_by", "Data")
 		self._assert_field("Inspection", "tank_owner", "Link", ["Customer"])
-		for seal in ("seal_manhole", "seal_airline", "seal_bottom_outlet", "seal_top_discharge", "seal_vapour_valve"):
-			self._assert_field("Inspection", seal, "Data")
+		# Seal fields were removed from the Inspection form — seals are captured on the
+		# Container (see test_container_seal_and_shipper_fields), not the EIR.
 
 	def test_cleaning_order_approval_fields(self):
 		self._assert_field("Cleaning Order", "approval_status", "Select", ["Pending", "Approved", "Rejected"])

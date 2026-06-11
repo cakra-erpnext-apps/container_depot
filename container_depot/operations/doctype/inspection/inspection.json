@@ -10,7 +10,6 @@
     "inspection_type",
     "eir_date",
     "status",
-    "booking_code",
     "container",
     "container_no",
     "depot",
@@ -32,14 +31,6 @@
     "cargo",
     "column_break_tank2",
     "tank_status",
-    "seal_section",
-    "seal_manhole",
-    "seal_airline",
-    "seal_bottom_outlet",
-    "column_break_seal2",
-    "seal_top_discharge",
-    "seal_vapour_valve",
-    "eir_photos_section",
     "exterior_photos",
     "item_photos",
     "damage_section",
@@ -57,7 +48,6 @@
     "signoff_section",
     "remarks",
     "column_break_signoff2",
-    "driver_signature",
     "inspector_signature",
     "tab_survey",
     "survey_section",
@@ -114,13 +104,6 @@
       "reqd": 1
     },
     {
-      "fieldname": "booking_code",
-      "fieldtype": "Link",
-      "in_standard_filter": 1,
-      "label": "Booking Code",
-      "options": "Booking Code"
-    },
-    {
       "fieldname": "container",
       "fieldtype": "Link",
       "label": "Container",
@@ -130,6 +113,7 @@
     {
       "fieldname": "container_no",
       "fieldtype": "Data",
+      "hidden": 1,
       "label": "Container Number",
       "read_only": 1
     },
@@ -252,56 +236,18 @@
       "options": "\nEmpty Clean\nEmpty Dirty\nLaden"
     },
     {
-      "collapsible": 1,
-      "description": "5-point seal numbers recorded by the surveyor (feed Container + Release DO).",
-      "fieldname": "seal_section",
-      "fieldtype": "Section Break",
-      "label": "Seals"
-    },
-    {
-      "fieldname": "seal_manhole",
-      "fieldtype": "Data",
-      "label": "Manhole Seal"
-    },
-    {
-      "fieldname": "seal_airline",
-      "fieldtype": "Data",
-      "label": "Airline Seal"
-    },
-    {
-      "fieldname": "seal_bottom_outlet",
-      "fieldtype": "Data",
-      "label": "Bottom Outlet Seal"
-    },
-    {
-      "fieldname": "column_break_seal2",
-      "fieldtype": "Column Break"
-    },
-    {
-      "fieldname": "seal_top_discharge",
-      "fieldtype": "Data",
-      "label": "Top Discharge Seal"
-    },
-    {
-      "fieldname": "seal_vapour_valve",
-      "fieldtype": "Data",
-      "label": "Vapour Valve Seal"
-    },
-    {
-      "fieldname": "eir_photos_section",
-      "fieldtype": "Section Break",
-      "label": "Foto Eksterior"
-    },
-    {
+      "description": "Legacy exterior photos (Front/Back/Left/Right). Retired from the form; still fed by the upload-evidence API.",
       "fieldname": "exterior_photos",
       "fieldtype": "Table",
+      "hidden": 1,
       "label": "Exterior Photos",
       "options": "Inspection Photo"
     },
     {
-      "description": "Per-checklist-item photos (multi, captured in the PWA above each item's remarks).",
+      "description": "Per-checklist-item photos (captured in the PWA above each item's remarks). Hidden on the form; managed by the PWA.",
       "fieldname": "item_photos",
       "fieldtype": "Table",
+      "hidden": 1,
       "label": "Foto per Item",
       "options": "Inspection Item Photo"
     },
@@ -389,11 +335,6 @@
     {
       "fieldname": "column_break_signoff2",
       "fieldtype": "Column Break"
-    },
-    {
-      "fieldname": "driver_signature",
-      "fieldtype": "Attach Image",
-      "label": "Driver Signature"
     },
     {
       "description": "Virtual signature of the EIR creator (inspector), captured in the PWA above Submit.",
@@ -526,7 +467,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-11 14:00:00.000000",
+  "modified": "2026-06-11 15:30:00.000000",
   "module": "Operations",
   "name": "Inspection",
   "search_fields": "inspection_id, container_no, inspection_type, status",
