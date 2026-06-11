@@ -61,7 +61,7 @@
   "links": [],
   "modified": "2026-06-02",
   "module": "Operations",
-  "name": "EIR Damage Code",
+  "name": "Inspection Damage Code",
   "search_fields": "code, category, description",
   "sort_field": "code",
   "sort_order": "ASC",

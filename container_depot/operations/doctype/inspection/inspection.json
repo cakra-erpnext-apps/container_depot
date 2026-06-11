@@ -273,7 +273,7 @@
       "fieldname": "item_photos",
       "fieldtype": "Table",
       "label": "Foto per Item",
-      "options": "EIR Item Photo"
+      "options": "Inspection Item Photo"
     },
     {
       "fieldname": "damage_section",
@@ -290,7 +290,7 @@
       "fieldname": "damage_log",
       "fieldtype": "Table",
       "label": "Damage Details",
-      "options": "Damage Entry"
+      "options": "Inspection Damage Entry"
     },
     {
       "fieldname": "signoff_section",
@@ -455,7 +455,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-11 11:00:00.000000",
+  "modified": "2026-06-11 12:00:00.000000",
   "module": "Operations",
   "name": "Inspection",
   "search_fields": "inspection_id, container_no, inspection_type, status",

@@ -69,7 +69,7 @@
  "links": [],
  "modified": "2026-06-11 00:00:00.000000",
  "module": "Operations",
- "name": "EIR Checklist Item",
+ "name": "Inspection Checklist Item",
  "naming_rule": "By fieldname",
  "permissions": [],
  "search_fields": "area,item_name,printed_no",

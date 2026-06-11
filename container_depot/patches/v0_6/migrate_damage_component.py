@@ -1,8 +1,8 @@
-"""PRD v0.2 §1 — move legacy Damage Entry.damage_type values into ``component``.
+"""PRD v0.2 §1 — move legacy Inspection Damage Entry.damage_type values into ``component``.
 
 The old ``damage_type`` Select held *components* (Gasket, Valve, Frame, Door,
 Floor, Interior_Lining, Manlid, Hinges, Locking_Rod, Other) — not OAK damage
-codes. After the v0.2 cutover ``damage_type`` is a Link to EIR Damage Code (the
+codes. After the v0.2 cutover ``damage_type`` is a Link to Inspection Damage Code (the
 condition codes 01-29/v). So any legacy value that is not a real damage code is
 moved into the new ``component`` field and ``damage_type`` is cleared.
 
@@ -15,17 +15,17 @@ import frappe
 
 
 def execute():
-	if not frappe.db.has_column("Damage Entry", "damage_type"):
+	if not frappe.db.has_column("Inspection Damage Entry", "damage_type"):
 		return
-	if not frappe.db.has_column("Damage Entry", "component"):
+	if not frappe.db.has_column("Inspection Damage Entry", "component"):
 		return
 
-	valid_codes = set(frappe.get_all("EIR Damage Code", pluck="name"))
+	valid_codes = set(frappe.get_all("Inspection Damage Code", pluck="name"))
 
 	rows = frappe.db.sql(
 		"""
 		SELECT name, damage_type, component
-		FROM `tabDamage Entry`
+		FROM `tabInspection Damage Entry`
 		WHERE damage_type IS NOT NULL AND damage_type != ''
 		""",
 		as_dict=True,
@@ -37,7 +37,7 @@ def execute():
 		# Legacy component value sitting in damage_type: relocate it.
 		component = r.component or r.damage_type.replace("_", " ")
 		frappe.db.set_value(
-			"Damage Entry",
+			"Inspection Damage Entry",
 			r.name,
 			{"component": component, "damage_type": None},
 			update_modified=False,

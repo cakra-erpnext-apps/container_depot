@@ -6,7 +6,7 @@ EIR template):
 * Damage codes 01–29 + ``v`` (Acceptable) describe the *condition* of a part.
 * Repair codes 30–54 + ``X`` (No Action) describe the *repair action*.
 
-Note: the legacy Damage Entry.damage_type values (Gasket, Valve, Frame, …) were
+Note: the legacy Inspection Damage Entry.damage_type values (Gasket, Valve, Frame, …) were
 *components*, not damage codes — those are moved to the new ``component`` field
 by ``migrate_damage_type_to_component``. Idempotent: existing codes are skipped.
 """
@@ -79,9 +79,9 @@ REPAIR_CODES = [
 
 def execute():
 	for code, description in DAMAGE_CODES:
-		if not frappe.db.exists("EIR Damage Code", code):
+		if not frappe.db.exists("Inspection Damage Code", code):
 			frappe.get_doc({
-				"doctype": "EIR Damage Code",
+				"doctype": "Inspection Damage Code",
 				"code": code,
 				"category": "Damage",
 				"description": description,
@@ -89,9 +89,9 @@ def execute():
 			}).insert(ignore_permissions=True)
 
 	for code, description in REPAIR_CODES:
-		if not frappe.db.exists("EIR Repair Code", code):
+		if not frappe.db.exists("Inspection Repair Code", code):
 			frappe.get_doc({
-				"doctype": "EIR Repair Code",
+				"doctype": "Inspection Repair Code",
 				"code": code,
 				"category": "Repair",
 				"description": description,

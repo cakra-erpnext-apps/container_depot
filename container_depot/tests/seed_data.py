@@ -278,9 +278,9 @@ def _ensure_reference_masters():
 			}).insert(ignore_permissions=True)
 
 	# Official damage code referenced by the seeded EIR damage logs.
-	if not frappe.db.exists("EIR Damage Code", "11"):
+	if not frappe.db.exists("Inspection Damage Code", "11"):
 		frappe.get_doc({
-			"doctype": "EIR Damage Code",
+			"doctype": "Inspection Damage Code",
 			"code": "11",
 			"category": "Damage",
 			"description": "Dented",
@@ -292,7 +292,7 @@ def cleanup_data():
 	print("Cleaning up previous data...")
 	frappe.db.delete("Gate Entry", {"container_no": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]})
 	frappe.db.delete("Inspection Photo", {"parent": ["in", frappe.db.get_values("Inspection", {"container_no": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]}, "name")]})
-	frappe.db.delete("Damage Entry", {"parent": ["in", frappe.db.get_values("Inspection", {"container_no": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]}, "name")]})
+	frappe.db.delete("Inspection Damage Entry", {"parent": ["in", frappe.db.get_values("Inspection", {"container_no": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]}, "name")]})
 	frappe.db.delete("Inspection", {"container_no": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]})
 	frappe.db.delete("Repair Order", {"container": ["in", ["OAKU9812734", "MSCU1122334", "TEXU4455667", "GLOU8877665", "TRLU5566778"]]})
 	

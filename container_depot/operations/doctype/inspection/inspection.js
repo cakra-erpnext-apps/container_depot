@@ -3,7 +3,7 @@
 
 // Inspection (EIR) — Desk client script.
 // House style mirrors container_booking.js (custom buttons, narrative comments).
-// The damage-entry dialogs build Damage Entry rows whose mapping (component / area /
+// The damage-entry dialogs build Inspection Damage Entry rows whose mapping (component / area /
 // default severity & description) matches the server builder in
 // container_depot/operations/eir.py:create_eir — keep the two in sync.
 
@@ -34,9 +34,9 @@ frappe.ui.form.on('Inspection', {
 
 	// Ticking "Has Damage" opens a single-row entry dialog with VALID Link fields.
 	// Legacy bug (fixed here): this used a Select of component names (Gasket/Valve/…)
-	// written straight into `damage_type`, which is now a Link -> EIR Damage Code — so
+	// written straight into `damage_type`, which is now a Link -> Inspection Damage Code — so
 	// every value it produced was an invalid link. The dialog below uses the real
-	// taxonomy and defaults the reqd Damage Entry fields the same way the server does.
+	// taxonomy and defaults the reqd Inspection Damage Entry fields the same way the server does.
 	has_damage(frm) {
 		if (frm.doc.has_damage) add_damage_entry(frm);
 	},
@@ -55,16 +55,16 @@ frappe.ui.form.on('Inspection', {
 	},
 });
 
-// --- B-D2: Damage Entry grid fetch triggers (manual in-grid editing) ---
+// --- B-D2: Inspection Damage Entry grid fetch triggers (manual in-grid editing) ---
 // Mirror create_eir's mapping so a row built by hand matches one built by the
 // checklist dialog / PWA: checklist item -> component + area, repair code ->
 // estimated hours, damage code -> description + default severity.
-frappe.ui.form.on('Damage Entry', {
+frappe.ui.form.on('Inspection Damage Entry', {
 	checklist_item(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
 		if (!row.checklist_item) return;
 		frappe.db
-			.get_value('EIR Checklist Item', row.checklist_item, ['printed_no', 'item_name', 'area'])
+			.get_value('Inspection Checklist Item', row.checklist_item, ['printed_no', 'item_name', 'area'])
 			.then((r) => {
 				const ci = r.message || {};
 				frappe.model.set_value(cdt, cdn, 'component', `${ci.printed_no}. ${ci.item_name}`);
@@ -75,7 +75,7 @@ frappe.ui.form.on('Damage Entry', {
 	repair_code(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
 		if (!row.repair_code || row.estimated_repair_hours) return;
-		frappe.db.get_value('EIR Repair Code', row.repair_code, 'standard_hours').then((r) => {
+		frappe.db.get_value('Inspection Repair Code', row.repair_code, 'standard_hours').then((r) => {
 			const hours = (r.message || {}).standard_hours;
 			if (hours) frappe.model.set_value(cdt, cdn, 'estimated_repair_hours', hours);
 		});
@@ -86,7 +86,7 @@ frappe.ui.form.on('Damage Entry', {
 		if (!row.damage_type) return;
 		if (!row.severity) frappe.model.set_value(cdt, cdn, 'severity', 'Minor');
 		if (!row.damage_description) {
-			frappe.db.get_value('EIR Damage Code', row.damage_type, 'description').then((r) => {
+			frappe.db.get_value('Inspection Damage Code', row.damage_type, 'description').then((r) => {
 				const desc = (r.message || {}).description;
 				const fresh = locals[cdt][cdn];
 				if (desc && fresh && !fresh.damage_description) {
@@ -109,11 +109,11 @@ function check_photo_completion(frm) {
 
 function add_damage_entry(frm) {
 	const d = new frappe.ui.Dialog({
-		title: __('Add Damage Entry'),
+		title: __('Tambah Kerusakan'),
 		fields: [
-			{ fieldname: 'checklist_item', fieldtype: 'Link', label: __('Checklist Item'), options: 'EIR Checklist Item' },
-			{ fieldname: 'damage_type', fieldtype: 'Link', label: __('Damage Code'), options: 'EIR Damage Code' },
-			{ fieldname: 'repair_code', fieldtype: 'Link', label: __('Repair Code'), options: 'EIR Repair Code' },
+			{ fieldname: 'checklist_item', fieldtype: 'Link', label: __('Checklist Item'), options: 'Inspection Checklist Item' },
+			{ fieldname: 'damage_type', fieldtype: 'Link', label: __('Damage Code'), options: 'Inspection Damage Code' },
+			{ fieldname: 'repair_code', fieldtype: 'Link', label: __('Repair Code'), options: 'Inspection Repair Code' },
 			{ fieldname: 'severity', fieldtype: 'Select', label: __('Severity'), options: 'Minor\nModerate\nMajor\nCritical', default: 'Minor' },
 			{ fieldname: 'damage_description', fieldtype: 'Small Text', label: __('Description'), description: __('Optional — defaults to the damage code description or the item name.') },
 		],
@@ -129,11 +129,11 @@ function add_damage_entry(frm) {
 function resolve_checklist(item_code) {
 	if (!item_code) return Promise.resolve(null);
 	return frappe.db
-		.get_value('EIR Checklist Item', item_code, ['printed_no', 'item_name', 'area'])
+		.get_value('Inspection Checklist Item', item_code, ['printed_no', 'item_name', 'area'])
 		.then((r) => r.message || null);
 }
 
-// Append one Damage Entry, mirroring create_eir's mapping: component =
+// Append one Inspection Damage Entry, mirroring create_eir's mapping: component =
 // "{printed_no}. {item_name}", area from the checklist item, severity defaults Minor,
 // and a non-empty description (input -> damage code desc -> item name) so the reqd
 // fields never trip validation.
@@ -156,7 +156,7 @@ function append_damage_row(frm, values) {
 		if (typed) return finish(typed);
 		if (values.damage_type) {
 			return frappe.db
-				.get_value('EIR Damage Code', values.damage_type, 'description')
+				.get_value('Inspection Damage Code', values.damage_type, 'description')
 				.then((r) => finish((r.message || {}).description));
 		}
 		return finish('');
@@ -210,7 +210,7 @@ function prefill_from_container(frm) {
 
 // --- B-D3: "Isi Checklist EIR" — full 50-row grid dialog (parity with the PWA) ---
 // Loads the checklist + code lists once (same masters as the PWA), pre-populates from
-// existing checklist-linked Damage Entry rows so the button REVISES (matched by
+// existing checklist-linked Inspection Damage Entry rows so the button REVISES (matched by
 // checklist_item) instead of duplicating, and on Terapkan upserts only the filled
 // rows — applying the same mapping as operations/eir.py:create_eir.
 function open_checklist_dialog(frm) {

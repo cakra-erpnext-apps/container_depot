@@ -25,19 +25,19 @@ ACCEPTABLE_DAMAGE_CODE = "v"
 def get_eir_masters() -> dict:
 	"""Checklist taxonomy + active damage / repair code lists for the EIR grid."""
 	checklist = frappe.get_all(
-		"EIR Checklist Item",
+		"Inspection Checklist Item",
 		filters={"is_active": 1},
 		fields=["item_code", "printed_no", "area", "item_name", "sequence"],
 		order_by="sequence asc",
 	)
 	damage_codes = frappe.get_all(
-		"EIR Damage Code",
+		"Inspection Damage Code",
 		filters={"is_active": 1},
 		fields=["name as code", "description"],
 		order_by="code asc",
 	)
 	repair_codes = frappe.get_all(
-		"EIR Repair Code",
+		"Inspection Repair Code",
 		filters={"is_active": 1},
 		fields=["name as code", "description"],
 		order_by="code asc",
@@ -176,15 +176,15 @@ def _checklist_items() -> dict:
 	return {
 		i.item_code: i
 		for i in frappe.get_all(
-			"EIR Checklist Item", fields=["item_code", "printed_no", "item_name", "area"]
+			"Inspection Checklist Item", fields=["item_code", "printed_no", "item_name", "area"]
 		)
 	}
 
 
 def _build_damage_rows(lines, items):
-	"""Map checklist payload lines to Damage Entry rows (only filled lines).
+	"""Map checklist payload lines to Inspection Damage Entry rows (only filled lines).
 
-	Blank ("Acceptable") lines are skipped. reqd Damage Entry fields are defaulted
+	Blank ("Acceptable") lines are skipped. reqd Inspection Damage Entry fields are defaulted
 	server-side (severity=Minor; description from remark, else damage code desc, else
 	item name). Returns ``(rows, has_damage)`` — has_damage true for any real damage
 	code (not "v").
@@ -204,7 +204,7 @@ def _build_damage_rows(lines, items):
 
 		description = line_remarks
 		if not description and damage_code:
-			description = frappe.db.get_value("EIR Damage Code", damage_code, "description")
+			description = frappe.db.get_value("Inspection Damage Code", damage_code, "description")
 		if not description:
 			description = item.item_name
 
@@ -223,7 +223,7 @@ def _build_damage_rows(lines, items):
 
 
 def _build_photo_rows(photos, items):
-	"""Map a flat ``[{item_code, photo}]`` payload to EIR Item Photo rows (blanks skipped)."""
+	"""Map a flat ``[{item_code, photo}]`` payload to Inspection Item Photo rows (blanks skipped)."""
 	rows = []
 	for ph in photos:
 		item_code = (ph.get("item_code") or "").strip()
@@ -255,7 +255,7 @@ def create_eir(
 	"""Build an Inspection (EIR) from a checklist payload.
 
 	Only lines carrying a ``damage_code``, ``repair_code`` or ``remarks`` become
-	Damage Entry rows — blank ("Acceptable") lines are not stored. The reqd Damage
+	Inspection Damage Entry rows — blank ("Acceptable") lines are not stored. The reqd Damage
 	Entry fields are defaulted server-side (severity=Minor; damage_description from
 	the line remarks, else the damage code's description, else the item name) so the
 	checklist flow never trips validation (B2).

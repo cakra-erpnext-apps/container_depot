@@ -240,8 +240,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "EIR Damage Code",
-   "link_to": "EIR Damage Code",
+   "label": "Inspection Damage Code",
+   "link_to": "Inspection Damage Code",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link",
@@ -250,8 +250,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "EIR Repair Code",
-   "link_to": "EIR Repair Code",
+   "label": "Inspection Repair Code",
+   "link_to": "Inspection Repair Code",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link",
@@ -260,8 +260,8 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "EIR Checklist Item",
-   "link_to": "EIR Checklist Item",
+   "label": "Inspection Checklist Item",
+   "link_to": "Inspection Checklist Item",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link",

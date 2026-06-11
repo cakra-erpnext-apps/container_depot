@@ -1,4 +1,4 @@
-"""EIR Checklist Item master — the fixed Area→Item taxonomy of the OAK EIR grid.
+"""Inspection Checklist Item master — the fixed Area→Item taxonomy of the OAK EIR grid.
 
 50 rows in 10 areas, verbatim from ``Eir_new_Rev_3.xlsx``. ``sequence`` (1-50) is
 the canonical identity; ``printed_no`` keeps the workbook's printed number as-is
@@ -11,5 +11,5 @@ from __future__ import annotations
 from frappe.model.document import Document
 
 
-class EIRChecklistItem(Document):
+class InspectionChecklistItem(Document):
 	pass

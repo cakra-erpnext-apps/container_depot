@@ -1,6 +1,6 @@
 """Tests for the PRD v0.2 gap-closure features:
 
-§1 EIR Damage Code master (Damage Entry.damage_type -> Link)
+§1 Inspection Damage Code master (Inspection Damage Entry.damage_type -> Link)
 §2 Canonical cleaning types (PP Wash / Methanol Rinse / Steam Wash)
 §3 Depot master + depot field
 §4 Periodic Test due-date + TANK OUT gating when overdue
@@ -40,9 +40,9 @@ def _ensure_depot(code="SUB", name="Surabaya", city="Surabaya"):
 
 
 def _ensure_damage_code(code="11", description="Dented"):
-	if not frappe.db.exists("EIR Damage Code", code):
+	if not frappe.db.exists("Inspection Damage Code", code):
 		frappe.get_doc({
-			"doctype": "EIR Damage Code",
+			"doctype": "Inspection Damage Code",
 			"code": code,
 			"category": "Damage",
 			"description": description,

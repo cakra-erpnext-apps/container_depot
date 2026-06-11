@@ -37,7 +37,7 @@
       "fieldtype": "Link",
       "in_list_view": 1,
       "label": "Checklist Item",
-      "options": "EIR Checklist Item"
+      "options": "Inspection Checklist Item"
     },
     {
       "fetch_from": "checklist_item.area",
@@ -58,7 +58,7 @@
       "fieldtype": "Link",
       "in_list_view": 1,
       "label": "Damage Code",
-      "options": "EIR Damage Code"
+      "options": "Inspection Damage Code"
     },
     {
       "description": "OAK repair-action code (30-54, X) from the EIR template.",
@@ -66,7 +66,7 @@
       "fieldtype": "Link",
       "in_list_view": 1,
       "label": "Repair Code",
-      "options": "EIR Repair Code"
+      "options": "Inspection Repair Code"
     },
     {
       "fieldname": "damage_description",
@@ -138,5 +138,5 @@
   "links": [],
   "modified": "2026-06-11 09:00:00.000000",
   "module": "Operations",
-  "name": "Damage Entry"
+  "name": "Inspection Damage Entry"
 }

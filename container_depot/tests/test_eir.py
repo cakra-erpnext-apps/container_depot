@@ -94,7 +94,7 @@ class TestEirCreate(FrappeTestCase):
 		doc = frappe.get_doc("Inspection", res["name"])
 		self.assertEqual(doc.docstatus, 0)
 		self.assertEqual(len(doc.damage_log), 2)
-		# Required Damage Entry fields are defaulted server-side (B2).
+		# Required Inspection Damage Entry fields are defaulted server-side (B2).
 		for d in doc.damage_log:
 			self.assertEqual(d.severity, "Minor")
 			self.assertTrue(d.damage_description)

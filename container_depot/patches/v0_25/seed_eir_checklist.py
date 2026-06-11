@@ -1,4 +1,4 @@
-"""Seed the 50-row OAK EIR checklist taxonomy (EIR Checklist Item master).
+"""Seed the 50-row OAK EIR checklist taxonomy (Inspection Checklist Item master).
 
 Rows verbatim from ``Eir_new_Rev_3.xlsx`` (10 areas, 50 items). ``sequence`` 1-50
 is the canonical identity; ``item_code`` is the zero-padded sequence (``"01"``-
@@ -72,10 +72,10 @@ CHECKLIST = [
 def execute():
 	for seq, printed_no, area, item_name in CHECKLIST:
 		item_code = f"{seq:02d}"
-		if frappe.db.exists("EIR Checklist Item", item_code):
+		if frappe.db.exists("Inspection Checklist Item", item_code):
 			continue
 		frappe.get_doc({
-			"doctype": "EIR Checklist Item",
+			"doctype": "Inspection Checklist Item",
 			"item_code": item_code,
 			"printed_no": printed_no,
 			"area": area,

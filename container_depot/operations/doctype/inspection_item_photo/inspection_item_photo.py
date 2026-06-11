@@ -4,5 +4,5 @@
 from frappe.model.document import Document
 
 
-class EIRItemPhoto(Document):
+class InspectionItemPhoto(Document):
 	pass

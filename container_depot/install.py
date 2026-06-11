@@ -147,17 +147,17 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Management":        {"read": 1, "report": 1, "export": 1},
 		"IT Support":        {"read": 1, "report": 1},
 	},
-	"EIR Damage Code": {
+	"Inspection Damage Code": {
 		"Surveyor":          {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
 	},
-	"EIR Repair Code": {
+	"Inspection Repair Code": {
 		"Surveyor":          {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
 	},
-	"EIR Checklist Item": {
+	"Inspection Checklist Item": {
 		"Surveyor":          {"read": 1, "report": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
