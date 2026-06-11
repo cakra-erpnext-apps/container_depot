@@ -410,7 +410,10 @@ const voucherRes = createResource({
 		driver.value = data.driver || ""
 		driverPhone.value = data.driver_phone || ""
 		shipper.value = data.shipper || ""
-		scheduleSave() // persist the (now validated) voucher reference onto the draft
+		// Persist immediately (no debounce): the voucher reference and its snapshot
+		// (truck / driver / driver phone / shipper) are saved onto the draft the moment
+		// they are fetched. The server re-resolves the snapshot from referred_voucher.
+		doSave(false)
 	},
 })
 const voucherError = computed(() => {
