@@ -624,3 +624,89 @@ def list_my_eirs(user=None, search=None, start=0, page_length=10) -> dict:
 		limit_page_length=page_length,
 	)
 	return {"items": items, "total": total, "start": start, "page_length": page_length}
+
+
+@frappe.whitelist()
+def revert_to_draft(name: str) -> dict:
+	"""Cancel a submitted EIR back to Draft so it can be edited again (Desk-only action).
+
+	Rule (per ops): every EIR for the container must be submitted first — there must be
+	NO other draft Inspection for the same container. This keeps the one-draft-per-
+	container invariant the PWA's ``open_draft`` relies on (it returns the single
+	``docstatus=0`` EIR for a container). The container status / last-cargo this EIR
+	applied on submit are undone from the pre-submit snapshot, then the SAME record is
+	flipped back to an editable draft (so it opens again in the PWA and in Desk).
+	"""
+	doc = frappe.get_doc("Inspection", name)
+	doc.check_permission("cancel")
+
+	if doc.docstatus != 1:
+		frappe.throw(_("Hanya EIR yang sudah disubmit yang bisa dikembalikan ke draft."))
+
+	# Detailed Survey spawns M&R downstream docs (Repair Order / Survey Request); reverting
+	# those safely is out of scope here — cancel via the M&R flow instead.
+	if doc.inspection_type == "Detailed Survey":
+		frappe.throw(_(
+			"Detailed Survey tidak bisa dikembalikan ke draft dari sini karena sudah "
+			"membuat Repair Order / menutup Survey Request. Gunakan alur M&R."
+		))
+
+	# Guard: no OTHER draft EIR for the same container.
+	others = frappe.get_all(
+		"Inspection",
+		filters={"container": doc.container, "docstatus": 0, "name": ["!=", doc.name]},
+		pluck="name",
+	)
+	if others:
+		frappe.throw(_(
+			"Masih ada EIR draft untuk container {0}: {1}. Submit dulu semua draft "
+			"sebelum mengembalikan EIR ini ke draft."
+		).format(doc.container, ", ".join(others)))
+
+	_restore_container_on_revert(doc)
+
+	# Flip back to an editable draft (same record — editable in the PWA + Desk).
+	frappe.db.set_value("Inspection", doc.name, {"docstatus": 0, "status": "Draft"})
+
+	# Append an inverse activity for the audit trail (the on_submit one stays — the log
+	# is append-only). Never let a logging failure block the revert.
+	try:
+		from container_depot.operations.container_activity import log_container_activity
+		log_container_activity(
+			doc.container, "Inspection (EIR)",
+			reference_doctype=doc.doctype, reference_name=doc.name,
+			summary=_("{0} dikembalikan ke draft").format(doc.inspection_id or doc.name),
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "revert_to_draft activity log")
+
+	return {"name": doc.name, "docstatus": 0, "status": "Draft"}
+
+
+def _restore_container_on_revert(doc) -> None:
+	"""Undo the Container status / last_cargo change this EIR applied on submit, using the
+	snapshot captured in ``Inspection.on_submit``. Only writes when something differs."""
+	container = frappe.get_doc("Container", doc.container)
+	changed = False
+
+	prev_status = doc.get("container_status_before_submit")
+	if prev_status and container.status != prev_status:
+		container.status = prev_status
+		changed = True
+
+	# Restore last_cargo only when THIS EIR carried a cargo (i.e. could have changed it).
+	if doc.get("cargo"):
+		prev_cargo = doc.get("container_last_cargo_before_submit") or None
+		if container.last_cargo != prev_cargo:
+			container.last_cargo = prev_cargo
+			changed = True
+
+	if not changed:
+		return
+
+	# Controller-driven status change: bypass the manual-transition guard.
+	frappe.flags.in_status_automation = True
+	try:
+		container.save(ignore_permissions=True)
+	finally:
+		frappe.flags.in_status_automation = False

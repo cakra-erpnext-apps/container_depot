@@ -487,3 +487,56 @@ class TestEirHistory(FrappeTestCase):
 		s = eir.list_my_eirs(user=me, search="EIRH1000002")
 		self.assertEqual(s["total"], 1)
 		self.assertEqual(s["items"][0]["container_no"], "EIRH1000002")
+
+
+class TestEirRevert(FrappeTestCase):
+	"""revert_to_draft: the Desk-only 'Kembalikan ke Draft' for a submitted EIR."""
+
+	def test_revert_eir_in_restores_container_and_makes_draft(self):
+		c = _make_container("REVT1000001", status="Gate_In")
+		res = eir.create_eir(inspection_type="EIR-In", container=c, tank_status="Empty Dirty", submit=True)
+		self.assertEqual(frappe.db.get_value("Container", c, "status"), "Inspecting")
+
+		eir.revert_to_draft(res["name"])
+
+		doc = frappe.get_doc("Inspection", res["name"])
+		self.assertEqual(doc.docstatus, 0)
+		self.assertEqual(doc.status, "Draft")
+		# Container status undone back to its pre-submit value.
+		self.assertEqual(frappe.db.get_value("Container", c, "status"), "Gate_In")
+
+	def test_reverted_eir_is_reopened_by_open_draft(self):
+		c = _make_container("REVT1000002", status="Gate_In")
+		res = eir.create_eir(inspection_type="EIR-In", container=c, submit=True)
+		eir.revert_to_draft(res["name"])
+		# The PWA's get-or-create draft must return THE reverted EIR, not a new one.
+		opened = eir.open_draft(container=c)
+		self.assertEqual(opened["inspection"], res["name"])
+
+	def test_revert_blocked_when_another_draft_exists(self):
+		c = _make_container("REVT1000003", status="Gate_In")
+		submitted = eir.create_eir(inspection_type="EIR-In", container=c, submit=True)
+		# A second, still-draft EIR for the same container.
+		eir.create_eir(inspection_type="EIR-Out", container=c, submit=False)
+		with self.assertRaises(frappe.ValidationError):
+			eir.revert_to_draft(submitted["name"])
+		# Untouched: the submitted EIR stays submitted.
+		self.assertEqual(frappe.get_doc("Inspection", submitted["name"]).docstatus, 1)
+
+	def test_revert_rejects_non_submitted(self):
+		c = _make_container("REVT1000004")
+		draft = eir.create_eir(inspection_type="EIR-In", container=c, submit=False)
+		with self.assertRaises(frappe.ValidationError):
+			eir.revert_to_draft(draft["name"])
+
+	def test_revert_blocks_detailed_survey(self):
+		c = _make_container("REVT1000005", status="Survey_In_Progress")
+		doc = frappe.get_doc({
+			"doctype": "Inspection", "inspection_type": "Detailed Survey",
+			"container": c, "inspector": "Administrator",
+			"has_damage": 0, "tank_status": "Empty Clean",
+		})
+		doc.insert(ignore_permissions=True)
+		doc.submit()
+		with self.assertRaises(frappe.ValidationError):
+			eir.revert_to_draft(doc.name)

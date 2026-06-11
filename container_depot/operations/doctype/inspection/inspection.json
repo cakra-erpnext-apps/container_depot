@@ -70,7 +70,9 @@
     "inspection_id",
     "order_doctype",
     "order_ref",
-    "client_uuid"
+    "client_uuid",
+    "container_status_before_submit",
+    "container_last_cargo_before_submit"
   ],
   "fields": [
     {
@@ -468,11 +470,27 @@
       "fieldtype": "Data",
       "hidden": 1,
       "label": "Offline Client UUID"
+    },
+    {
+      "description": "Container status captured at submit time, used to undo the change on 'Kembalikan ke Draft'.",
+      "fieldname": "container_status_before_submit",
+      "fieldtype": "Data",
+      "hidden": 1,
+      "label": "Container Status Before Submit",
+      "read_only": 1
+    },
+    {
+      "description": "Container Last Cargo captured at submit time, used to undo the change on 'Kembalikan ke Draft'.",
+      "fieldname": "container_last_cargo_before_submit",
+      "fieldtype": "Data",
+      "hidden": 1,
+      "label": "Container Last Cargo Before Submit",
+      "read_only": 1
     }
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-11 16:00:00.000000",
+  "modified": "2026-06-11 16:30:00.000000",
   "module": "Operations",
   "name": "Inspection",
   "search_fields": "inspection_id, container_no, inspection_type, status",

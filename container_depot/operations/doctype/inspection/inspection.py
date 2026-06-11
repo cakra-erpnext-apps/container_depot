@@ -37,6 +37,11 @@ class Inspection(Document):
 		container = frappe.get_doc("Container", self.container)
 		from_status = container.status
 
+		# Snapshot the pre-submit container state so a later "Kembalikan ke Draft"
+		# (eir.revert_to_draft) can undo exactly what this EIR changed.
+		self.db_set("container_status_before_submit", from_status, update_modified=False)
+		self.db_set("container_last_cargo_before_submit", container.last_cargo, update_modified=False)
+
 		# Cargo recorded on the EIR updates the master's Last Cargo on submit only —
 		# drafts never touch the master. Set before any save below.
 		cargo_changed = bool(self.get("cargo")) and container.last_cargo != self.cargo

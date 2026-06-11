@@ -9,6 +9,11 @@
 
 frappe.ui.form.on('Inspection', {
 	refresh(frm) {
+		// "Cancel" (Desk-only): return a submitted EIR to Draft so it can be edited again
+		// in the PWA / Inspection menu. Excludes Detailed Survey (M&R downstream docs).
+		if (frm.doc.docstatus === 1 && frm.doc.inspection_type !== 'Detailed Survey') {
+			frm.add_custom_button(__('Kembalikan ke Draft'), () => revert_to_draft(frm));
+		}
 		// Surface an inconsistency without blocking: damage flagged but no rows.
 		if (!frm.is_new() && frm.doc.has_damage && (frm.doc.damage_log || []).length === 0) {
 			frappe.warn(
@@ -36,6 +41,27 @@ frappe.ui.form.on('Inspection', {
 		if (frm.doc.container) prefill_from_container(frm);
 	},
 });
+
+// "Kembalikan ke Draft" — revert a submitted EIR to an editable draft. The server guards
+// that no other draft exists for the same container before flipping docstatus back to 0
+// and undoing the container status/cargo this EIR applied.
+function revert_to_draft(frm) {
+	frappe.confirm(
+		__('Kembalikan EIR ini ke Draft agar bisa diedit lagi? Semua EIR draft untuk container ini harus sudah disubmit.'),
+		() => {
+			frappe.call({
+				method: 'container_depot.operations.eir.revert_to_draft',
+				args: { name: frm.doc.name },
+				freeze: true,
+				freeze_message: __('Mengembalikan ke draft…'),
+				callback() {
+					frappe.show_alert({ message: __('EIR dikembalikan ke draft'), indicator: 'green' });
+					frm.reload_doc();
+				},
+			});
+		},
+	);
+}
 
 // --- B-D2: Inspection Damage Entry grid fetch triggers (manual in-grid editing) ---
 // Mirror create_eir's mapping so a row built by hand matches one built by the
