@@ -233,6 +233,7 @@ def after_install():
 	ensure_modes_of_payment()
 	ensure_multi_currency_billing()
 	setup_workspace()
+	setup_order_notifications()
 	sync_branding()
 
 
@@ -247,6 +248,9 @@ def after_migrate():
 	# Container Inventory monitoring dashboard (Number Cards + Charts). Idempotent
 	# upsert by name; safe to re-run every migrate.
 	setup_inventory_dashboard()
+	# Built-in ERPNext Notifications: alert ops when a bon (Order Bongkar/Muat) is
+	# issued (submitted). Idempotent — skipped once present.
+	setup_order_notifications()
 	# Keep the depot-pricing invariant: Bertschi Product Bundles must bill at the
 	# bundle parent's flat Item Price, not a recomputed sum of component prices.
 	ensure_selling_settings()
@@ -263,6 +267,39 @@ def after_migrate():
 	sync_workspace_sidebar()
 	# Push env-driven logo into site-wide settings so ALL apps pick it up.
 	sync_branding()
+
+
+def setup_order_notifications():
+	"""Built-in Frappe Notifications that alert ops when a bon (Order Bongkar/Muat)
+	is issued (submitted). Channel = System Notification → shows in the in-app bell
+	for the recipient role. Idempotent: skipped once a matching Notification exists.
+	Best-effort — a quirk in the Notification schema never breaks a migrate.
+
+	Recipient is a placeholder role (System Manager) until the Operator Kalmar role
+	exists; change ``receiver_by_role`` then.
+	"""
+	specs = [
+		("Order Bongkar", "Bon Bongkar {{ doc.name }} diterbitkan"),
+		("Order Muat", "Bon Muat {{ doc.name }} diterbitkan"),
+	]
+	for doctype, subject in specs:
+		if frappe.db.exists(
+			"Notification", {"document_type": doctype, "event": "Submit", "is_standard": 0}
+		):
+			continue
+		try:
+			n = frappe.new_doc("Notification")
+			n.subject = subject
+			n.document_type = doctype
+			n.event = "Submit"
+			n.channel = "System Notification"
+			n.enabled = 1
+			n.is_standard = 0
+			n.message = subject
+			n.append("recipients", {"receiver_by_role": "System Manager"})
+			n.insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "setup_order_notifications")
 
 
 # ---------------------------------------------------------------------------

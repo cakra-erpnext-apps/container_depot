@@ -94,12 +94,15 @@ def _resolve_code_from_container(doc: Document, row) -> None:
 
 def _code_owned_by_order(doc: Document, code: str) -> bool:
 	"""True if ``code`` is already persisted on THIS order — i.e. it was consumed
-	by this very bon (so its ``Used`` state is expected, not an error)."""
+	by this very bon (so its ``Used`` state is expected, not an error). Uses the
+	order's OWN container child table (Container Booking Item for Order Bongkar,
+	Order Container Item for Order Muat) so re-validation on submit works for both."""
 	if doc.is_new() or not doc.name:
 		return False
+	child_dt = doc.meta.get_field("containers").options
 	return bool(
 		frappe.db.exists(
-			"Container Booking Item",
+			child_dt,
 			{"parent": doc.name, "parenttype": doc.doctype, "booking_code": code},
 		)
 	)
@@ -203,31 +206,6 @@ def _release_codes(doc: Document):
 	for r in _order_rows(doc):
 		if r.booking_code and frappe.db.get_value("Booking Code", r.booking_code, "state") == "Used":
 			frappe.db.set_value("Booking Code", r.booking_code, "state", "Active", update_modified=False)
-
-
-@frappe.whitelist()
-def cancel_order(order):
-	"""Cancel an Order Bongkar, releasing its Booking Codes back to ``Active`` so the
-	containers can be put on a fresh voucher again.
-
-	Works on a DRAFT (a draft can't pass through ``doc.cancel()``, so release the
-	codes and set Cancelled directly) and on a SUBMITTED bon (normal cancel →
-	``on_cancel`` releases the codes)."""
-	doc = frappe.get_doc("Order Bongkar", order)
-	if doc.docstatus == 2:
-		frappe.throw(_("Order {0} is already cancelled.").format(doc.name))
-	if doc.docstatus == 1:
-		doc.cancel()
-		return doc.name
-	# Draft: free the codes, then mark Cancelled directly (parent + child rows).
-	_release_codes(doc)
-	frappe.db.set_value("Order Bongkar", doc.name, "docstatus", 2, update_modified=False)
-	frappe.db.sql(
-		"UPDATE `tabContainer Booking Item` SET docstatus = 2 "
-		"WHERE parent = %s AND parenttype = 'Order Bongkar'",
-		doc.name,
-	)
-	return doc.name
 
 
 @frappe.whitelist()

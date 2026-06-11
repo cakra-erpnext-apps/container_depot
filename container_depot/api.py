@@ -834,7 +834,7 @@ def sst_issue_order(qr_data, truck_plate=None, driver_name=None, driver_phone=No
 
 	from container_depot.operations.order_generation import make_order
 
-	order_name = make_order(bc.booking, [bc.name], vehicle_data=vehicle_data, sst=sst)
+	order_name = make_order(bc.booking, [bc.name], vehicle_data=vehicle_data, sst=sst, submit=True)
 	order_doctype = "Order Bongkar" if bc.direction == "Tank In" else "Order Muat"
 	_log_sst_activity(
 		sst,
@@ -893,7 +893,7 @@ def generate_order_from_booking(booking, selected_codes, vehicle_data=None):
 	vd = vehicle_data
 	if isinstance(vd, str) and vd:
 		vd = json.loads(vd)
-	order_name = make_order(booking, selected_codes, vehicle_data=vd or {})
+	order_name = make_order(booking, selected_codes, vehicle_data=vd or {}, submit=True)
 	direction = frappe.db.get_value("Container Booking", booking, "direction")
 	return {
 		"success": True,

@@ -8,16 +8,6 @@
 		</section>
 
 		<router-link
-			to="/tanks"
-			class="block rounded-lg border bg-white p-4 hover:bg-gray-50"
-		>
-			<p class="font-medium">{{ labels.inventory }}</p>
-			<p class="text-sm text-gray-500">
-				Inventaris &amp; status tank langsung
-			</p>
-		</router-link>
-
-		<router-link
 			to="/gate"
 			class="block rounded-lg border bg-white p-4 hover:bg-gray-50"
 		>

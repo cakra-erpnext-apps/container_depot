@@ -51,28 +51,45 @@ frappe.ui.form.on('Order Bongkar', {
 
 function _lock_actions(frm) {
 	// A bon is never deleted, duplicated, or used as a template for a New one —
-	// it is Cancelled to release its containers. Strip those menu items (server
-	// also hard-blocks delete in on_trash).
+	// it is Voided to release its containers. Strip those menu items (server also
+	// hard-blocks delete in on_trash).
 	['Delete', 'Duplicate', __('New {0}', [__('Order Bongkar')])].forEach((label) => {
 		frm.page.menu.find(`a[data-label="${encodeURIComponent(__(label))}"]`).parent().remove();
 	});
-	// Saved draft → offer Cancel = void: release the booking codes (back to Active)
-	// so the containers can be put on a fresh voucher, and mark it Cancelled. A
-	// submitted bon keeps the native Cancel action (on_cancel releases the codes).
-	if (!frm.is_new() && frm.doc.docstatus === 0) {
-		frm.add_custom_button(__('Cancel'), () => _confirm_cancel(frm)).addClass('btn-danger');
+	// Submitted bon → Cancel returns it to an editable Draft; Void soft-deletes it
+	// (release codes, mark Cancelled, record kept). Draft bon → only Void.
+	if (!frm.is_new() && frm.doc.docstatus === 1) {
+		frm.add_custom_button(__('Cancel'), () => _confirm_revert(frm));
+		frm.add_custom_button(__('Void'), () => _confirm_void(frm)).addClass('btn-danger');
+	} else if (!frm.is_new() && frm.doc.docstatus === 0) {
+		frm.add_custom_button(__('Void'), () => _confirm_void(frm)).addClass('btn-danger');
 	}
 }
 
-function _confirm_cancel(frm) {
+function _confirm_revert(frm) {
 	frappe.confirm(
-		__('Cancel this bon? Its containers are released (back to pending) so they can be put on a new voucher.'),
+		__('Return this bon to Draft so it can be edited? Its containers stay reserved (codes remain Used).'),
 		() => {
 			frappe.call({
-				method: 'container_depot.operations.doctype.order_bongkar.order_bongkar.cancel_order',
-				args: { order: frm.doc.name },
+				method: 'container_depot.operations.order_generation.revert_order_to_draft',
+				args: { name: frm.doc.name, doctype: frm.doctype },
 				freeze: true,
-				freeze_message: __('Cancelling …'),
+				freeze_message: __('Returning to draft …'),
+				callback: () => frm.reload_doc(),
+			});
+		}
+	);
+}
+
+function _confirm_void(frm) {
+	frappe.confirm(
+		__('Void this bon? Its containers are released (back to pending) and the bon is marked Cancelled — kept for audit, not deleted.'),
+		() => {
+			frappe.call({
+				method: 'container_depot.operations.order_generation.void_order',
+				args: { name: frm.doc.name, doctype: frm.doctype },
+				freeze: true,
+				freeze_message: __('Voiding …'),
 				callback: () => frm.reload_doc(),
 			});
 		}

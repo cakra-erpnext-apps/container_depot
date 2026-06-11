@@ -77,7 +77,7 @@ def _as_code_list(value):
 	frappe.throw(_("selected_codes must be a list of Booking Code names."))
 
 
-def make_order(booking, selected_codes, vehicle_data=None, sst=None):
+def make_order(booking, selected_codes, vehicle_data=None, sst=None, submit=False):
 	"""Create ONE Order (Bongkar/Muat) holding 1..3 containers from
 	``selected_codes`` and flip each used Booking Code ``Active``->``Used``,
 	atomically. Returns the new order's name.
@@ -86,6 +86,11 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None):
 	``driver_phone``, ``transporter``, ``ex_vessel`` (Tank In),
 	``destination`` (Tank Out), and ``cleaning_certificates`` = {code: cert}
 	(Tank Out, one per container).
+
+	``submit``: when true (the user-facing "generate" actions), the bon is
+	submitted in the same transaction so it goes live immediately — its
+	``on_submit`` logs a Container Activity per container. Leave false for the
+	atomic primitive (drafts used in tests / staged flows).
 	"""
 	codes = _as_code_list(selected_codes)
 	if not (1 <= len(codes) <= MAX_CONTAINERS_PER_ORDER):
@@ -175,8 +180,72 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None):
 		# Single-use: consume each code so later scans/selections are rejected.
 		for c in codes:
 			frappe.db.set_value("Booking Code", c, "state", "Used", update_modified=False)
+
+		# The "generate" actions (SST kiosk / DMS / Gate) issue a FINAL bon — submit
+		# it in the same transaction so it goes live immediately and logs a Container
+		# Activity per container. Use Cancel (→ draft) to edit, or Void to soft-delete.
+		if submit:
+			order.flags.ignore_permissions = True
+			order.submit()
 	except Exception:
 		frappe.db.rollback(save_point="make_order")
 		raise
 
 	return order.name
+
+
+def _order_child_doctype(doc):
+	"""The container child-table doctype for an order (Container Booking Item for
+	Order Bongkar, Order Container Item for Order Muat)."""
+	return doc.meta.get_field("containers").options
+
+
+@frappe.whitelist()
+def void_order(name, doctype="Order Bongkar"):
+	"""Void (soft-delete) an Order Bongkar/Muat: release its Booking Codes back to
+	``Active`` and mark the bon Cancelled (docstatus 2). The record is RETAINED —
+	``on_trash`` blocks real deletion — and voided bons drop out of the active
+	(docstatus=1) views.
+
+	Works on a draft (release codes, set Cancelled directly on parent + child rows)
+	and on a submitted bon (``doc.cancel()`` → ``on_cancel`` releases the codes)."""
+	if doctype not in ("Order Bongkar", "Order Muat"):
+		frappe.throw(_("Unsupported order doctype: {0}").format(doctype))
+	from container_depot.operations.doctype.order_bongkar.order_bongkar import _release_codes
+
+	doc = frappe.get_doc(doctype, name)
+	if doc.docstatus == 2:
+		frappe.throw(_("Order {0} is already voided.").format(doc.name))
+	if doc.docstatus == 1:
+		doc.cancel()  # submitted: on_cancel releases the codes
+		return doc.name
+	# Draft: free the codes, then mark Cancelled directly (parent + child rows).
+	_release_codes(doc)
+	child = _order_child_doctype(doc)
+	frappe.db.set_value(doctype, doc.name, "docstatus", 2, update_modified=False)
+	frappe.db.sql(
+		f"UPDATE `tab{child}` SET docstatus = 2 WHERE parent = %s AND parenttype = %s",
+		(doc.name, doctype),
+	)
+	return doc.name
+
+
+@frappe.whitelist()
+def revert_order_to_draft(name, doctype="Order Bongkar"):
+	"""Cancel → Draft: return a SUBMITTED Order Bongkar/Muat to an editable draft
+	(docstatus 1 → 0) so it can be corrected and re-submitted. The bon keeps its
+	containers and their Booking Codes (still ``Used``). Use ``void_order`` to
+	soft-delete instead."""
+	if doctype not in ("Order Bongkar", "Order Muat"):
+		frappe.throw(_("Unsupported order doctype: {0}").format(doctype))
+	doc = frappe.get_doc(doctype, name)
+	doc.check_permission("cancel")
+	if doc.docstatus != 1:
+		frappe.throw(_("Only a submitted order can be returned to draft."))
+	child = _order_child_doctype(doc)
+	frappe.db.set_value(doctype, doc.name, {"docstatus": 0, "order_status": "Issued"})
+	frappe.db.sql(
+		f"UPDATE `tab{child}` SET docstatus = 0 WHERE parent = %s AND parenttype = %s",
+		(doc.name, doctype),
+	)
+	return doc.name

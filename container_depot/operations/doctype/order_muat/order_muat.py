@@ -28,6 +28,11 @@ class OrderMuat(Document):
 	def on_cancel(self):
 		_release_codes(self)
 
+	def on_trash(self):
+		# A bon is never deleted — Void it (draft or submitted) to release its
+		# containers and keep the audit trail.
+		frappe.throw(_("An Order Muat cannot be deleted — use Void to cancel it instead."))
+
 	def _validate_cleaning_cert(self):
 		"""Each container row needs a submitted, in-date Cleaning Certificate that
 		matches that row's container (PRO-OPS-08 §8.2)."""

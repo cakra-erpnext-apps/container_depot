@@ -3,7 +3,6 @@
 export const labels = {
 	appName: "Depot ESS",
 	home: "Beranda", // Home
-	inventory: "Inventaris Tank", // Tank Inventory
 	loggedInAs: "Masuk sebagai", // Logged in as
 	logout: "Keluar", // Logout
 	search: "Cari nomor tank…", // Search tank number
