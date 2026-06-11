@@ -1,6 +1,11 @@
 <template>
 	<div class="mx-auto w-full max-w-lg space-y-4">
-		<h1 class="text-lg font-semibold">{{ labels.eirTitle }}</h1>
+		<div class="flex items-center justify-between gap-2">
+			<h1 class="text-lg font-semibold">{{ labels.eirTitle }}</h1>
+			<button v-if="header" class="shrink-0 text-sm text-blue-600 underline" @click="reset">
+				{{ labels.newEir }}
+			</button>
+		</div>
 
 		<!-- Step 1 — source: container number + EIR type -->
 		<section class="space-y-3 rounded-lg border bg-white p-4">
@@ -248,9 +253,6 @@
 					@click="doSave(true)"
 				>
 					{{ saveRes.loading ? "…" : labels.submitEir }}
-				</button>
-				<button class="block w-full text-center text-sm text-blue-600 underline" @click="reset">
-					{{ labels.newEir }}
 				</button>
 			</section>
 		</template>
