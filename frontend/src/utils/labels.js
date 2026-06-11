@@ -63,6 +63,7 @@ export const labels = {
 	vessel: "Vessel",
 	serialNo: "Serial No",
 	dateManufacture: "Tgl. Manufaktur", // Date of manufacture
+	ownerPrincipal: "Prinsipal (Pemilik)", // Principal / owner (from Container master)
 	tanggal: "Tanggal", // Date
 	tankStatus: "Status Tank", // Tank status
 	emptyClean: "Empty Clean",
@@ -90,6 +91,13 @@ export const labels = {
 	draftSaved: "Tersimpan", // Saved
 	eirSubmitted: "EIR berhasil disubmit", // EIR submitted
 	newEir: "EIR container lain", // Start another container
+	// Virtual signature (EIR creator)
+	signature: "Tanda Tangan Pembuat EIR", // EIR creator signature
+	signedBy: "Ditandatangani oleh", // Signed by
+	signHint: "Tanda tangani di area di atas.", // Sign in the box above
+	signAgain: "Tanda tangan ulang", // Re-sign
+	clear: "Hapus", // Clear
+	signatureError: "Gagal mengunggah tanda tangan", // Signature upload failed
 }
 
 // Canonical 5-bucket status labels (Indonesian primary / English).

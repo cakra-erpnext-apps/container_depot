@@ -48,6 +48,7 @@
     "column_break_signoff1",
     "driver",
     "driver_signature",
+    "inspector_signature",
     "column_break_signoff2",
     "remarks",
     "tab_survey",
@@ -322,6 +323,12 @@
       "label": "Driver Signature"
     },
     {
+      "description": "Virtual signature of the EIR creator (inspector), captured in the PWA above Submit.",
+      "fieldname": "inspector_signature",
+      "fieldtype": "Attach Image",
+      "label": "Inspector Signature"
+    },
+    {
       "fieldname": "column_break_signoff2",
       "fieldtype": "Column Break"
     },
@@ -455,7 +462,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-11 12:00:00.000000",
+  "modified": "2026-06-11 13:00:00.000000",
   "module": "Operations",
   "name": "Inspection",
   "search_fields": "inspection_id, container_no, inspection_type, status",

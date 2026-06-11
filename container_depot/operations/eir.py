@@ -248,6 +248,7 @@ def create_eir(
 	emkl: str | None = None,
 	remarks: str | None = None,
 	depot: str | None = None,
+	signature: str | None = None,
 	lines=None,
 	photos=None,
 	submit=False,
@@ -290,6 +291,7 @@ def create_eir(
 	doc.remarks = remarks
 	doc.depot = depot
 	doc.inspector = frappe.session.user
+	doc.inspector_signature = signature
 	doc.has_damage = 1 if has_damage else 0
 	if order_ref:
 		doc.order_doctype = order_doctype or "Order Bongkar"
@@ -324,6 +326,7 @@ def _draft_payload(doc, header: dict) -> dict:
 	header["truck_no"] = doc.truck_no
 	header["emkl"] = doc.emkl
 	header["doc_remarks"] = doc.remarks
+	header["inspector_signature"] = doc.inspector_signature
 	if doc.vessel:
 		header["vessel"] = doc.vessel  # draft overrides the master-derived ex_vessel
 	header["lines"] = [
@@ -381,14 +384,16 @@ def save_draft(
 	truck_no: str | None = None,
 	emkl: str | None = None,
 	remarks: str | None = None,
+	signature: str | None = None,
 	lines=None,
 	photos=None,
 	submit=False,
 ) -> dict:
 	"""Update an existing draft EIR — the PWA auto-save (and finalize) action.
 
-	The PWA owns the draft's checklist state, so ``damage_log`` + ``item_photos`` are
-	replaced wholesale from the payload. ``submit`` finalizes the EIR: the Inspection
+	The PWA owns the draft's checklist state, so ``damage_log`` + ``item_photos`` (and
+	the EIR-creator ``inspector_signature``) are replaced wholesale from the payload.
+	``submit`` finalizes the EIR: the Inspection
 	is submitted and its ``on_submit`` drives the container (we never set status here).
 	Permissions are enforced (no bypass).
 	"""
@@ -408,6 +413,7 @@ def save_draft(
 	doc.truck_no = truck_no
 	doc.emkl = emkl
 	doc.remarks = remarks
+	doc.inspector_signature = signature
 	doc.has_damage = 1 if has_damage else 0
 	doc.set("damage_log", damage_rows)
 	doc.set("item_photos", photo_rows)

@@ -161,6 +161,19 @@ class TestEirCreate(FrappeTestCase):
 				submit=False,
 			)
 
+	def test_create_with_inspector_signature(self):
+		# The EIR-creator's virtual signature is stored on the Inspection.
+		c = _make_container("EIRC1000007")
+		res = eir.create_eir(
+			inspection_type="EIR-In", container=c,
+			signature="/private/files/sign-2.png",
+			lines=[{"item_code": "01", "damage_code": "11"}],
+		)
+		self.assertEqual(
+			frappe.db.get_value("Inspection", res["name"], "inspector_signature"),
+			"/private/files/sign-2.png",
+		)
+
 	def test_create_respects_permissions(self):
 		# No ignore_permissions on insert: a user without Inspection create is rejected.
 		c = _make_container("EIRC1000004")
@@ -259,3 +272,15 @@ class TestEirDraft(FrappeTestCase):
 		self.assertTrue(cont.eir_in_date)
 		d2 = eir.open_draft(container_no="EIRD1000005")
 		self.assertNotEqual(d2["inspection"], d["inspection"])
+
+	def test_save_draft_persists_inspector_signature(self):
+		# The EIR-creator's virtual signature round-trips through save_draft/open_draft.
+		c = _make_container("EIRD1000006")
+		d = eir.open_draft(container_no="EIRD1000006")
+		eir.save_draft(
+			inspection=d["inspection"], inspection_type="EIR-In",
+			signature="/private/files/sign-1.png",
+			lines=[{"item_code": "01", "damage_code": "11"}],
+		)
+		d2 = eir.open_draft(container_no="EIRD1000006")
+		self.assertEqual(d2["inspector_signature"], "/private/files/sign-1.png")

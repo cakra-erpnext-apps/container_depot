@@ -165,6 +165,38 @@
 				<p class="text-sm text-gray-500">{{ labels.officer }}: <span class="font-medium text-gray-800">{{ session.user }}</span></p>
 			</section>
 
+			<!-- Step 5b — virtual signature of the EIR creator, directly above Submit -->
+			<section class="space-y-2 rounded-lg border bg-white p-4">
+				<p class="text-sm font-semibold text-gray-700">{{ labels.signature }}</p>
+				<p class="text-xs text-gray-500">
+					{{ labels.signedBy }}: <span class="font-medium text-gray-800">{{ session.user }}</span>
+				</p>
+				<div v-if="signatureUrl && !signing">
+					<img :src="signatureUrl" class="h-28 w-full rounded border bg-white object-contain" />
+					<button type="button" class="mt-1 text-sm text-blue-600 underline" @click="startResign">
+						{{ labels.signAgain }}
+					</button>
+				</div>
+				<div v-else>
+					<canvas
+						ref="sigCanvas"
+						class="w-full touch-none rounded border bg-white"
+						style="height: 150px"
+						@pointerdown="sigDown"
+						@pointermove="sigMove"
+						@pointerup="sigUp"
+						@pointercancel="sigUp"
+						@pointerleave="sigUp"
+					></canvas>
+					<div class="mt-1 flex items-center gap-3 text-sm">
+						<button type="button" class="text-gray-600 underline" @click="clearSignature">{{ labels.clear }}</button>
+						<span v-if="sigUploading" class="text-gray-400">…</span>
+						<span v-else-if="sigErr" class="text-red-600">{{ sigErr }}</span>
+						<span v-else class="text-gray-400">{{ labels.signHint }}</span>
+					</div>
+				</div>
+			</section>
+
 			<!-- Step 6 — auto-save status + finalize -->
 			<section class="space-y-2">
 				<p class="text-xs">
@@ -258,6 +290,7 @@ const headerCells = computed(() => {
 		{ label: labels.containerNumber, value: h.container_no },
 		{ label: labels.serialNo, value: h.serial_no },
 		{ label: labels.dateManufacture, value: h.manufacture_date },
+		{ label: labels.ownerPrincipal, value: h.principal },
 		{ label: labels.lastTest, value: h.last_test_date },
 		{ label: labels.capacity, value: h.capacity },
 		{ label: labels.tare, value: h.tare_weight },
@@ -285,6 +318,8 @@ const openRes = createResource({
 		truckNo.value = data.truck_no || ""
 		emkl.value = data.emkl || ""
 		remarks.value = data.doc_remarks || ""
+		signatureUrl.value = data.inspector_signature || ""
+		signing.value = false
 		applyDraftToRows(data)
 		nextTick(() => {
 			suppressSave.value = false
@@ -399,6 +434,102 @@ function removePhoto(item, idx) {
 	item.photos.splice(idx, 1)
 }
 
+// --- Virtual signature pad (EIR creator) -------------------------------------
+// A tiny canvas pad: draw with pointer events, upload the result as a file (like
+// item photos) and persist its URL on the draft (Inspection.inspector_signature).
+const sigCanvas = ref(null)
+const signatureUrl = ref("") // uploaded signature file_url (persisted on the draft)
+const signing = ref(false) // true while (re)drawing — show the canvas, not the saved image
+const sigUploading = ref(false)
+const sigErr = ref("")
+let sigCtx = null
+let sigDrawing = false
+let sigHasInk = false
+let sigTimer = null
+
+// Lazily size + configure the canvas backing store (crisp on hi-dpi screens).
+function sigCtxInit() {
+	const c = sigCanvas.value
+	if (!c) return null
+	if (sigCtx && sigCtx.canvas === c) return sigCtx
+	const ratio = window.devicePixelRatio || 1
+	c.width = c.clientWidth * ratio
+	c.height = c.clientHeight * ratio
+	const ctx = c.getContext("2d")
+	ctx.scale(ratio, ratio)
+	ctx.lineWidth = 2
+	ctx.lineCap = "round"
+	ctx.lineJoin = "round"
+	ctx.strokeStyle = "#111827"
+	sigCtx = ctx
+	return ctx
+}
+
+function sigPos(e) {
+	const r = sigCanvas.value.getBoundingClientRect()
+	return { x: e.clientX - r.left, y: e.clientY - r.top }
+}
+
+function sigDown(e) {
+	const ctx = sigCtxInit()
+	if (!ctx) return
+	sigDrawing = true
+	const p = sigPos(e)
+	ctx.beginPath()
+	ctx.moveTo(p.x, p.y)
+	sigCanvas.value.setPointerCapture?.(e.pointerId)
+}
+
+function sigMove(e) {
+	if (!sigDrawing || !sigCtx) return
+	const p = sigPos(e)
+	sigCtx.lineTo(p.x, p.y)
+	sigCtx.stroke()
+	sigHasInk = true
+}
+
+function sigUp() {
+	if (!sigDrawing) return
+	sigDrawing = false
+	if (!sigHasInk) return
+	// Upload once the pen settles, so a multi-stroke signature is sent once.
+	if (sigTimer) clearTimeout(sigTimer)
+	sigTimer = setTimeout(uploadSignature, 600)
+}
+
+async function uploadSignature() {
+	const c = sigCanvas.value
+	if (!c || !sigHasInk) return
+	sigErr.value = ""
+	sigUploading.value = true
+	try {
+		const blob = await new Promise((res) => c.toBlob(res, "image/png"))
+		signatureUrl.value = await uploadFile(new File([blob], "eir-signature.png", { type: "image/png" }))
+		signing.value = false // reveal the saved signature; the watch picks up the new URL
+	} catch (e) {
+		sigErr.value = labels.signatureError
+	} finally {
+		sigUploading.value = false
+	}
+}
+
+function clearSignature() {
+	if (sigTimer) clearTimeout(sigTimer)
+	const ctx = sigCtxInit()
+	if (ctx && sigCanvas.value) ctx.clearRect(0, 0, sigCanvas.value.width, sigCanvas.value.height)
+	sigHasInk = false
+	signatureUrl.value = ""
+}
+
+// Re-sign: discard the saved image and show a fresh canvas.
+function startResign() {
+	signatureUrl.value = ""
+	signing.value = true
+	sigHasInk = false
+	sigCtx = null
+	nextTick(sigCtxInit)
+}
+
 // Persist the draft. submit=false = auto-save; submit=true = finalize (Submit).
 function doSave(submit = false) {
 	if (!inspection.value) return
@@ -414,6 +545,7 @@ function doSave(submit = false) {
 		truck_no: truckNo.value || undefined,
 		emkl: emkl.value || undefined,
 		remarks: remarks.value || undefined,
+		signature: signatureUrl.value || undefined,
 		lines: JSON.stringify(buildLines()),
 		photos: JSON.stringify(buildPhotos()),
 		submit: submit ? 1 : 0,
@@ -429,7 +561,7 @@ function scheduleSave() {
 }
 
 // Header fields + the whole checklist (codes, remarks, photos) trigger an auto-save.
-watch([eirType, vessel, tankStatus, truckNo, emkl, remarks], scheduleSave)
+watch([eirType, vessel, tankStatus, truckNo, emkl, remarks, signatureUrl], scheduleSave)
 watch(rows, scheduleSave, { deep: true })
 
 function reset() {
@@ -441,6 +573,10 @@ function reset() {
 	truckNo.value = ""
 	emkl.value = ""
 	remarks.value = ""
+	signatureUrl.value = ""
+	signing.value = false
+	sigHasInk = false
+	sigCtx = null
 	result.value = null
 	rows.value.forEach((r) => {
 		r.damage_code = ""
