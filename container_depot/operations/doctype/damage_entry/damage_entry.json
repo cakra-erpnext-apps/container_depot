@@ -7,6 +7,8 @@
   "engine": "InnoDB",
   "field_order": [
     "damage_info",
+    "checklist_item",
+    "area",
     "component",
     "damage_type",
     "repair_code",
@@ -28,6 +30,21 @@
       "fieldname": "damage_info",
       "fieldtype": "Section Break",
       "label": "Damage Information"
+    },
+    {
+      "description": "EIR checklist item (Area/Item taxonomy) this row belongs to.",
+      "fieldname": "checklist_item",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Checklist Item",
+      "options": "EIR Checklist Item"
+    },
+    {
+      "fetch_from": "checklist_item.area",
+      "fieldname": "area",
+      "fieldtype": "Data",
+      "label": "Area",
+      "read_only": 1
     },
     {
       "description": "Component / item inspected (e.g. Manlid, Foot Valve, Frame). Free text per the EIR template AREA/ITEM list.",

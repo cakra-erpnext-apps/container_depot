@@ -157,6 +157,11 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
 	},
+	"EIR Checklist Item": {
+		"Surveyor":          {"read": 1, "report": 1},
+		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
+		"Ops Supervisor":    {"read": 1, "report": 1},
+	},
 	"Periodic Test": {
 		"Customer":          {"read": 1, "report": 1},
 		"Surveyor":          {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
