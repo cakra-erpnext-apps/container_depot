@@ -53,6 +53,8 @@ export const labels = {
 	eirTitle: "Checklist EIR",
 	eirSource: "Sumber Data", // Source
 	eirFetch: "Ambil Data", // Fetch
+	containerNumber: "Nomor Container", // Container number (EIR is keyed on the unit)
+	containerNumberPlaceholder: "mis. EIRU1234567",
 	eirType: "Tipe EIR", // EIR type
 	eirHeader: "Data Tank", // Tank header
 	prefix: "Prefix",

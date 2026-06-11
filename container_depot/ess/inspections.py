@@ -22,10 +22,15 @@ def eir_masters():
 
 
 @frappe.whitelist(methods=["GET"])
-def eir_prefill(booking_code=None, order_bongkar=None):
-	"""GET /api/v1/ess/eir-prefill?booking_code=… (or ?order_bongkar=…)."""
+def eir_prefill(container=None, container_no=None, booking_code=None, order_bongkar=None):
+	"""GET /api/v1/ess/eir-prefill?container_no=… (booking_code / order_bongkar optional)."""
 	_require_authenticated_user()
-	return eir.prefill(booking_code=booking_code, order_bongkar=order_bongkar)
+	return eir.prefill(
+		container=container,
+		container_no=container_no,
+		booking_code=booking_code,
+		order_bongkar=order_bongkar,
+	)
 
 
 @frappe.whitelist(methods=["POST"])

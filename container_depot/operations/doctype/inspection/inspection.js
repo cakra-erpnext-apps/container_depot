@@ -47,10 +47,11 @@ frappe.ui.form.on('Inspection', {
 		frm.set_query('booking_code', () => ({ filters: { state: ['in', ['Active', 'Used']] } }));
 	},
 
-	// Picking a Booking Code prefills the EIR header from the SAME whitelisted
-	// function the PWA uses (see prefill_from_booking) — one prefill implementation.
-	booking_code(frm) {
-		if (frm.doc.booking_code) prefill_from_booking(frm);
+	// The EIR inspects a physical container, so picking the Container prefills the
+	// header from the SAME whitelisted function the PWA uses (see
+	// prefill_from_container) — one prefill implementation, keyed on the container.
+	container(frm) {
+		if (frm.doc.container) prefill_from_container(frm);
 	},
 });
 
@@ -162,21 +163,23 @@ function append_damage_row(frm, values) {
 	});
 }
 
-// --- B-D4: prefill the EIR header from a Booking Code ---
+// --- B-D4: prefill the EIR header from the Container ---
 // Calls the SAME whitelisted function the PWA uses
 // (container_depot.ess.inspections.eir_prefill -> operations.eir.prefill). There is
-// exactly one prefill implementation; Desk is just another caller of it. Only blank
-// fields are filled, so manual input is never clobbered, and the derived ISO 6346
-// prefix/number/cd are shown as a dashboard comment (display-only, never stored).
-function prefill_from_booking(frm) {
+// exactly one prefill implementation; Desk is just another caller of it, keyed on the
+// container number. Native fetch_from already fills serial/capacity/etc. from the
+// container; this adds depot, tank owner and the display-only ISO 6346 derive. Only
+// blank fields are filled, so manual input is never clobbered.
+function prefill_from_container(frm) {
 	frappe.call({
 		method: 'container_depot.ess.inspections.eir_prefill',
-		args: { booking_code: frm.doc.booking_code },
+		args: { container: frm.doc.container },
 		callback(r) {
 			const d = r.message;
 			if (!d) return;
 			const fills = {
-				container: d.container,
+				depot: d.depot,
+				tank_owner: d.principal,
 				vessel: d.ex_vessel,
 				serial_no: d.serial_no,
 				manufacture_date: d.manufacture_date,
@@ -185,8 +188,6 @@ function prefill_from_booking(frm) {
 				max_gross_weight: d.max_gross_weight,
 				last_test_date: d.last_test_date,
 				last_cargo: d.last_cargo,
-				depot: d.depot,
-				tank_owner: d.principal,
 			};
 			Object.keys(fills).forEach((f) => {
 				if (fills[f] != null && fills[f] !== '' && !frm.doc[f]) frm.set_value(f, fills[f]);

@@ -39,21 +39,40 @@ class TestEirMasters(FrappeTestCase):
 
 
 class TestEirPrefill(FrappeTestCase):
-	def test_prefill_from_booking_code(self):
+	def test_prefill_from_container_no(self):
+		# The EIR inspects the container, so the container number is the key — no
+		# booking required; principal comes straight from the Container master.
 		cust = ensure_test_customer("EIR Prefill Cust")
 		c = _make_container("EIRP1000001", principal=cust, serial_no="SER-123",
 						   capacity=26000, tare_weight=3800, max_gross_weight=36000)
-		code = make_booking_code(customer=cust, container_no="EIRP1000001", container=c)
-		data = eir.prefill(booking_code=code.name)
+		data = eir.prefill(container_no="EIRP1000001")
 		self.assertEqual(data["container"], c)
 		self.assertEqual(data["container_no"], "EIRP1000001")
 		self.assertEqual(data["serial_no"], "SER-123")
 		self.assertEqual(data["capacity"], 26000)
 		self.assertEqual(data["max_gross_weight"], 36000)
-		self.assertEqual(data["direction"], "Tank In")
 		self.assertEqual(data["principal"], cust)
 		# Display-only ISO 6346 derive.
 		self.assertEqual([data["prefix"], data["number"], data["cd"]], ["EIRP", "100000", "1"])
+
+	def test_prefill_from_booking_code_backcompat(self):
+		# A booking_code still resolves the container (automation / back-compat) and
+		# enriches direction, but it is no longer the required entry point. Uses its
+		# own container number: make_booking_code's Confirmed booking commits, which
+		# leaks the container past the per-test rollback and would otherwise collide
+		# with the container-keyed test above.
+		cust = ensure_test_customer("EIR Prefill Cust")
+		c = _make_container("EIRP1000002", principal=cust, serial_no="SER-456")
+		code = make_booking_code(customer=cust, container_no="EIRP1000002", container=c)
+		data = eir.prefill(booking_code=code.name)
+		self.assertEqual(data["container"], c)
+		self.assertEqual(data["serial_no"], "SER-456")
+		self.assertEqual(data["direction"], "Tank In")
+		self.assertEqual(data["principal"], cust)
+
+	def test_prefill_bad_container_raises(self):
+		with self.assertRaises(frappe.ValidationError):
+			eir.prefill(container_no="NOPE-NO-SUCH-CONTAINER")
 
 	def test_prefill_bad_code_raises(self):
 		with self.assertRaises(frappe.ValidationError):

@@ -61,17 +61,28 @@ def iso6346_parts(container_no: str | None) -> dict:
 	}
 
 
-def prefill(booking_code: str | None = None, order_bongkar: str | None = None) -> dict:
-	"""Resolve EIR header defaults from a Booking Code (or an Order Bongkar).
+def prefill(
+	container: str | None = None,
+	container_no: str | None = None,
+	booking_code: str | None = None,
+	order_bongkar: str | None = None,
+) -> dict:
+	"""Resolve EIR header defaults for the Container being inspected.
 
-	Booking Code -> container + booking -> Container Booking (principal, direction)
-	plus the Container master template fields, plus ``Order Bongkar.ex_vessel`` from
-	an order on the same booking when present. Also returns the display-only ISO
-	6346 prefix/number/cd derived from the container number.
+	The EIR inspects a physical container, so the **Container is the key**: its
+	template fields (serial, manufacture, capacity, tare, MWG, last test/cargo,
+	depot) and its ``principal`` (tank owner) come straight from the Container
+	master — whose name equals the container number (autoname ``field:container_no``).
+
+	``booking_code`` / ``order_bongkar`` remain accepted for back-compat and
+	automation: they only resolve the container when one was not supplied and enrich
+	``ex_vessel`` / ``direction`` — never the required entry point. Also returns the
+	display-only ISO 6346 prefix/number/cd derived from the container number.
 	"""
-	container = booking = direction = bc_name = None
+	name = container or container_no
+	booking = direction = bc_name = None
 
-	if booking_code:
+	if not name and booking_code:
 		bc = frappe.db.get_value(
 			"Booking Code", booking_code,
 			["name", "container", "container_no", "booking", "direction"], as_dict=True,
@@ -79,11 +90,11 @@ def prefill(booking_code: str | None = None, order_bongkar: str | None = None) -
 		if not bc:
 			frappe.throw(_("Booking Code {0} not found.").format(booking_code))
 		bc_name, booking, direction = bc.name, bc.booking, bc.direction
-		container = bc.container or (
+		name = bc.container or (
 			frappe.db.get_value("Container", {"container_no": bc.container_no})
 			if bc.container_no else None
 		)
-	elif order_bongkar:
+	elif not name and order_bongkar:
 		ob = frappe.db.get_value("Order Bongkar", order_bongkar, ["name", "booking"], as_dict=True)
 		if not ob:
 			frappe.throw(_("Order Bongkar {0} not found.").format(order_bongkar))
@@ -94,23 +105,24 @@ def prefill(booking_code: str | None = None, order_bongkar: str | None = None) -
 			["container", "booking_code"], as_dict=True, order_by="idx asc",
 		)
 		if row:
-			container, bc_name = row.container, row.booking_code
+			name, bc_name = row.container, row.booking_code
 		if bc_name:
 			direction = frappe.db.get_value("Booking Code", bc_name, "direction")
-	else:
-		frappe.throw(_("Provide a booking_code or order_bongkar."))
 
-	if not container:
-		frappe.throw(_("Could not resolve a Container from the given reference."))
+	if not name:
+		frappe.throw(_("Provide a container number (or a booking_code / order_bongkar)."))
 
 	c = frappe.db.get_value(
-		"Container", container,
+		"Container", name,
 		["name", "container_no", "serial_no", "manufacture_date", "capacity",
-		 "tare_weight", "max_gross_weight", "last_test_date", "last_cargo", "depot"],
+		 "tare_weight", "max_gross_weight", "last_test_date", "last_cargo", "depot", "principal"],
 		as_dict=True,
 	)
+	if not c:
+		frappe.throw(_("Container {0} not found.").format(name))
 
-	principal = frappe.db.get_value("Container Booking", booking, "principal") if booking else None
+	# Principal / tank owner is a property of the container itself.
+	principal = c.principal
 
 	ex_vessel = frappe.db.get_value("Order Bongkar", order_bongkar, "ex_vessel") if order_bongkar else None
 	if not ex_vessel and booking:

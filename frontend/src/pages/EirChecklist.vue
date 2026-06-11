@@ -5,19 +5,19 @@
 		<!-- Step 1 — source: booking code + EIR type -->
 		<section class="space-y-3 rounded-lg border bg-white p-4">
 			<div>
-				<label class="text-sm font-medium">{{ labels.bookingCode }}</label>
+				<label class="text-sm font-medium">{{ labels.containerNumber }}</label>
 				<div class="mt-1 flex gap-2">
 					<input
-						v-model.trim="bookingCode"
+						v-model.trim="containerNo"
 						type="text"
 						autocapitalize="characters"
-						:placeholder="labels.bookingCodePlaceholder"
+						:placeholder="labels.containerNumberPlaceholder"
 						class="w-full rounded-md border px-3 py-2 text-sm uppercase"
 						@keyup.enter="doFetch"
 					/>
 					<button
 						class="shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-						:disabled="!bookingCode || prefillRes.loading"
+						:disabled="!containerNo || prefillRes.loading"
 						@click="doFetch"
 					>
 						{{ prefillRes.loading ? "…" : labels.eirFetch }}
@@ -169,7 +169,7 @@ import { createResource } from "frappe-ui"
 import { labels } from "@/utils/labels"
 import { session } from "@/data/session"
 
-const bookingCode = ref("")
+const containerNo = ref("")
 const eirType = ref("EIR-In")
 const header = ref(null)
 const vessel = ref("")
@@ -257,9 +257,9 @@ const createError = computed(() => {
 })
 
 function doFetch() {
-	if (!bookingCode.value) return
+	if (!containerNo.value) return
 	result.value = null
-	prefillRes.submit({ booking_code: bookingCode.value })
+	prefillRes.submit({ container_no: containerNo.value })
 }
 
 function buildLines() {
@@ -291,7 +291,7 @@ function doCreate(submit) {
 }
 
 function reset() {
-	bookingCode.value = ""
+	containerNo.value = ""
 	header.value = null
 	vessel.value = ""
 	tankStatus.value = ""
