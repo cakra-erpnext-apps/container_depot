@@ -22,10 +22,12 @@ class Inspection(Document):
 
 	def validate(self):
 		"""Validate inspection data"""
-		# Validate that 4 exterior photos are uploaded for EIR-In
+		# Recommend the 4 exterior views for EIR-In — but only once the surveyor has
+		# started uploading them (1-3 present). Don't nag empty drafts (the PWA EIR uses
+		# per-item photos and auto-creates an empty draft on fetch).
 		if self.inspection_type == "EIR-In":
 			exterior_views = [p.photo_view for p in self.exterior_photos if p.photo_view in ["Front", "Back", "Left", "Right"]]
-			if len(exterior_views) < 4:
+			if 0 < len(exterior_views) < 4:
 				frappe.msgprint(f"Warning: Only {len(exterior_views)} exterior photos uploaded. 4 views (Front, Back, Left, Right) recommended for EIR-In.")
 
 	SEAL_FIELDS = (

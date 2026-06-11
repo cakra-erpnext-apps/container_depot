@@ -84,6 +84,9 @@ export const labels = {
 	saveDraft: "Simpan Draf", // Save draft
 	submitEir: "Submit EIR",
 	eirCreated: "EIR berhasil dibuat", // EIR created
+	eirDraftHint: "Draf EIR otomatis dibuat/ dibuka saat ambil data.", // auto draft hint
+	draftSaved: "Draf tersimpan", // Draft saved
+	newEir: "EIR container lain", // Start another container
 }
 
 // Canonical 5-bucket status labels (Indonesian primary / English).

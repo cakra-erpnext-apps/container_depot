@@ -34,6 +34,43 @@ def eir_prefill(container=None, container_no=None, booking_code=None, order_bong
 
 
 @frappe.whitelist(methods=["POST"])
+def eir_open_draft(container=None, container_no=None, inspection_type="EIR-In"):
+	"""POST /api/v1/ess/eir-open-draft — get-or-create the container's draft EIR.
+
+	Mutating (creates the draft on first fetch), hence POST.
+	"""
+	_require_authenticated_user()
+	return eir.open_draft(container=container, container_no=container_no, inspection_type=inspection_type)
+
+
+@frappe.whitelist(methods=["POST"])
+def eir_save_draft(
+	inspection=None,
+	inspection_type=None,
+	tank_status=None,
+	vessel=None,
+	truck_no=None,
+	emkl=None,
+	remarks=None,
+	lines=None,
+	photos=None,
+):
+	"""POST /api/v1/ess/eir-save-draft — persist edits onto an existing draft EIR."""
+	_require_authenticated_user()
+	return eir.save_draft(
+		inspection=inspection,
+		inspection_type=inspection_type,
+		tank_status=tank_status,
+		vessel=vessel,
+		truck_no=truck_no,
+		emkl=emkl,
+		remarks=remarks,
+		lines=lines,
+		photos=photos,
+	)
+
+
+@frappe.whitelist(methods=["POST"])
 def eir_create(
 	inspection_type=None,
 	container=None,

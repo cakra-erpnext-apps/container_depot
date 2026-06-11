@@ -2,7 +2,7 @@
 	<div class="mx-auto w-full max-w-lg space-y-4">
 		<h1 class="text-lg font-semibold">{{ labels.eirTitle }}</h1>
 
-		<!-- Step 1 — source: booking code + EIR type -->
+		<!-- Step 1 — source: container number + EIR type -->
 		<section class="space-y-3 rounded-lg border bg-white p-4">
 			<div>
 				<label class="text-sm font-medium">{{ labels.containerNumber }}</label>
@@ -17,13 +17,14 @@
 					/>
 					<button
 						class="shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-						:disabled="!containerNo || prefillRes.loading"
+						:disabled="!containerNo || openRes.loading"
 						@click="doFetch"
 					>
-						{{ prefillRes.loading ? "…" : labels.eirFetch }}
+						{{ openRes.loading ? "…" : labels.eirFetch }}
 					</button>
 				</div>
-				<p v-if="prefillError" class="mt-1 text-sm text-red-600">{{ prefillError }}</p>
+				<p v-if="fetchError" class="mt-1 text-sm text-red-600">{{ fetchError }}</p>
+				<p class="mt-1 text-xs text-gray-400">{{ labels.eirDraftHint }}</p>
 			</div>
 			<div>
 				<label class="text-sm font-medium">{{ labels.eirType }}</label>
@@ -41,9 +42,9 @@
 			</div>
 		</section>
 
-		<!-- Steps 2-6 appear once a container is resolved -->
+		<!-- Steps 2-6 appear once a draft is open -->
 		<template v-if="header">
-			<!-- Step 2 — header (prefill) -->
+			<!-- Step 2 — tank header (all from the Container master) -->
 			<section class="space-y-3 rounded-lg border bg-white p-4">
 				<p class="text-sm font-semibold text-gray-700">{{ labels.eirHeader }}</p>
 				<dl class="grid grid-cols-3 gap-x-3 gap-y-1.5 text-sm">
@@ -164,34 +165,22 @@
 				<p class="text-sm text-gray-500">{{ labels.officer }}: <span class="font-medium text-gray-800">{{ session.user }}</span></p>
 			</section>
 
-			<!-- Step 6 — actions -->
+			<!-- Step 6 — save the draft (no submit: the draft IS the record) -->
 			<section class="space-y-2">
-				<div class="grid grid-cols-2 gap-2">
-					<button
-						class="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-						:disabled="createRes.loading"
-						@click="doCreate(false)"
-					>
-						{{ labels.saveDraft }}
-					</button>
-					<button
-						class="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-						:disabled="createRes.loading || !tankStatus"
-						@click="doCreate(true)"
-					>
-						{{ createRes.loading ? "…" : labels.submitEir }}
-					</button>
-				</div>
-				<p v-if="createError" class="text-sm text-red-600">{{ createError }}</p>
+				<button
+					class="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+					:disabled="saveRes.loading"
+					@click="doSave"
+				>
+					{{ saveRes.loading ? "…" : labels.saveDraft }}
+				</button>
+				<p v-if="saveError" class="text-sm text-red-600">{{ saveError }}</p>
+				<p v-if="result && result.success" class="text-sm text-green-700">
+					✓ {{ labels.draftSaved }} · {{ result.inspection }}
+				</p>
+				<button class="text-sm text-blue-600 underline" @click="reset">{{ labels.newEir }}</button>
 			</section>
 		</template>
-
-		<!-- Result -->
-		<section v-if="result && result.success" class="rounded-lg border border-green-200 bg-green-50 p-4">
-			<p class="font-medium text-green-800">✓ {{ labels.eirCreated }}</p>
-			<p class="mt-1 text-sm text-gray-700">{{ result.name }} · {{ result.damage_rows }} {{ labels.colDamage }}</p>
-			<button class="mt-2 text-sm text-blue-600 underline" @click="reset">{{ labels.reset }}</button>
-		</section>
 	</div>
 </template>
 
@@ -204,6 +193,7 @@ import { session } from "@/data/session"
 const containerNo = ref("")
 const eirType = ref("EIR-In")
 const header = ref(null)
+const inspection = ref(null)
 const vessel = ref("")
 const tanggal = ref(new Date().toISOString().slice(0, 10))
 const tankStatus = ref("")
@@ -227,6 +217,8 @@ const mastersRes = createResource({
 		rows.value = (data.checklist || []).map((i) =>
 			reactive({ ...i, damage_code: "", repair_code: "", remarks: "", photos: [], uploading: false, photoErr: "" })
 		)
+		// If a draft is already open (rare: fetch resolved before masters), apply it now.
+		if (header.value) applyDraftToRows(header.value)
 	},
 })
 
@@ -243,12 +235,12 @@ const groups = computed(() => {
 	return out
 })
 
+// Tank header: Container Number + the master fields (no ISO 6346 prefix/number/cd —
+// the container number is the identity; all values come from the Container master).
 const headerCells = computed(() => {
 	const h = header.value || {}
 	return [
-		{ label: labels.prefix, value: h.prefix },
-		{ label: labels.number, value: h.number },
-		{ label: labels.checkDigit, value: h.cd },
+		{ label: labels.containerNumber, value: h.container_no },
 		{ label: labels.serialNo, value: h.serial_no },
 		{ label: labels.dateManufacture, value: h.manufacture_date },
 		{ label: labels.lastTest, value: h.last_test_date },
@@ -257,41 +249,70 @@ const headerCells = computed(() => {
 		{ label: labels.maxGross, value: h.max_gross_weight },
 		{ label: labels.lastCargo, value: h.last_cargo },
 		{ label: labels.depot, value: h.depot },
-		{ label: labels.vessel, value: h.ex_vessel },
 	]
 })
 
-const prefillRes = createResource({
-	url: "container_depot.ess.inspections.eir_prefill",
-	method: "GET",
+// Fetch = get-or-create the container's draft EIR (so nothing is lost before save,
+// and re-fetching the same container reopens the same draft — no duplicates).
+const openRes = createResource({
+	url: "container_depot.ess.inspections.eir_open_draft",
+	method: "POST",
 	onSuccess(data) {
 		header.value = data
+		inspection.value = data.inspection
 		result.value = null
-		if (data.ex_vessel) vessel.value = data.ex_vessel
+		if (data.inspection_type) eirType.value = data.inspection_type
+		vessel.value = data.vessel || ""
+		tankStatus.value = data.tank_status || ""
+		truckNo.value = data.truck_no || ""
+		emkl.value = data.emkl || ""
+		remarks.value = data.doc_remarks || ""
+		applyDraftToRows(data)
 	},
 })
 
-const createRes = createResource({
-	url: "container_depot.ess.inspections.eir_create",
+const saveRes = createResource({
+	url: "container_depot.ess.inspections.eir_save_draft",
 	method: "POST",
 	onSuccess(data) {
 		result.value = data
 	},
 })
 
-const prefillError = computed(() => {
-	if (prefillRes.error) return prefillRes.error.messages?.[0] || prefillRes.error.message
+const fetchError = computed(() => {
+	if (openRes.error) return openRes.error.messages?.[0] || openRes.error.message
 	return null
 })
-const createError = computed(() => {
-	if (createRes.error) return createRes.error.messages?.[0] || createRes.error.message
+const saveError = computed(() => {
+	if (saveRes.error) return saveRes.error.messages?.[0] || saveRes.error.message
 	return null
 })
+
+// Restore the draft's saved checklist lines + photos onto the (master) rows.
+function applyDraftToRows(data) {
+	if (!data || !rows.value.length) return
+	const lineMap = {}
+	;(data.lines || []).forEach((l) => {
+		lineMap[l.item_code] = l
+	})
+	const photoMap = {}
+	;(data.photos || []).forEach((p) => {
+		;(photoMap[p.item_code] = photoMap[p.item_code] || []).push(p.photo)
+	})
+	rows.value.forEach((r) => {
+		const l = lineMap[r.item_code]
+		r.damage_code = (l && l.damage_code) || ""
+		r.repair_code = (l && l.repair_code) || ""
+		r.remarks = (l && l.remarks) || ""
+		r.photos = photoMap[r.item_code] ? [...photoMap[r.item_code]] : []
+		r.photoErr = ""
+	})
+}
 
 function doFetch() {
 	if (!containerNo.value) return
 	result.value = null
-	prefillRes.submit({ container_no: containerNo.value })
+	openRes.submit({ container_no: containerNo.value, inspection_type: eirType.value })
 }
 
 function buildLines() {
@@ -349,27 +370,26 @@ function removePhoto(item, idx) {
 	item.photos.splice(idx, 1)
 }
 
-function doCreate(submit) {
-	if (!header.value) return
-	createRes.submit({
+// Persist edits onto the already-created draft (no new record, no submit).
+function doSave() {
+	if (!inspection.value) return
+	saveRes.submit({
+		inspection: inspection.value,
 		inspection_type: eirType.value,
-		container: header.value.container,
-		booking_code: header.value.booking_code || undefined,
 		tank_status: tankStatus.value || undefined,
 		vessel: vessel.value || undefined,
 		truck_no: truckNo.value || undefined,
 		emkl: emkl.value || undefined,
 		remarks: remarks.value || undefined,
-		depot: header.value.depot || undefined,
 		lines: JSON.stringify(buildLines()),
 		photos: JSON.stringify(buildPhotos()),
-		submit: submit,
 	})
 }
 
 function reset() {
 	containerNo.value = ""
 	header.value = null
+	inspection.value = null
 	vessel.value = ""
 	tankStatus.value = ""
 	truckNo.value = ""

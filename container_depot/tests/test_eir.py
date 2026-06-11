@@ -179,3 +179,66 @@ class TestEirCreate(FrappeTestCase):
 				)
 		finally:
 			frappe.set_user("Administrator")
+
+
+class TestEirDraft(FrappeTestCase):
+	def test_open_creates_then_reopens_same_draft(self):
+		# Fetch auto-creates a draft; re-fetching the same container reopens it (dedup).
+		c = _make_container("EIRD1000001", serial_no="SER-D1", capacity=24000)
+		d1 = eir.open_draft(container_no="EIRD1000001")
+		self.assertTrue(d1["inspection"])
+		self.assertEqual(d1["container_no"], "EIRD1000001")
+		self.assertEqual(d1["serial_no"], "SER-D1")   # header sourced from the master
+		self.assertEqual(d1["lines"], [])
+		self.assertEqual(d1["photos"], [])
+		self.assertEqual(frappe.get_doc("Inspection", d1["inspection"]).docstatus, 0)
+
+		d2 = eir.open_draft(container_no="EIRD1000001")
+		self.assertEqual(d2["inspection"], d1["inspection"])
+		self.assertEqual(frappe.db.count("Inspection", {"container": c, "docstatus": 0}), 1)
+
+	def test_save_draft_persists_and_reopens(self):
+		c = _make_container("EIRD1000002")
+		d = eir.open_draft(container_no="EIRD1000002")
+		res = eir.save_draft(
+			inspection=d["inspection"], inspection_type="EIR-In",
+			tank_status="Empty Dirty", vessel="MV X", truck_no="B-9", emkl="PT Y",
+			lines=[
+				{"item_code": "01", "damage_code": "11", "remarks": "dent"},
+				{"item_code": "02"},  # empty -> skipped
+			],
+			photos=[{"item_code": "01", "photo": "/private/files/p1.jpg"}],
+		)
+		self.assertEqual(res["damage_rows"], 1)
+		self.assertEqual(res["photo_rows"], 1)
+
+		d2 = eir.open_draft(container_no="EIRD1000002")
+		self.assertEqual(d2["inspection"], d["inspection"])  # still the same draft
+		self.assertEqual(d2["tank_status"], "Empty Dirty")
+		self.assertEqual(d2["vessel"], "MV X")
+		self.assertEqual(len(d2["lines"]), 1)
+		self.assertEqual(d2["lines"][0]["item_code"], "01")
+		self.assertEqual(d2["lines"][0]["damage_code"], "11")
+		self.assertEqual(len(d2["photos"]), 1)
+		self.assertEqual(d2["photos"][0]["photo"], "/private/files/p1.jpg")
+
+	def test_save_draft_replaces_previous_state(self):
+		c = _make_container("EIRD1000003")
+		d = eir.open_draft(container_no="EIRD1000003")
+		eir.save_draft(inspection=d["inspection"], lines=[
+			{"item_code": "01", "damage_code": "11"},
+			{"item_code": "02", "damage_code": "12"},
+		])
+		# A second save replaces (does not append) the checklist state.
+		eir.save_draft(inspection=d["inspection"], lines=[{"item_code": "03", "repair_code": "33"}])
+		d2 = eir.open_draft(container_no="EIRD1000003")
+		self.assertEqual(len(d2["lines"]), 1)
+		self.assertEqual(d2["lines"][0]["item_code"], "03")
+
+	def test_save_draft_rejects_submitted(self):
+		# Once submitted, the EIR is no longer a draft and save_draft must refuse.
+		c = _make_container("EIRD1000004", status="Gate_In")
+		res = eir.create_eir(inspection_type="EIR-In", container=c,
+						   lines=[{"item_code": "01", "damage_code": "11"}], submit=True)
+		with self.assertRaises(frappe.ValidationError):
+			eir.save_draft(inspection=res["name"], lines=[{"item_code": "02", "damage_code": "12"}])

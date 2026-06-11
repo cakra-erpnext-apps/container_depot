@@ -171,6 +171,71 @@ def _as_bool(value) -> bool:
 	return bool(value)
 
 
+def _checklist_items() -> dict:
+	"""item_code -> {printed_no, item_name, area} for every checklist item."""
+	return {
+		i.item_code: i
+		for i in frappe.get_all(
+			"EIR Checklist Item", fields=["item_code", "printed_no", "item_name", "area"]
+		)
+	}
+
+
+def _build_damage_rows(lines, items):
+	"""Map checklist payload lines to Damage Entry rows (only filled lines).
+
+	Blank ("Acceptable") lines are skipped. reqd Damage Entry fields are defaulted
+	server-side (severity=Minor; description from remark, else damage code desc, else
+	item name). Returns ``(rows, has_damage)`` — has_damage true for any real damage
+	code (not "v").
+	"""
+	rows, has_damage = [], False
+	for ln in lines:
+		item_code = (ln.get("item_code") or "").strip()
+		damage_code = (ln.get("damage_code") or "").strip() or None
+		repair_code = (ln.get("repair_code") or "").strip() or None
+		line_remarks = (ln.get("remarks") or "").strip() or None
+		if not (damage_code or repair_code or line_remarks):
+			continue  # Acceptable / empty — not stored.
+
+		item = items.get(item_code)
+		if not item:
+			frappe.throw(_("Unknown checklist item_code: {0}").format(item_code or "(blank)"))
+
+		description = line_remarks
+		if not description and damage_code:
+			description = frappe.db.get_value("EIR Damage Code", damage_code, "description")
+		if not description:
+			description = item.item_name
+
+		if damage_code and damage_code != ACCEPTABLE_DAMAGE_CODE:
+			has_damage = True
+
+		rows.append({
+			"checklist_item": item_code,
+			"component": f"{item.printed_no}. {item.item_name}",
+			"damage_type": damage_code,
+			"repair_code": repair_code,
+			"damage_description": description,  # fulfils reqd (B2)
+			"severity": "Minor",               # default fulfils reqd (B2)
+		})
+	return rows, has_damage
+
+
+def _build_photo_rows(photos, items):
+	"""Map a flat ``[{item_code, photo}]`` payload to EIR Item Photo rows (blanks skipped)."""
+	rows = []
+	for ph in photos:
+		item_code = (ph.get("item_code") or "").strip()
+		photo = (ph.get("photo") or "").strip()
+		if not (item_code and photo):
+			continue
+		if item_code not in items:
+			frappe.throw(_("Unknown checklist item_code for photo: {0}").format(item_code or "(blank)"))
+		rows.append({"checklist_item": item_code, "photo": photo})
+	return rows
+
+
 def create_eir(
 	inspection_type: str,
 	container: str,
@@ -210,44 +275,9 @@ def create_eir(
 	photos = _coerce_lines(photos)
 	submit = _as_bool(submit)
 
-	items = {
-		i.item_code: i
-		for i in frappe.get_all(
-			"EIR Checklist Item", fields=["item_code", "printed_no", "item_name", "area"]
-		)
-	}
-
-	damage_rows = []
-	has_damage = False
-	for ln in lines:
-		item_code = (ln.get("item_code") or "").strip()
-		damage_code = (ln.get("damage_code") or "").strip() or None
-		repair_code = (ln.get("repair_code") or "").strip() or None
-		line_remarks = (ln.get("remarks") or "").strip() or None
-		if not (damage_code or repair_code or line_remarks):
-			continue  # Acceptable / empty — not stored.
-
-		item = items.get(item_code)
-		if not item:
-			frappe.throw(_("Unknown checklist item_code: {0}").format(item_code or "(blank)"))
-
-		description = line_remarks
-		if not description and damage_code:
-			description = frappe.db.get_value("EIR Damage Code", damage_code, "description")
-		if not description:
-			description = item.item_name
-
-		if damage_code and damage_code != ACCEPTABLE_DAMAGE_CODE:
-			has_damage = True
-
-		damage_rows.append({
-			"checklist_item": item_code,
-			"component": f"{item.printed_no}. {item.item_name}",
-			"damage_type": damage_code,
-			"repair_code": repair_code,
-			"damage_description": description,  # fulfils reqd (B2)
-			"severity": "Minor",               # default fulfils reqd (B2)
-		})
+	items = _checklist_items()
+	damage_rows, has_damage = _build_damage_rows(lines, items)
+	photo_rows = _build_photo_rows(photos, items)
 
 	doc = frappe.new_doc("Inspection")
 	doc.inspection_type = inspection_type
@@ -264,21 +294,8 @@ def create_eir(
 	if order_ref:
 		doc.order_doctype = order_doctype or "Order Bongkar"
 		doc.order_ref = order_ref
-	for row in damage_rows:
-		doc.append("damage_log", row)
-
-	# Per-checklist-item photos (multi). The PWA uploads each image first (File) and
-	# sends a flat list of {item_code, photo(file_url)}; one child row per photo.
-	photo_count = 0
-	for ph in photos:
-		item_code = (ph.get("item_code") or "").strip()
-		photo = (ph.get("photo") or "").strip()
-		if not (item_code and photo):
-			continue
-		if item_code not in items:
-			frappe.throw(_("Unknown checklist item_code for photo: {0}").format(item_code or "(blank)"))
-		doc.append("item_photos", {"checklist_item": item_code, "photo": photo})
-		photo_count += 1
+	doc.set("damage_log", damage_rows)
+	doc.set("item_photos", photo_rows)
 
 	doc.insert()  # NOT ignore_permissions — let Frappe enforce Inspection create.
 	if submit:
@@ -291,5 +308,112 @@ def create_eir(
 		"docstatus": doc.docstatus,
 		"has_damage": doc.has_damage,
 		"damage_rows": len(damage_rows),
-		"photo_rows": photo_count,
+		"photo_rows": len(photo_rows),
+	}
+
+
+def _draft_payload(doc, header: dict) -> dict:
+	"""Merge a draft Inspection's saved state onto the master-derived ``header``.
+
+	The tank fields stay sourced from the Container master (actual current data); the
+	checklist lines, photos and user-entered fields come from the draft.
+	"""
+	header["inspection"] = doc.name
+	header["inspection_type"] = doc.inspection_type
+	header["tank_status"] = doc.tank_status
+	header["truck_no"] = doc.truck_no
+	header["emkl"] = doc.emkl
+	header["doc_remarks"] = doc.remarks
+	if doc.vessel:
+		header["vessel"] = doc.vessel  # draft overrides the master-derived ex_vessel
+	header["lines"] = [
+		{
+			"item_code": d.checklist_item,
+			"damage_code": d.damage_type or "",
+			"repair_code": d.repair_code or "",
+			"remarks": d.damage_description or "",
+		}
+		for d in doc.damage_log if d.checklist_item
+	]
+	header["photos"] = [
+		{"item_code": p.checklist_item, "photo": p.photo} for p in doc.item_photos
+	]
+	return header
+
+
+def open_draft(container=None, container_no=None, inspection_type="EIR-In") -> dict:
+	"""Get-or-create a draft EIR for a container and return it with the master header.
+
+	The EIR is auto-created on first fetch so the result is recorded even if the user
+	leaves before saving; a later fetch of the same container returns the SAME draft
+	(deduped by container + docstatus=0) instead of a duplicate. The tank header always
+	reflects the Container master; lines / photos / user fields come from the draft.
+	"""
+	if inspection_type not in ("EIR-In", "EIR-Out"):
+		inspection_type = "EIR-In"
+
+	header = prefill(container=container, container_no=container_no)
+	name = header["container"]
+
+	existing = frappe.get_all(
+		"Inspection",
+		filters={"container": name, "docstatus": 0, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]},
+		pluck="name", order_by="creation desc", limit=1,
+	)
+	if existing:
+		doc = frappe.get_doc("Inspection", existing[0])
+	else:
+		doc = frappe.new_doc("Inspection")
+		doc.inspection_type = inspection_type
+		doc.container = name
+		doc.depot = header.get("depot")
+		doc.inspector = frappe.session.user
+		doc.insert()  # NOT ignore_permissions — only EIR creators can open a draft.
+
+	return _draft_payload(doc, header)
+
+
+def save_draft(
+	inspection: str,
+	inspection_type: str | None = None,
+	tank_status: str | None = None,
+	vessel: str | None = None,
+	truck_no: str | None = None,
+	emkl: str | None = None,
+	remarks: str | None = None,
+	lines=None,
+	photos=None,
+) -> dict:
+	"""Update an existing draft EIR (the PWA persist action).
+
+	The PWA owns the draft's checklist state, so ``damage_log`` + ``item_photos`` are
+	replaced wholesale from the payload. The EIR is NOT submitted here (no status
+	transition); it stays a recorded draft. Permissions are enforced (no bypass).
+	"""
+	doc = frappe.get_doc("Inspection", inspection)
+	if doc.docstatus != 0:
+		frappe.throw(_("EIR {0} is no longer a draft.").format(inspection))
+
+	items = _checklist_items()
+	damage_rows, has_damage = _build_damage_rows(_coerce_lines(lines), items)
+	photo_rows = _build_photo_rows(_coerce_lines(photos), items)
+
+	if inspection_type in ("EIR-In", "EIR-Out"):
+		doc.inspection_type = inspection_type
+	doc.tank_status = tank_status
+	doc.vessel = vessel
+	doc.truck_no = truck_no
+	doc.emkl = emkl
+	doc.remarks = remarks
+	doc.has_damage = 1 if has_damage else 0
+	doc.set("damage_log", damage_rows)
+	doc.set("item_photos", photo_rows)
+	doc.save()  # NOT ignore_permissions.
+
+	return {
+		"success": True,
+		"inspection": doc.name,
+		"has_damage": doc.has_damage,
+		"damage_rows": len(damage_rows),
+		"photo_rows": len(photo_rows),
 	}
