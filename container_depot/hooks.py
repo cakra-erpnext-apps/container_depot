@@ -77,6 +77,10 @@ website_route_rules = [
 	{"from_route": "/api/v1/ess/inventory-summary", "to_route": "container_depot.ess.inventory.get_inventory_summary"},
 	{"from_route": "/api/v1/ess/tank-list", "to_route": "container_depot.ess.inventory.get_tank_list"},
 	{"from_route": "/api/v1/ess/tank-detail", "to_route": "container_depot.ess.inventory.get_tank_detail"},
+	# ESS PWA EIR (Equipment Interchange Receipt) checklist endpoints
+	{"from_route": "/api/v1/ess/eir-masters", "to_route": "container_depot.ess.inspections.eir_masters"},
+	{"from_route": "/api/v1/ess/eir-prefill", "to_route": "container_depot.ess.inspections.eir_prefill"},
+	{"from_route": "/api/v1/ess/eir-create", "to_route": "container_depot.ess.inspections.eir_create"},
 ]
 
 # Branding / Logo (env-driven)
