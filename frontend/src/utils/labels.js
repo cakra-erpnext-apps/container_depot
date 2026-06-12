@@ -7,7 +7,7 @@ export const labels = {
 	logout: "Keluar", // Logout
 	// Bottom nav + greeting (redesign)
 	navHome: "Beranda", // Home tab
-	navGate: "Gate In",
+	navGate: "Gate",
 	navEir: "EIR",
 	navStorage: "Depot Storage", // Depot Storage tab
 	navHistory: "Riwayat", // History tab (reachable from Home tile + EIR checklist)
@@ -35,6 +35,7 @@ export const labels = {
 	maxGross: "Berat Kotor Maks (kg)", // Max gross weight
 	lastCargo: "Muatan Terakhir", // Last cargo
 	lastTest: "Tes Terakhir", // Last test date
+	eirInDate: "EIR-In Date", // EIR-In date from the Container master
 	location: "Lokasi Yard", // Yard location
 	documents: "Dokumen", // Documents
 	noDocuments: "Belum ada dokumen", // No documents yet

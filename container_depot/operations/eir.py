@@ -132,6 +132,20 @@ def _voucher_detail(doctype, voucher, container):
 	)
 
 
+def _voucher_depot(doctype: str, voucher: str | None) -> str | None:
+	"""The depot behind a bon: ``voucher.booking`` -> ``Container Booking.depot``.
+
+	An EIR created from a bon should record the booking's depot (where the tank is
+	being handled per that order), not necessarily the Container master's current depot.
+	"""
+	if not voucher:
+		return None
+	booking = frappe.db.get_value(doctype, voucher, "booking")
+	if not booking:
+		return None
+	return frappe.db.get_value("Container Booking", booking, "depot")
+
+
 def fetch_voucher(voucher: str | None, inspection_type: str = "EIR-In", container: str | None = None) -> dict:
 	"""Read the EIR's shipment snapshot for ``container`` from a referred voucher (bon).
 
@@ -155,6 +169,7 @@ def fetch_voucher(voucher: str | None, inspection_type: str = "EIR-In", containe
 		"shipper": None,
 		"tank_status": None,
 		"cargo": None,
+		"depot": None,
 	}
 	if not voucher:
 		return snap
@@ -167,6 +182,7 @@ def fetch_voucher(voucher: str | None, inspection_type: str = "EIR-In", containe
 		frappe.throw(_("Container {0} is not on {1} {2}.").format(container, doctype, voucher))
 	snap["referred_voucher"] = voucher
 	snap["shipper"] = frappe.db.get_value(doctype, voucher, "shipper")
+	snap["depot"] = _voucher_depot(doctype, voucher)
 	detail = _voucher_detail(doctype, voucher, container)
 	snap["truck_no"] = detail.get("truck_plate")
 	snap["driver"] = detail.get("driver")
@@ -186,6 +202,37 @@ def _apply_voucher(doc, referred_voucher: str | None) -> None:
 	doc.driver = snap["driver"]
 	doc.driver_phone = snap["driver_phone"]
 	doc.shipper = snap["shipper"]
+	# Depot follows the bon's booking when one is referenced; left untouched when the
+	# voucher is cleared (so it falls back to the Container master depot set at creation).
+	if snap.get("depot"):
+		doc.depot = snap["depot"]
+
+
+def latest_voucher_for_container(container: str | None, inspection_type: str) -> str | None:
+	"""The most recent *submitted* bon that carries ``container``, or ``None``.
+
+	EIR-In looks at Order Bongkar (unloading bon), EIR-Out at Order Muat (loading bon).
+	Used to auto-reference the bon on a freshly created EIR draft so the operator never
+	has to retype the same voucher. "Latest" = newest by creation among submitted bons.
+	"""
+	if not container:
+		return None
+	doctype = _voucher_doctype(inspection_type)
+	parents = frappe.get_all(
+		_VOUCHER_CHILD[doctype],
+		filters={"container": container, "parenttype": doctype},
+		pluck="parent",
+	)
+	if not parents:
+		return None
+	rows = frappe.get_all(
+		doctype,
+		filters={"name": ["in", list(set(parents))], "docstatus": 1},
+		pluck="name",
+		order_by="creation desc",
+		limit=1,
+	)
+	return rows[0] if rows else None
 
 
 def iso6346_parts(container_no: str | None) -> dict:
@@ -259,7 +306,7 @@ def prefill(
 		"Container", name,
 		["name", "container_no", "serial_no", "manufacture_date", "capacity",
 		 "tare_weight", "max_gross_weight", "last_test_date", "last_cargo", "ex_vessel",
-		 "depot", "principal"],
+		 "depot", "principal", "eir_in_date", "eir_out_date"],
 		as_dict=True,
 	)
 	if not c:
@@ -285,6 +332,10 @@ def prefill(
 		"tare_weight": c.tare_weight,
 		"max_gross_weight": c.max_gross_weight,
 		"last_test_date": c.last_test_date,
+		# EIR gate dates from the Container master (date-only for clean display). The PWA
+		# header shows EIR-In Date here since last_test_date (periodic test) is rarely set.
+		"eir_in_date": str(c.eir_in_date)[:10] if c.eir_in_date else None,
+		"eir_out_date": str(c.eir_out_date)[:10] if c.eir_out_date else None,
 		"last_cargo": c.last_cargo,
 		"depot": c.depot,
 		"principal": principal,
@@ -476,6 +527,9 @@ def _draft_payload(doc, header: dict) -> dict:
 	header["eir_date"] = doc.eir_date
 	header["tank_status"] = doc.tank_status
 	header["cargo"] = doc.cargo  # draft's chosen cargo (defaults to the master's last_cargo)
+	# The draft's depot wins over the master's: it starts from the Container depot but is
+	# overridden by the referred bon's booking depot (see _apply_voucher).
+	header["depot"] = doc.depot or header.get("depot")
 	header["referred_voucher"] = doc.referred_voucher
 	header["voucher_doctype"] = doc.voucher_doctype
 	header["truck_no"] = doc.truck_no
@@ -530,6 +584,20 @@ def open_draft(container=None, container_no=None, inspection_type="EIR-In") -> d
 		doc.depot = header.get("depot")
 		doc.cargo = header.get("last_cargo")  # start from the container's current cargo
 		doc.inspector = frappe.session.user
+		# Auto-reference the latest submitted bon for this container so the operator
+		# never retypes it: EIR-In -> newest Order Bongkar, EIR-Out -> newest Order Muat.
+		# Applied ONCE, only on first draft creation; re-opening keeps the saved state.
+		# Defensive: a voucher hiccup must never block opening the EIR.
+		try:
+			voucher = latest_voucher_for_container(name, inspection_type)
+			if voucher:
+				_apply_voucher(doc, voucher)  # truck / driver / driver phone / shipper
+				snap = fetch_voucher(voucher, inspection_type, container=name)
+				# tank_status / cargo come from the bon line as editable defaults.
+				doc.tank_status = snap.get("tank_status") or doc.tank_status
+				doc.cargo = snap.get("cargo") or doc.cargo
+		except Exception:
+			frappe.log_error(title="EIR auto-voucher", message=frappe.get_traceback())
 		doc.insert()  # NOT ignore_permissions — only EIR creators can open a draft.
 
 	return _draft_payload(doc, header)

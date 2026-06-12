@@ -402,6 +402,89 @@ class TestEirVoucher(FrappeTestCase):
 		self.assertEqual(d2["shipper"], cust)
 
 
+class TestEirAutoVoucher(FrappeTestCase):
+	"""Auto-reference the latest submitted bon on a fresh EIR draft (no manual retype)."""
+
+	def test_open_draft_auto_refs_latest_bongkar_for_eir_in(self):
+		cust = ensure_test_customer("EIR Voucher Cust")
+		_ensure_cargo("Toluene")
+		c = _make_container("EIRA1000001")
+		ob = _make_order_bongkar(cust, c, truck="B-AUTO", driver="Dewi", phone="0855",
+								 condition="EMPTY DIRTY", cargo="Toluene")
+		d = eir.open_draft(container_no="EIRA1000001", inspection_type="EIR-In")
+		self.assertEqual(d["referred_voucher"], ob)
+		self.assertEqual(d["voucher_doctype"], "Order Bongkar")
+		self.assertEqual(d["truck_no"], "B-AUTO")
+		self.assertEqual(d["driver"], "Dewi")
+		self.assertEqual(d["driver_phone"], "0855")
+		self.assertEqual(d["shipper"], cust)
+		self.assertEqual(d["tank_status"], "Empty Dirty")
+		self.assertEqual(d["cargo"], "Toluene")
+
+	def test_open_draft_auto_refs_latest_muat_for_eir_out(self):
+		cust = ensure_test_customer("EIR Voucher Cust")
+		c = _make_container("EIRA1000002")
+		om = _make_order_muat(cust, c, truck="B-OUT", driver="Eka", phone="0866")
+		d = eir.open_draft(container_no="EIRA1000002", inspection_type="EIR-Out")
+		self.assertEqual(d["referred_voucher"], om)
+		self.assertEqual(d["voucher_doctype"], "Order Muat")
+		self.assertEqual(d["truck_no"], "B-OUT")
+		self.assertEqual(d["driver"], "Eka")
+
+	def test_open_draft_picks_newest_submitted_order(self):
+		cust = ensure_test_customer("EIR Voucher Cust")
+		c = _make_container("EIRA1000003")
+		old = _make_order_bongkar(cust, c, truck="B-OLD", driver="Old")
+		new = _make_order_bongkar(cust, c, truck="B-NEW", driver="New")
+		frappe.db.set_value("Order Bongkar", old, "creation", "2026-01-01 00:00:00", update_modified=False)
+		frappe.db.set_value("Order Bongkar", new, "creation", "2026-02-01 00:00:00", update_modified=False)
+		d = eir.open_draft(container_no="EIRA1000003", inspection_type="EIR-In")
+		self.assertEqual(d["referred_voucher"], new)
+		self.assertEqual(d["truck_no"], "B-NEW")
+
+	def test_open_draft_ignores_unsubmitted_order(self):
+		cust = ensure_test_customer("EIR Voucher Cust")
+		c = _make_container("EIRA1000004")
+		_make_order_bongkar(cust, c, submit=False)  # draft bon — must be ignored
+		d = eir.open_draft(container_no="EIRA1000004", inspection_type="EIR-In")
+		self.assertIsNone(d["referred_voucher"])
+
+	def test_open_draft_takes_depot_from_voucher_booking(self):
+		# The EIR's depot comes from the bon's booking (Container Booking.depot), not the
+		# Container master — proven by making them differ.
+		from container_depot.tests.test_api import ensure_test_branch
+		br = ensure_test_branch()
+		for dep in ("EIRADEP1", "EIRADEP2"):
+			if not frappe.db.exists("Depot", dep):
+				frappe.get_doc({
+					"doctype": "Depot", "depot_code": dep, "depot_name": dep,
+					"branch": br, "is_active": 1,
+				}).insert(ignore_permissions=True)
+		cust = ensure_test_customer("EIR Voucher Cust")
+		c = _make_container("EIRA1000006", depot="EIRADEP1")
+		code = make_booking_code(customer=cust, container_no=c, direction="Tank In", container=c)
+		frappe.db.set_value("Container Booking", code.booking, "depot", "EIRADEP2")
+		ob = _make_order_bongkar(cust, c)
+		frappe.db.set_value("Order Bongkar", ob, "booking", code.booking)
+		d = eir.open_draft(container_no="EIRA1000006", inspection_type="EIR-In")
+		self.assertEqual(d["referred_voucher"], ob)
+		self.assertEqual(d["depot"], "EIRADEP2")
+
+	def test_open_draft_does_not_override_existing_draft(self):
+		# "Sekali saja": a newer order created after the draft exists must NOT overwrite it.
+		cust = ensure_test_customer("EIR Voucher Cust")
+		c = _make_container("EIRA1000005")
+		first = _make_order_bongkar(cust, c, truck="B-FIRST", driver="First")
+		d1 = eir.open_draft(container_no="EIRA1000005", inspection_type="EIR-In")
+		self.assertEqual(d1["referred_voucher"], first)
+		second = _make_order_bongkar(cust, c, truck="B-SECOND", driver="Second")
+		frappe.db.set_value("Order Bongkar", second, "creation", "2030-01-01 00:00:00", update_modified=False)
+		d2 = eir.open_draft(container_no="EIRA1000005", inspection_type="EIR-In")
+		self.assertEqual(d2["inspection"], d1["inspection"])  # same draft reopened
+		self.assertEqual(d2["referred_voucher"], first)  # not overwritten
+		self.assertEqual(d2["truck_no"], "B-FIRST")
+
+
 class TestEirCargoAndExVessel(FrappeTestCase):
 	def test_draft_cargo_does_not_touch_master(self):
 		_ensure_cargo("Acetone")
@@ -426,6 +509,13 @@ class TestEirCargoAndExVessel(FrappeTestCase):
 		_make_container("EIRV3000001", ex_vessel="MV NEPTUNE")
 		data = eir.prefill(container_no="EIRV3000001")
 		self.assertEqual(data["ex_vessel"], "MV NEPTUNE")
+
+	def test_prefill_returns_eir_in_date_as_date(self):
+		# The PWA header shows EIR-In Date (from the Container master) — date-only.
+		c = _make_container("EIRV3000010")
+		frappe.db.set_value("Container", c, "eir_in_date", "2026-06-12 09:16:53")
+		data = eir.prefill(container_no="EIRV3000010")
+		self.assertEqual(data["eir_in_date"], "2026-06-12")
 
 	def test_order_bongkar_stamps_container_ex_vessel(self):
 		from container_depot.operations.doctype.order_bongkar.order_bongkar import (

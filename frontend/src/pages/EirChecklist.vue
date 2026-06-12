@@ -376,7 +376,7 @@ const headerCells = computed(() => {
 		{ label: labels.serialNo, value: h.serial_no },
 		{ label: labels.dateManufacture, value: h.manufacture_date },
 		{ label: labels.ownerPrincipal, value: h.principal },
-		{ label: labels.lastTest, value: h.last_test_date },
+		{ label: labels.eirInDate, value: h.eir_in_date },
 		{ label: labels.capacity, value: h.capacity },
 		{ label: labels.tare, value: h.tare_weight },
 		{ label: labels.maxGross, value: h.max_gross_weight },
@@ -455,6 +455,8 @@ const voucherRes = createResource({
 		// editable defaults — the user can still change them before submit.
 		if (data.tank_status) tankStatus.value = data.tank_status
 		if (data.cargo) cargo.value = data.cargo
+		// Depot follows the bon's booking (Container Booking.depot) — refresh the header.
+		if (data.depot && header.value) header.value.depot = data.depot
 		// Persist immediately (no debounce): the voucher reference and its snapshot
 		// (truck / driver / driver phone / shipper) are saved onto the draft the moment
 		// they are fetched. The server re-resolves the read-only snapshot from the ref.
