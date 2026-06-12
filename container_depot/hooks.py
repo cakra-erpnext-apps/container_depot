@@ -21,6 +21,16 @@ required_apps = ["erpnext"]
 after_install = "container_depot.install.after_install"
 after_migrate = "container_depot.install.after_migrate"
 
+# Boot
+# ----
+# Trim the desk app-switcher so a user never sees apps they can't actually use
+# (Frappe lists every installed app regardless of workspace access). See boot.py.
+extend_bootinfo = ["container_depot.boot.prune_app_switcher"]
+
+# Warm the domain-restricted caches before boot so the Workspace Sidebar never
+# reads them as None (a Frappe core crash for users with no allowed workspaces).
+before_request = ["container_depot.boot.warm_domain_restricted_caches"]
+
 # Document Events
 # ---------------
 
