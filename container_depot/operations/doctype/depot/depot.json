@@ -70,8 +70,14 @@
       "label": "Address"
     }
   ],
-  "links": [],
-  "modified": "2026-06-12",
+  "links": [
+    {
+      "group": "Storage",
+      "link_doctype": "Yard Zone",
+      "link_fieldname": "depot"
+    }
+  ],
+  "modified": "2026-06-12 13:00:00",
   "module": "Operations",
   "name": "Depot",
   "search_fields": "depot_code, depot_name, city",

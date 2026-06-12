@@ -152,6 +152,15 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Management":        {"read": 1, "report": 1, "export": 1},
 		"IT Support":        {"read": 1, "report": 1},
 	},
+	# Yard Zone master (Depot Storage feature). Operator Kalmar reads zones to place
+	# tanks; Admin Ops maintains the zone/capacity config.
+	"Yard Zone": {
+		"Operator Kalmar":   {"read": 1, "report": 1},
+		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
+		"Ops Supervisor":    {"read": 1, "report": 1},
+		"Management":        {"read": 1, "report": 1, "export": 1},
+		"IT Support":        {"read": 1, "report": 1},
+	},
 	"Inspection Damage Code": {
 		"Surveyor":          {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
@@ -235,6 +244,7 @@ ROLE_DOCTYPE_PERMISSIONS = {
 _PWA_DOCTYPE_PERMS = {
 	"Inspection":        {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
 	"Container":         {"read": 1, "report": 1},
+	"Yard Zone":         {"read": 1, "report": 1},
 	"Cargo":             {"read": 1, "report": 1},
 	"Order Bongkar":     {"read": 1, "report": 1},
 	"Order Muat":        {"read": 1, "report": 1},
@@ -370,6 +380,11 @@ def sync_branding():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "container_depot branding: letterhead")
 
+	try:
+		_sync_desktop_logo(logo_main)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "container_depot branding: desktop logo")
+
 	frappe.db.commit()
 
 
@@ -379,6 +394,35 @@ def _set_single_if_exists(doctype: str, values: dict) -> None:
 	for key, val in values.items():
 		if val and key in fieldnames and frappe.db.get_single_value(doctype, key) != val:
 			frappe.db.set_single_value(doctype, key, val)
+
+
+def _sync_desktop_logo(logo_main: str) -> None:
+	"""Tampilkan logo OAK (bukan ikon generik) di header sidebar Desk untuk workspace
+	Container Depot.
+
+	Frappe me-render ``<img src=logo_url>`` di header sidebar bila Desktop Icon yang
+	label-nya == judul workspace punya ``logo_url``; kalau tidak, jatuh ke ikon modul
+	abu-abu generik. Di-set ``standard=1`` supaya semua user melihatnya. Idempotent
+	(upsert) dan dijalankan di after_migrate (sesudah orphan-removal).
+	"""
+	name = frappe.db.exists("Desktop Icon", {"label": "Container Depot"})
+	if name:
+		frappe.db.set_value(
+			"Desktop Icon",
+			name,
+			{"logo_url": logo_main, "standard": 1, "app": "container_depot"},
+			update_modified=False,
+		)
+	else:
+		frappe.get_doc(
+			{
+				"doctype": "Desktop Icon",
+				"label": "Container Depot",
+				"standard": 1,
+				"app": "container_depot",
+				"logo_url": logo_main,
+			}
+		).insert(ignore_permissions=True)
 
 
 def _sync_default_letter_head(logo_pdf: str) -> None:
@@ -505,6 +549,19 @@ CUSTOM_FIELDS = {
 			"insert_after": "customer",
 			"in_standard_filter": 1,
 			"description": "Depot branch this invoice was raised for (carried from the Container Booking).",
+		}
+	],
+	# Optional multi-branch tag on the User — pick zero, one, or many depot Branches to
+	# scope the data this user sees. Empty = all branches; one/many = only those.
+	# Backed by the "Allowed Branch" child table so it renders as a multi-select.
+	"User": [
+		{
+			"fieldname": "branch",
+			"label": "Branch",
+			"fieldtype": "Table MultiSelect",
+			"options": "Allowed Branch",
+			"insert_after": "user_image",
+			"description": "Opsional. Kosongkan = akses semua branch. Pilih satu atau beberapa branch untuk membatasi data (mis. order) hanya ke branch tersebut.",
 		}
 	],
 }

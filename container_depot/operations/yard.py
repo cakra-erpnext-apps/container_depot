@@ -1,0 +1,275 @@
+"""Yard placement logic — Depot Storage feature (SOP: Operator Kalmar menyusun
+isotank sesuai status).
+
+Single source of truth for the PWA + Desk + automation, mirroring the
+``operations.eir`` pattern: the ``ess.yard`` endpoints are thin auth wrappers over
+the functions here.
+
+What lives here:
+- :data:`STATUS_TO_CATEGORY` — maps a raw ``Container.status`` to the functional
+  Yard Zone *category* the tank belongs in per the OAK workflow SOP.
+- :func:`recommend_zones` — given a container, return the candidate zones (in its
+  depot, in the target category) ranked emptiest-first.
+- :func:`zone_occupancy` — count vs capacity per Yard Zone for the storage view.
+- :func:`place_container` — record a placement as an audited Container Movement
+  (``event_type="Yard"``), enforcing the SOP stacking limits.
+"""
+
+from __future__ import annotations
+
+import frappe
+from frappe import _
+from frappe.query_builder.functions import Count
+from frappe.utils import cint
+
+# Raw Container.status -> Yard Zone category (SOP workflow). ``None`` = the tank is
+# not physically placeable in the depot (pre-arrival / already gated out), so it
+# yields no recommendation. ``Gate_In`` defaults to the dirty-queue but is refined
+# by the latest inspection's tank condition (see :func:`_target_category`).
+STATUS_TO_CATEGORY = {
+	"Booked": None,
+	"Gate_In": "Empty Dirty Queue",
+	"Inspecting": "Survey",
+	"Needs_Cleaning": "Empty Dirty Queue",
+	"Pending_Cleaning": "Empty Dirty Queue",
+	"Cleaning_In_Progress": "Cleaning Bay",
+	"Awaiting_Recleaning_Approval": "Cleaning Bay",
+	"Recleaning_In_Progress": "Cleaning Bay",
+	"Cleaning_Completed": "Ready",
+	"Pending_Survey": "Survey",
+	"Survey_In_Progress": "Survey",
+	"Awaiting_MR_Approval": "Workshop",
+	"Repair_In_Progress": "Workshop",
+	"Available": "Ready",
+	"Released_Pending_Pickup": "Ready",
+	"Gate_Out": None,
+}
+
+# Statuses that no longer occupy a yard slot — excluded from occupancy counts.
+_NOT_OCCUPYING = ("Gate_Out",)
+
+
+def _resolve_container(container_no):
+	"""Return the Container doc for a container number (lenient, case-insensitive)."""
+	if not container_no or not isinstance(container_no, str):
+		frappe.throw(_("container_no is required."), frappe.ValidationError)
+	candidate = container_no.strip().upper()
+	name = frappe.db.get_value("Container", {"container_no": candidate}, "name") or (
+		candidate if frappe.db.exists("Container", candidate) else None
+	)
+	if not name:
+		frappe.throw(_("Container {0} not found.").format(candidate), frappe.DoesNotExistError)
+	return frappe.get_doc("Container", name)
+
+
+def _latest_tank_condition(container_name):
+	"""Most recent submitted Inspection tank condition (Empty Clean/Dirty/Laden), or None."""
+	rows = frappe.get_all(
+		"Inspection",
+		filters={"container": container_name, "docstatus": 1},
+		fields=["tank_status"],
+		order_by="creation desc",
+		limit=1,
+	)
+	return rows[0].tank_status if rows else None
+
+
+def _target_category(container):
+	"""The Yard Zone category a container should go to, refined by tank condition.
+
+	On arrival (Gate_In) the SOP splits by condition: Empty Clean tanks go straight
+	to clean storage, Empty Dirty tanks queue for cleaning. For every other status
+	the raw-status mapping is authoritative.
+	"""
+	category = STATUS_TO_CATEGORY.get(container.status)
+	if container.status == "Gate_In":
+		condition = _latest_tank_condition(container.name)
+		if condition == "Empty Clean":
+			return "Empty Clean"
+		if condition == "Empty Dirty":
+			return "Empty Dirty Queue"
+	return category
+
+
+def _occupancy_map(zone_names=None):
+	"""Return {zone_name: occupied_count} for the given zones (or all), excluding
+	tanks that have left the yard."""
+	if zone_names is not None and not zone_names:
+		return {}
+	container = frappe.qb.DocType("Container")
+	query = (
+		frappe.qb.from_(container)
+		.select(container.yard_zone, Count(container.name).as_("cnt"))
+		.where(container.status.notin(list(_NOT_OCCUPYING)))
+		.groupby(container.yard_zone)
+	)
+	if zone_names is not None:
+		query = query.where(container.yard_zone.isin(list(zone_names)))
+	else:
+		query = query.where(container.yard_zone.isnotnull()).where(container.yard_zone != "")
+	rows = query.run(as_dict=True)
+	return {r.yard_zone: cint(r.cnt) for r in rows if r.yard_zone}
+
+
+def _zone_view(zone, occupied):
+	"""Shape one Yard Zone master row + its live count into a view dict."""
+	capacity = cint(zone.capacity)
+	free = max(capacity - occupied, 0) if capacity else None
+	utilization = round((occupied / capacity) * 100, 1) if capacity else None
+	return {
+		"zone_code": zone.name,
+		"zone_name": zone.zone_name,
+		"depot": zone.depot,
+		"block": zone.block or "",
+		"category": zone.category,
+		"occupied": occupied,
+		"capacity": capacity,
+		"free": free,
+		"utilization": utilization,
+		"is_full": bool(capacity) and occupied >= capacity,
+		"max_rows": cint(zone.max_rows),
+		"max_rows_full": cint(zone.max_rows_full),
+		"max_tiers": cint(zone.max_tiers),
+	}
+
+
+def zone_occupancy(depot=None):
+	"""Occupancy vs capacity for every active Yard Zone (optionally one depot).
+
+	Powers the Depot Storage overview. Returns a flat list sorted by depot, block,
+	then zone code; the PWA groups it for display.
+	"""
+	filters = {"is_active": 1}
+	if depot:
+		filters["depot"] = depot
+	zones = frappe.get_all(
+		"Yard Zone",
+		filters=filters,
+		fields=[
+			"name", "zone_name", "depot", "block", "category",
+			"capacity", "max_rows", "max_rows_full", "max_tiers",
+		],
+		order_by="depot asc, block asc, name asc",
+	)
+	occupancy = _occupancy_map([z.name for z in zones])
+	return [_zone_view(z, occupancy.get(z.name, 0)) for z in zones]
+
+
+def recommend_zones(container_no):
+	"""Rank the candidate zones for placing a container, emptiest-first.
+
+	Resolves the container's target category from its status (+ tank condition),
+	then returns every active zone in the SAME depot and category, each annotated
+	with live occupancy. The first zone with free space is flagged ``recommended``.
+	"""
+	container = _resolve_container(container_no)
+	category = _target_category(container)
+	result = {
+		"container_no": container.container_no,
+		"status": container.status,
+		"depot": container.depot,
+		"condition": _latest_tank_condition(container.name),
+		"target_category": category,
+		"zones": [],
+	}
+	if not category or not container.depot:
+		return result
+
+	zones = frappe.get_all(
+		"Yard Zone",
+		filters={"is_active": 1, "depot": container.depot, "category": category},
+		fields=[
+			"name", "zone_name", "depot", "block", "category",
+			"capacity", "max_rows", "max_rows_full", "max_tiers",
+		],
+		order_by="name asc",
+	)
+	occupancy = _occupancy_map([z.name for z in zones])
+	views = [_zone_view(z, occupancy.get(z.name, 0)) for z in zones]
+	# Emptiest first; zones without a capacity sort last (unknown headroom).
+	views.sort(key=lambda v: (v["utilization"] is None, v["utilization"] or 0))
+	for v in views:
+		if not v["is_full"]:
+			v["recommended"] = True
+			break
+	result["zones"] = views
+	return result
+
+
+def place_container(container_no, zone, row=None, tier=None, bay=None, moved_by=None):
+	"""Record a tank placement as an audited Container Movement (Yard event).
+
+	Enforces the SOP stacking limits (vertical tier, horizontal row with the
+	depot-full tolerance) and the zone capacity, then inserts the Movement. The
+	Movement's ``after_insert`` syncs zone/row/bay/tier back onto the Container, so
+	this single write keeps the occupancy view accurate.
+
+	Returns the new placement. Callers are responsible for authorisation.
+	"""
+	container = _resolve_container(container_no)
+	if not zone or not frappe.db.exists("Yard Zone", zone):
+		frappe.throw(_("Yard Zone {0} not found.").format(zone or ""), frappe.ValidationError)
+
+	z = frappe.get_doc("Yard Zone", zone)
+	tier = cint(tier) if tier not in (None, "") else None
+	if tier is not None:
+		if tier < 1:
+			frappe.throw(_("Tier must be at least 1."), frappe.ValidationError)
+		if z.max_tiers and tier > z.max_tiers:
+			frappe.throw(
+				_("Tier {0} exceeds the SOP stacking limit of {1} for zone {2}.").format(
+					tier, z.max_tiers, z.zone_name
+				),
+				frappe.ValidationError,
+			)
+
+	# Row is free-text (may be a label); only range-check when it's numeric.
+	row = (str(row).strip() or None) if row not in (None, "") else None
+	if row is not None and row.isdigit():
+		row_limit = cint(z.max_rows_full) or cint(z.max_rows)
+		if row_limit and int(row) > row_limit:
+			frappe.throw(
+				_("Row {0} exceeds the SOP limit of {1} rows for zone {2}.").format(
+					row, row_limit, z.zone_name
+				),
+				frappe.ValidationError,
+			)
+
+	# Capacity guard — count peers already in the zone (excluding this container).
+	if z.capacity:
+		occupied = frappe.db.count(
+			"Container",
+			{
+				"yard_zone": zone,
+				"status": ["not in", _NOT_OCCUPYING],
+				"name": ["!=", container.name],
+			},
+		)
+		if occupied >= z.capacity:
+			frappe.throw(
+				_("Zone {0} is full ({1}/{1}).").format(z.zone_name, z.capacity),
+				frappe.ValidationError,
+			)
+
+	movement = frappe.get_doc({
+		"doctype": "Container Movement",
+		"container": container.name,
+		"event_type": "Yard",
+		"to_zone": zone,
+		"to_row": row,
+		"to_bay": (str(bay).strip() or None) if bay not in (None, "") else None,
+		"to_tier": tier,
+		"moved_by": moved_by or frappe.session.user,
+	})
+	movement.insert(ignore_permissions=True)
+
+	return {
+		"success": True,
+		"container_no": container.container_no,
+		"movement": movement.name,
+		"yard_zone": zone,
+		"zone_name": z.zone_name,
+		"row": row,
+		"bay": movement.to_bay,
+		"tier": tier,
+	}

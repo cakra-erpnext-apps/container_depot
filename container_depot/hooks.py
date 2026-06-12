@@ -29,6 +29,11 @@ doc_events = {
 		"after_insert": "container_depot.portal.sync_portal_user_permission",
 		"on_update": "container_depot.portal.sync_portal_user_permission",
 	},
+	# Mirror a User's selected depot Branches into User Permissions so data is
+	# scoped per branch (empty = all branches). See operations/user_branch.py.
+	"User": {
+		"on_update": "container_depot.operations.user_branch.sync_user_branch_permissions",
+	},
 	# Keep an Container Booking's payment_status in step with its Sales Invoice when
 	# a payment is recorded / reversed. Scoped to bookings only.
 	"Payment Entry": {

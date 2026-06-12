@@ -22,6 +22,11 @@ const routes = [
 		name: "EirHistory",
 		component: () => import("@/pages/EirHistory.vue"),
 	},
+	{
+		path: "/storage",
+		name: "DepotStorage",
+		component: () => import("@/pages/DepotStorage.vue"),
+	},
 ]
 
 const router = createRouter({

@@ -1,7 +1,7 @@
 <template>
 	<div class="flex items-center">
 		<button
-			class="relative rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100"
+			class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100"
 			:aria-label="labels.notifications"
 			@click="toggle"
 		>

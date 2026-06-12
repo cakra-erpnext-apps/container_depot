@@ -7,6 +7,7 @@
     "header_section",
     "booking",
     "order_status",
+    "branch",
     "column_break_1",
     "shipper",
     "principal",
@@ -45,6 +46,16 @@
       "label": "Order Status",
       "options": "Issued\nEIR In Progress\nReady To Unload\nCompleted\nHold",
       "reqd": 1
+    },
+    {
+      "description": "Depot branch, carried from the booking. Drives per-branch User Permission filtering.",
+      "fetch_from": "booking.branch",
+      "fieldname": "branch",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
+      "label": "Branch",
+      "options": "Branch",
+      "read_only": 1
     },
     {
       "fieldname": "column_break_1",
@@ -125,7 +136,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-22",
+  "modified": "2026-06-23",
   "module": "Operations",
   "name": "Order Bongkar",
   "search_fields": "booking, shipper",

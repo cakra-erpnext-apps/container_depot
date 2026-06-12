@@ -90,9 +90,9 @@
     },
     {
       "fieldname": "from_zone",
-      "fieldtype": "Select",
+      "fieldtype": "Link",
       "label": "From Zone",
-      "options": "Storage_Yard_A\nStorage_Yard_B\nCleaning_Bay_C\nWorkshop_D\nSurvey_Lane_E\nGate_F\nPreClean_Buffer"
+      "options": "Yard Zone"
     },
     {
       "fieldname": "from_row",
@@ -115,9 +115,9 @@
     },
     {
       "fieldname": "to_zone",
-      "fieldtype": "Select",
+      "fieldtype": "Link",
       "label": "To Zone",
-      "options": "Storage_Yard_A\nStorage_Yard_B\nCleaning_Bay_C\nWorkshop_D\nSurvey_Lane_E\nGate_F\nPreClean_Buffer",
+      "options": "Yard Zone",
       "mandatory_depends_on": "eval:doc.event_type==\"Yard\" || doc.event_type==\"Combined\"",
       "in_list_view": 1
     },

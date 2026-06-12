@@ -7,9 +7,10 @@ export const labels = {
 	logout: "Keluar", // Logout
 	// Bottom nav + greeting (redesign)
 	navHome: "Beranda", // Home tab
-	navGate: "Gate",
+	navGate: "Gate In",
 	navEir: "EIR",
-	navHistory: "Riwayat", // History tab
+	navStorage: "Depot Storage", // Depot Storage tab
+	navHistory: "Riwayat", // History tab (reachable from Home tile + EIR checklist)
 	greeting: "Halo", // "Halo, {name}"
 	homeHint: "Pilih menu untuk mulai bekerja", // Pick a menu to start
 	// In-PWA notification bell
@@ -160,6 +161,33 @@ export const labels = {
 	signAgain: "Tanda tangan ulang", // Re-sign
 	clear: "Hapus", // Clear
 	signatureError: "Gagal mengunggah tanda tangan", // Signature upload failed
+	// Depot Storage (yard placement — Operator Kalmar)
+	storage: "Depot Storage", // Home tile title
+	storageDesc: "Susun & lacak isotank per zona", // tile subtitle
+	storageTitle: "Depot Storage",
+	storagePlaceTitle: "Tempatkan Isotank", // Place an isotank
+	storagePlaceHint: "Masukkan nomor isotank — sistem menyarankan zona sesuai status.",
+	storageContainerPlaceholder: "mis. NICU1234567",
+	storageCheck: "Cek Rekomendasi", // Check recommendation
+	storageStatus: "Status", // Status
+	storageCondition: "Kondisi", // Tank condition
+	storageTargetCategory: "Kategori Tujuan", // Target category
+	storageRecommended: "Disarankan", // Recommended
+	storageNoRecommend: "Tidak ada zona yang cocok untuk status ini.", // no match
+	storageSelectZone: "Pilih zona penempatan", // pick a zone
+	storageRow: "Baris", // Row
+	storageTier: "Tumpukan", // Tier
+	storageBay: "Bay",
+	storageOptional: "opsional", // optional
+	storagePlace: "Tempatkan", // Place
+	storagePlaced: "Isotank ditempatkan", // placed ok
+	storageOccupancy: "Okupansi Zona", // Zone occupancy
+	storageFull: "Penuh", // Full
+	storageSlotsFree: "slot kosong", // slots free
+	storageNoZones: "Belum ada zona untuk depo ini.", // no zones
+	storageZoneTanks: "Isotank di zona", // Tanks in zone
+	storageNoTanks: "Belum ada isotank di zona ini.", // no tanks
+	storageSop: "Panduan SOP Penyusunan", // Stacking SOP guide
 }
 
 // Canonical 5-bucket status labels (Indonesian primary / English).
@@ -224,3 +252,28 @@ export function rupiah(v) {
 	if (v === null || v === undefined || v === "") return "—"
 	return "Rp " + Number(v).toLocaleString("id-ID")
 }
+
+// Yard Zone category -> Indonesian label (keys match the server `category` enum).
+export const categoryLabels = {
+	"Empty Dirty Queue": "Antrean Cuci (Empty Dirty)",
+	"Cleaning Bay": "Cleaning Bay",
+	Ready: "Tank Ready",
+	"Empty Clean": "Empty Clean",
+	Workshop: "Workshop (Repair)",
+	Survey: "Survey",
+	Gate: "Gate",
+}
+
+export function categoryLabel(c) {
+	return categoryLabels[c] || c || "—"
+}
+
+// Placement-relevant rules distilled from the OAK Isotank Workflow SOP — shown in
+// the in-app "Panduan SOP" panel so the operator doesn't need the PDF on hand.
+export const storageSopRules = [
+	"Empty Dirty: tumpuk di Blok Kiri (antrean cuci); pasca-cuci pindah ke Blok Kanan sebagai Ready, dikelompokkan per principal.",
+	"Empty Clean: letakkan di area siap pakai (Blok Kiri); bila penuh, alihkan ke Blok Kanan.",
+	"OAK 2 hanya menerima Empty Clean (principal Bertschi & Eway).",
+	"Stacking: maksimal 5 tumpuk ke atas; normal 5 baris, boleh sampai 6 baris saat depo penuh.",
+	"Susun isotank hanya setelah Teknisi Foto & EIR selesai.",
+]

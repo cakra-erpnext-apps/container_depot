@@ -1,0 +1,20 @@
+{
+ "app": "container_depot",
+ "bg_color": "gray",
+ "creation": "2026-06-12 10:20:54.818783",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Container Depot",
+ "link_type": "Workspace Sidebar",
+ "logo_url": "/assets/container_depot/images/oak-emblem.png",
+ "modified": "2026-06-12 10:20:54.818783",
+ "modified_by": "Administrator",
+ "name": "Container Depot",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [],
+ "standard": 1
+}

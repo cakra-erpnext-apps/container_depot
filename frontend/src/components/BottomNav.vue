@@ -16,7 +16,7 @@
 				>
 					<Icon :name="t.icon" :size="20" :stroke="isActive(t) ? 2.4 : 2" />
 				</span>
-				<span class="text-[11px] font-semibold leading-none">{{ t.label }}</span>
+				<span class="text-center text-[11px] font-semibold leading-tight">{{ t.label }}</span>
 			</router-link>
 		</div>
 	</nav>
@@ -33,7 +33,7 @@ const tabs = [
 	{ to: "/", icon: "home", label: labels.navHome },
 	{ to: "/gate", icon: "log-in", label: labels.navGate },
 	{ to: "/eir", icon: "clipboard", label: labels.navEir },
-	{ to: "/eir/history", icon: "clock", label: labels.navHistory },
+	{ to: "/storage", icon: "layers", label: labels.navStorage },
 ]
 
 function isActive(t) {

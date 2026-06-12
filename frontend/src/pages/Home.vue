@@ -71,6 +71,13 @@ const menu = [
 		tile: "bg-leaf-50 text-leaf-600",
 	},
 	{
+		to: "/storage",
+		icon: "layers",
+		title: labels.storage,
+		desc: labels.storageDesc,
+		tile: "bg-leaf-50 text-leaf-600",
+	},
+	{
 		to: "/eir/history",
 		icon: "clock",
 		title: labels.eirHistoryTitle,

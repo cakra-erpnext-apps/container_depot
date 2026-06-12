@@ -94,6 +94,10 @@ def _sync_booking(doc: Document):
 			doc.booking = booking
 	if doc.get("booking") and doc.meta.has_field("principal") and not doc.get("principal"):
 		doc.principal = frappe.db.get_value("Container Booking", doc.booking, "principal")
+	# Carry the booking's depot Branch onto the bon so per-branch User Permissions can
+	# scope orders (Order Bongkar/Muat have no native branch of their own).
+	if doc.get("booking") and doc.meta.has_field("branch") and not doc.get("branch"):
+		doc.branch = frappe.db.get_value("Container Booking", doc.booking, "branch")
 
 
 def _resolve_code_from_container(doc: Document, row) -> None:

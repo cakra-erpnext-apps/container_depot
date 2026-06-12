@@ -10,10 +10,10 @@
 						Depot <span class="text-brand-600">OAK</span>
 					</span>
 				</router-link>
-				<div v-if="session.isLoggedIn" class="flex items-center gap-0.5">
+				<div v-if="session.isLoggedIn" class="flex items-center gap-1">
 					<NotificationBell />
 					<button
-						class="oak-btn oak-btn-ghost -mr-1.5 px-2.5 py-1.5 text-xs text-gray-500"
+						class="oak-btn oak-btn-ghost -mr-1.5 h-9 gap-1.5 px-2.5 text-xs text-gray-500"
 						@click="session.logout()"
 					>
 						<Icon name="log-out" :size="16" />

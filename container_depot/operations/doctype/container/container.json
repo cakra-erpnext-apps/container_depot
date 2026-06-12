@@ -133,9 +133,10 @@
     },
     {
       "fieldname": "yard_zone",
-      "fieldtype": "Select",
+      "fieldtype": "Link",
+      "in_standard_filter": 1,
       "label": "Yard Zone",
-      "options": "Storage_Yard_A\nStorage_Yard_B\nCleaning_Bay_C\nWorkshop_D\nSurvey_Lane_E\nGate_F\nPreClean_Buffer"
+      "options": "Yard Zone"
     },
     {
       "fieldname": "row",
