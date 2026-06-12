@@ -18,6 +18,13 @@ export const session = reactive({
 	user: sessionUser(),
 	isLoggedIn: computed(() => !!session.user),
 	logout() {
-		window.location.href = "/api/method/logout"
+		// Frappe's /api/method/logout requires POST + a valid CSRF token (a plain GET
+		// navigation 403s). Mirror the CSRF pattern used for uploads, then go to login.
+		fetch("/api/method/logout", {
+			method: "POST",
+			headers: { "X-Frappe-CSRF-Token": window.csrf_token || "" },
+		}).finally(() => {
+			window.location.href = "/login?redirect-to=/depot"
+		})
 	},
 })

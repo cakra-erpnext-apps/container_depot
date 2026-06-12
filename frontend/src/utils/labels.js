@@ -1,10 +1,21 @@
 // Indonesian-primary UI labels with English fallback (PRD §7 Localisation).
 // Keep this as the single source of label strings so pages stay translatable.
 export const labels = {
-	appName: "Depot ESS",
+	appName: "Depot OAK",
 	home: "Beranda", // Home
 	loggedInAs: "Masuk sebagai", // Logged in as
 	logout: "Keluar", // Logout
+	// Bottom nav + greeting (redesign)
+	navHome: "Beranda", // Home tab
+	navGate: "Gate",
+	navEir: "EIR",
+	navHistory: "Riwayat", // History tab
+	greeting: "Halo", // "Halo, {name}"
+	homeHint: "Pilih menu untuk mulai bekerja", // Pick a menu to start
+	// In-PWA notification bell
+	notifications: "Notifikasi", // Notifications
+	notifEmpty: "Belum ada notifikasi", // No notifications yet
+	notifMarkAll: "Tandai semua dibaca", // Mark all read
 	search: "Cari nomor tank…", // Search tank number
 	filter: "Filter",
 	principal: "Prinsipal", // Principal
@@ -61,6 +72,16 @@ export const labels = {
 	gateGenerated: "Bon berhasil dibuat", // bon created
 	gateNoContainers: "Tidak ada container.", // no containers
 	gateBon: "Bon", // bon (short)
+	// Gate — vehicle / driver form before generating a bon (mirrors the Desk dialog)
+	gateVehicleTitle: "Data Kendaraan & Sopir", // Vehicle & driver data
+	gateVehicleHint: "Auto-isi dari container pertama — lengkapi bila perlu.",
+	vCondition: "Kondisi", // Condition
+	vRo: "R/O",
+	vAngkutan: "Angkutan", // Transporter
+	vDestination: "Tujuan", // Destination
+	vDateBongkar: "Tanggal Bongkar",
+	vDateMuat: "Tanggal Muat",
+	cancelBtn: "Batal", // Cancel
 	truckPlate: "Nopol Truk", // Truck plate
 	driverName: "Nama Sopir", // Driver name
 	registerGate: "Catat Gate-In", // Register gate-in
@@ -156,7 +177,7 @@ export const statusColors = {
 	in_depot: "bg-blue-100 text-blue-800",
 	cleaning: "bg-amber-100 text-amber-800",
 	repair_survey: "bg-orange-100 text-orange-800",
-	ready: "bg-green-100 text-green-800",
+	ready: "bg-leaf-100 text-leaf-800",
 	gate_out: "bg-gray-200 text-gray-700",
 }
 

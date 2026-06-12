@@ -1,6 +1,6 @@
 <template>
 	<span
-		class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+		class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
 		:class="statusColors[bucket] || 'bg-gray-100 text-gray-700'"
 	>
 		{{ statusLabel(bucket) }}

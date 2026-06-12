@@ -450,3 +450,26 @@ class TestGate(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Order Bongkar", res["order_name"], "docstatus"), 1)
 		# Re-lookup: the container now carries the bon.
 		self.assertEqual(gate_lookup(codes[0])["containers"][0]["order"]["name"], res["order_name"])
+
+	def test_generate_passes_vehicle_data_to_bon(self):
+		"""The gate form's truck/driver detail must land on the generated bon's row."""
+		from container_depot.api import gate_generate_order, gate_lookup
+		booking, codes = _booking_with_codes(code_direction="Tank In", count=1, prefix="GTVD0")
+		frappe.db.set_value("Container Booking", booking, "payment_type", "TOP")
+		# Booking-line detail is surfaced for the gate form to auto-fill from.
+		self.assertIn("line", gate_lookup(codes[0])["containers"][0])
+		res = gate_generate_order(
+			booking,
+			json.dumps(codes),
+			vehicle_data=json.dumps(
+				{"truck_plate": "B-7788-XY", "driver": "Slamet", "driver_phone": "0812345"}
+			),
+		)
+		row = frappe.get_all(
+			"Container Booking Item",
+			filters={"parent": res["order_name"], "parenttype": "Order Bongkar"},
+			fields=["truck_plate", "driver", "driver_phone"],
+		)[0]
+		self.assertEqual(row.truck_plate, "B-7788-XY")
+		self.assertEqual(row.driver, "Slamet")
+		self.assertEqual(row.driver_phone, "0812345")

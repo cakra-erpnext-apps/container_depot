@@ -1,13 +1,118 @@
+@import "@fontsource-variable/plus-jakarta-sans/index.css";
 @import "frappe-ui/src/style.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-	height: 100%;
+@layer base {
+	html,
+	body {
+		height: 100%;
+	}
+
+	body {
+		@apply bg-gray-50 text-gray-900 antialiased;
+		font-family: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, -apple-system,
+			"Segoe UI", Roboto, sans-serif;
+		-webkit-tap-highlight-color: transparent;
+		text-rendering: optimizeLegibility;
+	}
+
+	#app {
+		min-height: 100vh;
+	}
 }
 
-#app {
-	min-height: 100vh;
+@layer components {
+	/* Surfaces ----------------------------------------------------------- */
+	.oak-card {
+		@apply rounded-2xl border border-gray-100 bg-white shadow-card;
+	}
+	.oak-section {
+		@apply rounded-2xl border border-gray-100 bg-white p-4 shadow-card;
+	}
+	.oak-press {
+		@apply transition active:scale-[0.99];
+	}
+
+	/* Typography --------------------------------------------------------- */
+	.oak-eyebrow {
+		@apply text-xs font-semibold uppercase tracking-wide text-gray-500;
+	}
+	.oak-section-title {
+		@apply text-sm font-semibold text-gray-800;
+	}
+	.oak-label {
+		@apply mb-1 block text-sm font-medium text-gray-700;
+	}
+	.oak-link {
+		@apply font-medium text-brand-600 underline-offset-2 hover:text-brand-700;
+	}
+
+	/* Form controls ------------------------------------------------------ */
+	.oak-input {
+		@apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition
+			placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/25
+			disabled:cursor-not-allowed disabled:bg-gray-50;
+	}
+
+	/* Buttons — pair the base with a variant: `oak-btn oak-btn-primary` --- */
+	.oak-btn {
+		@apply inline-flex select-none items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm
+			font-semibold transition active:scale-[0.97]
+			focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1
+			disabled:pointer-events-none disabled:opacity-50;
+	}
+	.oak-btn-primary {
+		@apply bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:ring-brand-500/50;
+	}
+	.oak-btn-accent {
+		@apply bg-leaf-600 text-white shadow-sm hover:bg-leaf-700 focus-visible:ring-leaf-500/50;
+	}
+	.oak-btn-secondary {
+		@apply border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-gray-300;
+	}
+	.oak-btn-ghost {
+		@apply text-gray-600 hover:bg-gray-100 focus-visible:ring-gray-300;
+	}
+
+	/* Segmented toggles — `oak-toggle` + `oak-toggle-on` / `oak-toggle-off` */
+	.oak-toggle {
+		@apply rounded-lg border px-3 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+	}
+	.oak-toggle-on {
+		@apply border-brand-500 bg-brand-50 text-brand-700 shadow-sm;
+	}
+	.oak-toggle-off {
+		@apply border-gray-200 bg-white text-gray-600 hover:bg-gray-50;
+	}
+
+	/* Status pill -------------------------------------------------------- */
+	.oak-chip {
+		@apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold;
+	}
+
+	/* Icon tile (menu rows / panel headers) ------------------------------ */
+	.oak-icon-tile {
+		@apply flex shrink-0 items-center justify-center rounded-xl;
+	}
+
+	/* Loading skeleton --------------------------------------------------- */
+	.oak-skeleton {
+		@apply animate-pulse rounded-md bg-gray-200/80;
+	}
+}
+
+/* Route transition (App.vue <transition name="page">) ------------------ */
+.page-enter-active,
+.page-leave-active {
+	transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.page-enter-from {
+	opacity: 0;
+	transform: translateY(6px);
+}
+.page-leave-to {
+	opacity: 0;
+	transform: translateY(-4px);
 }

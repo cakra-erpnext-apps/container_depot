@@ -10,6 +10,7 @@
 		"copy-html-entry": "cp ../container_depot/public/ess/index.html ../container_depot/www/depot.html"
 	},
 	"dependencies": {
+		"@fontsource-variable/plus-jakarta-sans": "^5.2.8",
 		"@vitejs/plugin-vue": "^4.4.0",
 		"autoprefixer": "^10.4.19",
 		"dayjs": "^1.11.11",

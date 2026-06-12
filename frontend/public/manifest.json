@@ -1,13 +1,13 @@
 {
-	"name": "Depot ESS",
-	"short_name": "Depot ESS",
-	"description": "Container Depot field self-service — tank inventory & live status",
+	"name": "Depot OAK",
+	"short_name": "Depot OAK",
+	"description": "Container Depot — Gate, EIR & operasional lapangan",
 	"start_url": "/depot",
 	"scope": "/depot",
 	"display": "standalone",
-	"orientation": "portrait",
+	"orientation": "any",
 	"background_color": "#ffffff",
-	"theme_color": "#171717",
+	"theme_color": "#ffffff",
 	"lang": "id",
 	"icons": [
 		{

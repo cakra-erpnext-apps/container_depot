@@ -12,6 +12,11 @@ ROLES_TO_GRANT = ["System Manager", "Container Depot"]
 # accidentally pick up the blanket DocPerm grant.
 SST_SERVICE_ROLE = "Container Depot SST Service"
 
+# PWA access role. Gates the /depot page (www/depot.py) and carries the DocPerms
+# the PWA exercises under the caller's session. Created with desk_access=0 (website
+# /PWA only). The admin assigns it to users; it is not auto-granted to anyone.
+PWA_ROLE = "Depot PWA"
+
 # Real per-role matrix introduced in Phase 6. Roles listed here are created on
 # install + every migrate; the permission matrix in ROLE_DOCTYPE_PERMISSIONS
 # below decides who can see / change what.
@@ -222,6 +227,23 @@ ROLE_DOCTYPE_PERMISSIONS = {
 	},
 }
 
+# Depot PWA role gets the DocPerms the PWA exercises under the caller's session.
+# EIR creation/submit runs WITHOUT ignore_permissions (operations/eir.py), so the
+# role must carry Inspection create/submit or the PWA 403s. Gate lookup uses
+# frappe.db/ignore_permissions, so the order/booking reads are courtesy. Injected
+# into the matrix so setup_permissions() grants it like any other role.
+_PWA_DOCTYPE_PERMS = {
+	"Inspection":        {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
+	"Container":         {"read": 1, "report": 1},
+	"Cargo":             {"read": 1, "report": 1},
+	"Order Bongkar":     {"read": 1, "report": 1},
+	"Order Muat":        {"read": 1, "report": 1},
+	"Container Booking": {"read": 1, "report": 1},
+	"Booking Code":      {"read": 1, "report": 1},
+}
+for _pwa_dt, _pwa_perms in _PWA_DOCTYPE_PERMS.items():
+	ROLE_DOCTYPE_PERMISSIONS.setdefault(_pwa_dt, {})[PWA_ROLE] = _pwa_perms
+
 
 def after_install():
 	"""Run after install hook for container_depot app"""
@@ -233,7 +255,7 @@ def after_install():
 	ensure_modes_of_payment()
 	ensure_multi_currency_billing()
 	setup_workspace()
-	setup_order_notifications()
+	setup_document_notifications()
 	sync_branding()
 
 
@@ -248,9 +270,10 @@ def after_migrate():
 	# Container Inventory monitoring dashboard (Number Cards + Charts). Idempotent
 	# upsert by name; safe to re-run every migrate.
 	setup_inventory_dashboard()
-	# Built-in ERPNext Notifications: alert ops when a bon (Order Bongkar/Muat) is
-	# issued (submitted). Idempotent — skipped once present.
-	setup_order_notifications()
+	# Built-in ERPNext Notifications for key doc events (orders, contract, booking,
+	# EIR). System Notification channel → Desk + PWA bell. Idempotent — skipped once
+	# present. Recipients are editable per role in Desk → Notification.
+	setup_document_notifications()
 	# Keep the depot-pricing invariant: Bertschi Product Bundles must bill at the
 	# bundle parent's flat Item Price, not a recomputed sum of component prices.
 	ensure_selling_settings()
@@ -269,29 +292,33 @@ def after_migrate():
 	sync_branding()
 
 
-def setup_order_notifications():
-	"""Built-in Frappe Notifications that alert ops when a bon (Order Bongkar/Muat)
-	is issued (submitted). Channel = System Notification → shows in the in-app bell
-	for the recipient role. Idempotent: skipped once a matching Notification exists.
+def setup_document_notifications():
+	"""Built-in Frappe Notifications for key document events. Channel = System
+	Notification → shows in the in-app bell (Desk + the Depot OAK PWA bell) for the
+	recipient role. Idempotent: skipped once a matching Notification exists.
 	Best-effort — a quirk in the Notification schema never breaks a migrate.
 
-	Recipient is a placeholder role (System Manager) until the Operator Kalmar role
-	exists; change ``receiver_by_role`` then.
+	Recipient is a placeholder role (System Manager). Edit each Notification's
+	``receiver_by_role`` in Desk → Notification to route per role.
 	"""
+	# (document_type, subject, event). Depot Contract is not submittable → "New".
 	specs = [
-		("Order Bongkar", "Bon Bongkar {{ doc.name }} diterbitkan"),
-		("Order Muat", "Bon Muat {{ doc.name }} diterbitkan"),
+		("Order Bongkar", "Bon Bongkar {{ doc.name }} diterbitkan", "Submit"),
+		("Order Muat", "Bon Muat {{ doc.name }} diterbitkan", "Submit"),
+		("Depot Contract", "Kontrak Depo {{ doc.name }} dibuat", "New"),
+		("Container Booking", "Booking {{ doc.name }} dikonfirmasi", "Submit"),
+		("Inspection", "EIR {{ doc.name }} disubmit", "Submit"),
 	]
-	for doctype, subject in specs:
+	for doctype, subject, event in specs:
 		if frappe.db.exists(
-			"Notification", {"document_type": doctype, "event": "Submit", "is_standard": 0}
+			"Notification", {"document_type": doctype, "event": event, "is_standard": 0}
 		):
 			continue
 		try:
 			n = frappe.new_doc("Notification")
 			n.subject = subject
 			n.document_type = doctype
-			n.event = "Submit"
+			n.event = event
 			n.channel = "System Notification"
 			n.enabled = 1
 			n.is_standard = 0
@@ -299,7 +326,7 @@ def setup_order_notifications():
 			n.append("recipients", {"receiver_by_role": "System Manager"})
 			n.insert(ignore_permissions=True)
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "setup_order_notifications")
+			frappe.log_error(frappe.get_traceback(), "setup_document_notifications")
 
 
 # ---------------------------------------------------------------------------
@@ -846,6 +873,14 @@ def ensure_roles_exist():
 		frappe.get_doc({
 			"doctype": "Role",
 			"role_name": SST_SERVICE_ROLE,
+			"desk_access": 0,
+		}).insert(ignore_permissions=True)
+	# Depot PWA access role: website/PWA only (no desk access). The admin assigns it
+	# to users; it gates the /depot page and carries the PWA's DocPerms.
+	if not frappe.db.exists("Role", PWA_ROLE):
+		frappe.get_doc({
+			"doctype": "Role",
+			"role_name": PWA_ROLE,
 			"desk_access": 0,
 		}).insert(ignore_permissions=True)
 	frappe.db.commit()

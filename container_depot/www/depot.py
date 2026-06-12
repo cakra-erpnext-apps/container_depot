@@ -12,12 +12,27 @@ from frappe.boot import load_translations
 
 no_cache = 1
 
+# Only users carrying the "Depot PWA" role (assigned by the admin) — or System
+# Manager — may open the PWA. Everyone else is rejected at the page controller.
+PWA_ROLE = "Depot PWA"
+
+
+def _require_pwa_access():
+	roles = set(frappe.get_roles())
+	if "System Manager" not in roles and PWA_ROLE not in roles:
+		frappe.throw(
+			frappe._("Anda tidak punya akses Depot OAK. Hubungi admin."),
+			frappe.PermissionError,
+		)
+
 
 def get_context(context):
 	# Reuse the Frappe session cookie. Unauthenticated -> standard login -> /depot.
 	if frappe.session.user == "Guest":
 		frappe.local.flags.redirect_location = "/login?redirect-to=/depot"
 		raise frappe.Redirect
+
+	_require_pwa_access()
 
 	context = frappe._dict()
 	context.csrf_token = frappe.sessions.get_csrf_token()
@@ -49,4 +64,5 @@ def get_context_for_dev():
 	"""
 	if not frappe.conf.developer_mode:
 		frappe.throw(frappe._("This method is only meant for developer mode."))
+	_require_pwa_access()
 	return get_boot()

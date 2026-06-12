@@ -1,121 +1,204 @@
 <template>
-	<div class="mx-auto w-full max-w-lg space-y-4">
-		<h1 class="text-lg font-semibold">{{ labels.gate }}</h1>
+	<div class="mx-auto w-full max-w-lg space-y-4 md:max-w-2xl">
+		<div class="flex items-center gap-2">
+			<span class="oak-icon-tile h-9 w-9 bg-brand-50 text-brand-600"><Icon name="log-in" :size="20" /></span>
+			<div>
+				<h1 class="text-lg font-extrabold leading-tight tracking-tight">{{ labels.gate }}</h1>
+				<p class="text-xs text-gray-500">{{ labels.gateDesc }}</p>
+			</div>
+		</div>
 
 		<!-- Scan/type a Booking Code (OAK-…) or an Order code (ORD-…) -->
-		<section class="space-y-2 rounded-lg border bg-white p-4">
-			<label class="text-sm font-medium">{{ labels.gateScanTitle }}</label>
-			<div class="flex gap-2">
-				<input
-					ref="scanInput"
-					v-model.trim="code"
-					type="text"
-					autocapitalize="characters"
-					:placeholder="labels.gateScanPlaceholder"
-					class="w-full rounded-md border px-3 py-2 text-sm uppercase"
-					@keyup.enter="doLookup"
-				/>
-				<button
-					class="shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-					:disabled="!code || lookupRes.loading"
-					@click="doLookup"
-				>
-					{{ lookupRes.loading ? "…" : labels.gateLookup }}
-				</button>
+		<section class="oak-section space-y-3">
+			<div>
+				<label class="oak-label">{{ labels.gateScanTitle }}</label>
+				<div class="flex gap-2">
+					<input
+						ref="scanInput"
+						v-model.trim="code"
+						type="text"
+						autocapitalize="characters"
+						:placeholder="labels.gateScanPlaceholder"
+						class="oak-input uppercase"
+						@keyup.enter="doLookup"
+					/>
+					<button
+						class="oak-btn oak-btn-primary shrink-0 px-4"
+						:disabled="!code || lookupRes.loading"
+						@click="doLookup"
+					>
+						<Icon v-if="!lookupRes.loading" name="search" :size="16" />
+						{{ lookupRes.loading ? "…" : labels.gateLookup }}
+					</button>
+				</div>
 			</div>
-			<button
-				class="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-				@click="startScan"
-			>
-				<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+			<button class="oak-btn oak-btn-secondary w-full" @click="startScan">
+				<Icon name="camera" :size="18" />
 				{{ labels.gateScan }}
 			</button>
-			<p v-if="scanErr" class="text-sm text-amber-600">{{ scanErr }}</p>
-			<p v-if="lookupRes.error" class="text-sm text-red-600">{{ lookupError }}</p>
-			<p v-else-if="detail && !detail.valid" class="text-sm text-red-600">{{ detail.error }}</p>
+			<p v-if="scanErr" class="flex items-center gap-1.5 text-sm text-amber-600">
+				<Icon name="alert-triangle" :size="15" /> {{ scanErr }}
+			</p>
+			<p v-if="lookupRes.error" class="flex items-center gap-1.5 text-sm text-red-600">
+				<Icon name="alert-circle" :size="15" /> {{ lookupError }}
+			</p>
+			<p v-else-if="detail && !detail.valid" class="flex items-center gap-1.5 text-sm text-red-600">
+				<Icon name="alert-circle" :size="15" /> {{ detail.error }}
+			</p>
 		</section>
 
 		<template v-if="valid">
 			<!-- Booking detail panel -->
-			<section class="rounded-lg border bg-white">
-				<div class="border-b px-3 py-2 text-sm font-semibold">{{ detail.booking }}</div>
-				<dl class="divide-y text-sm">
-					<div v-for="row in panelRows" :key="row.k" class="flex justify-between gap-3 px-3 py-1.5">
+			<section class="oak-card animate-slide-up overflow-hidden">
+				<div class="flex items-center gap-3 border-b border-gray-100 bg-gray-50/70 px-4 py-3">
+					<span class="oak-icon-tile h-9 w-9 bg-brand-50 text-brand-600"><Icon name="file-text" :size="18" /></span>
+					<div class="min-w-0">
+						<p class="truncate text-sm font-bold text-gray-900">{{ detail.booking }}</p>
+						<p class="text-xs text-gray-500">{{ directionLabel(detail.direction) }}</p>
+					</div>
+				</div>
+				<dl class="divide-y divide-gray-100 text-sm">
+					<div v-for="row in panelRows" :key="row.k" class="flex justify-between gap-3 px-4 py-2">
 						<dt class="shrink-0 text-gray-500">{{ row.k }}</dt>
-						<dd class="text-right font-medium">{{ row.v }}</dd>
+						<dd class="text-right font-semibold text-gray-800">{{ row.v }}</dd>
 					</div>
 				</dl>
 			</section>
 
 			<!-- Cash unpaid → block generation, point to the cashier -->
-			<section v-if="detail.payment_blocked" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
-				<p class="font-medium text-red-800">⚠ {{ labels.gatePayBlocked }}</p>
-				<p v-if="detail.sales_invoice" class="mt-1 text-red-700">
-					{{ labels.gateInvoiceNo }}: <span class="font-medium">{{ detail.sales_invoice }}</span>
+			<section
+				v-if="detail.payment_blocked"
+				class="animate-slide-up rounded-2xl border border-red-200 bg-red-50 p-4"
+			>
+				<p class="flex items-center gap-2 font-semibold text-red-800">
+					<Icon name="alert-triangle" :size="18" /> {{ labels.gatePayBlocked }}
+				</p>
+				<p v-if="detail.sales_invoice" class="mt-1.5 pl-7 text-sm text-red-700">
+					{{ labels.gateInvoiceNo }}: <span class="font-semibold">{{ detail.sales_invoice }}</span>
 				</p>
 			</section>
 
 			<!-- Container list: existing bon shown per container; else selectable (max 2) -->
-			<section class="space-y-2">
-				<p class="text-sm font-medium">{{ labels.gateContainers }}</p>
-				<p v-if="!detail.containers.length" class="rounded-lg border bg-white p-4 text-center text-sm text-gray-400">
+			<section class="animate-slide-up space-y-2">
+				<div class="flex items-center justify-between">
+					<p class="oak-section-title">{{ labels.gateContainers }}</p>
+					<span class="oak-chip bg-gray-100 text-gray-600">{{ detail.containers.length }}</span>
+				</div>
+				<p v-if="!detail.containers.length" class="oak-card p-6 text-center text-sm text-gray-400">
 					{{ labels.gateNoContainers }}
 				</p>
-				<ul v-else class="divide-y rounded-lg border bg-white">
-					<li v-for="c in detail.containers" :key="c.booking_code" class="flex items-center gap-3 px-3 py-2.5">
+				<ul v-else class="oak-card divide-y divide-gray-100 overflow-hidden">
+					<li v-for="c in detail.containers" :key="c.booking_code" class="flex items-center gap-3 px-4 py-3">
 						<input
 							v-if="selectable(c) && !detail.payment_blocked"
 							type="checkbox"
-							class="h-4 w-4 shrink-0"
+							class="h-5 w-5 shrink-0 accent-brand-600"
 							:checked="selected.includes(c.booking_code)"
 							:disabled="!selected.includes(c.booking_code) && selected.length >= 2"
 							@change="toggle(c)"
 						/>
-						<span v-else class="h-4 w-4 shrink-0"></span>
+						<span v-else class="oak-icon-tile h-8 w-8 shrink-0 bg-gray-100 text-gray-400">
+							<Icon name="package" :size="16" />
+						</span>
 						<div class="min-w-0 flex-1">
-							<p class="truncate font-medium">{{ c.container_no || c.container }}</p>
+							<p class="truncate font-semibold text-gray-900">{{ c.container_no || c.container }}</p>
 							<p class="text-xs text-gray-500">{{ c.code_state }}</p>
 						</div>
 						<span
 							v-if="c.order"
-							class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+							class="oak-chip shrink-0"
 							:class="c.order.docstatus === 1 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'"
 						>
-							{{ labels.gateBon }}: {{ c.order.name }}
+							<Icon name="file-text" :size="12" /> {{ c.order.name }}
 						</span>
 					</li>
 				</ul>
 
 				<button
 					v-if="!detail.payment_blocked"
-					class="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-					:disabled="!selected.length || generateRes.loading"
-					@click="doGenerate"
+					class="oak-btn oak-btn-primary w-full"
+					:disabled="!selected.length"
+					@click="openGenerate"
 				>
-					{{ generateRes.loading ? "…" : labels.gateGenerate + (selected.length ? ` (${selected.length})` : "") }}
+					<Icon name="file-plus" :size="18" />
+					{{ labels.gateGenerate + (selected.length ? ` (${selected.length})` : "") }}
 				</button>
 				<p v-if="!detail.payment_blocked" class="text-xs text-gray-400">{{ labels.gateSelectMax2 }}</p>
-				<p v-if="generateError" class="text-sm text-red-600">{{ generateError }}</p>
-				<p v-if="genResult && genResult.success" class="text-sm font-medium text-green-700">
-					✓ {{ labels.gateGenerated }}: {{ genResult.order_name }}
+				<p v-if="generateError" class="flex items-center gap-1.5 text-sm text-red-600">
+					<Icon name="alert-circle" :size="15" /> {{ generateError }}
 				</p>
+				<div
+					v-if="genResult && genResult.success"
+					class="flex items-center gap-2 rounded-xl border border-leaf-200 bg-leaf-50 px-3 py-2.5 text-sm font-semibold text-leaf-800"
+				>
+					<Icon name="check-circle" :size="18" /> {{ labels.gateGenerated }}: {{ genResult.order_name }}
+				</div>
 			</section>
 
-			<button class="text-sm text-blue-600 underline" @click="reset">{{ labels.reset }}</button>
+			<button class="oak-link inline-flex items-center gap-1 text-sm" @click="reset">
+				<Icon name="rotate-ccw" :size="14" /> {{ labels.reset }}
+			</button>
 		</template>
+
+		<!-- Vehicle / driver form (bottom sheet) — mirrors the Desk Generate dialog -->
+		<div
+			v-if="showVehicleForm"
+			class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-4"
+			@click.self="closeVehicleForm"
+		>
+			<div
+				class="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-soft animate-slide-up md:max-w-xl md:rounded-2xl"
+			>
+				<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+					<div class="flex min-w-0 items-center gap-2">
+						<span class="oak-icon-tile h-8 w-8 shrink-0 bg-brand-50 text-brand-600"><Icon name="truck" :size="16" /></span>
+						<div class="min-w-0">
+							<p class="font-bold leading-tight text-gray-900">{{ labels.gateVehicleTitle }}</p>
+							<p class="truncate text-xs text-gray-500">{{ selectedLabels }}</p>
+						</div>
+					</div>
+					<button class="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100" @click="closeVehicleForm">
+						<Icon name="x" :size="18" />
+					</button>
+				</div>
+				<div class="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+					<p class="text-xs text-gray-500">{{ labels.gateVehicleHint }}</p>
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<div v-for="f in vehicleFields" :key="f.key" :class="f.type === 'textarea' ? 'sm:col-span-2' : ''">
+							<label class="oak-label">{{ f.label }}</label>
+							<select v-if="f.type === 'select'" v-model="vehicle[f.key]" class="oak-input">
+								<option value="">—</option>
+								<option v-for="o in f.options" :key="o" :value="o">{{ o }}</option>
+							</select>
+							<textarea v-else-if="f.type === 'textarea'" v-model.trim="vehicle[f.key]" rows="2" class="oak-input"></textarea>
+							<input v-else v-model.trim="vehicle[f.key]" :type="f.inputType || 'text'" class="oak-input" />
+						</div>
+					</div>
+					<p v-if="generateError" class="flex items-center gap-1.5 text-sm text-red-600">
+						<Icon name="alert-circle" :size="15" /> {{ generateError }}
+					</p>
+				</div>
+				<div class="flex gap-2 border-t border-gray-100 px-4 py-3 pb-safe-bottom">
+					<button class="oak-btn oak-btn-secondary flex-1" @click="closeVehicleForm">{{ labels.cancelBtn }}</button>
+					<button class="oak-btn oak-btn-primary flex-[2]" :disabled="generateRes.loading" @click="doGenerate">
+						<Icon v-if="!generateRes.loading" name="file-plus" :size="18" />
+						{{ generateRes.loading ? "…" : labels.gateGenerate }}
+					</button>
+				</div>
+			</div>
+		</div>
 
 		<!-- Camera QR scanner overlay -->
 		<div
 			v-if="scanning"
-			class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/90 p-4"
+			class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-black/90 p-5 pb-safe-bottom"
 		>
-			<p class="text-sm text-white">{{ labels.gateScanHint }}</p>
-			<div id="gate-reader" class="w-full max-w-sm overflow-hidden rounded-lg bg-black"></div>
-			<button
-				class="rounded-md bg-white px-6 py-2.5 text-sm font-semibold text-gray-900"
-				@click="stopScan"
-			>
-				{{ labels.gateScanClose }}
+			<p class="flex items-center gap-2 text-sm font-medium text-white">
+				<Icon name="camera" :size="18" /> {{ labels.gateScanHint }}
+			</p>
+			<div id="gate-reader" class="w-full max-w-sm overflow-hidden rounded-2xl bg-black ring-4 ring-white/10"></div>
+			<button class="oak-btn oak-btn-secondary px-8" @click="stopScan">
+				<Icon name="x" :size="18" /> {{ labels.gateScanClose }}
 			</button>
 		</div>
 	</div>
@@ -126,12 +209,15 @@ import { computed, nextTick, onBeforeUnmount, ref } from "vue"
 import { createResource } from "frappe-ui"
 import { Html5Qrcode } from "html5-qrcode"
 import { labels, directionLabel } from "@/utils/labels"
+import Icon from "@/components/Icon.vue"
 
 const code = ref("")
 const scanInput = ref(null)
 const detail = ref(null)
 const selected = ref([])
 const genResult = ref(null)
+const showVehicleForm = ref(false)
+const vehicle = ref({})
 const scanning = ref(false)
 const scanErr = ref("")
 let qrScanner = null
@@ -156,6 +242,46 @@ const generateRes = createResource({
 })
 
 const valid = computed(() => detail.value && detail.value.valid)
+
+// Vehicle/driver form fields — mirrors the Desk "Generate" dialog, adapted to the
+// booking direction. Keys are the exact make_order vehicle_data keys.
+const vehicleFields = computed(() => {
+	if (!detail.value) return []
+	if (detail.value.direction === "Tank In")
+		return [
+			{ key: "truck_plate", label: labels.truckNo, inputType: "text" },
+			{ key: "driver", label: labels.driverName, inputType: "text" },
+			{ key: "driver_phone", label: labels.driverPhone, inputType: "tel" },
+			{ key: "ro", label: labels.vRo, inputType: "text" },
+			{ key: "condition", label: labels.vCondition, type: "select", options: ["EMPTY CLEAN", "EMPTY DIRTY", "LADEN"] },
+			{ key: "cargo", label: labels.cargo, inputType: "text" },
+			{ key: "tanggal_bongkar_actual", label: labels.vDateBongkar, inputType: "date" },
+			{ key: "shipper", label: labels.shipper, inputType: "text" },
+			{ key: "ex_vessel", label: labels.exVessel, inputType: "text" },
+			{ key: "remarks", label: labels.eirRemarks, type: "textarea" },
+		]
+	return [
+		{ key: "truck_plate", label: labels.truckNo, inputType: "text" },
+		{ key: "driver_name", label: labels.driverName, inputType: "text" },
+		{ key: "driver_phone", label: labels.driverPhone, inputType: "tel" },
+		{ key: "ro", label: labels.vRo, inputType: "text" },
+		{ key: "angkutan", label: labels.vAngkutan, inputType: "text" },
+		{ key: "destination", label: labels.vDestination, inputType: "text" },
+		{ key: "tanggal_muat", label: labels.vDateMuat, inputType: "date" },
+		{ key: "shipper", label: labels.shipper, inputType: "text" },
+		{ key: "remarks", label: labels.eirRemarks, type: "textarea" },
+	]
+})
+
+// Container numbers picked for this bon — shown in the form header.
+const selectedLabels = computed(() =>
+	!detail.value
+		? ""
+		: detail.value.containers
+				.filter((c) => selected.value.includes(c.booking_code))
+				.map((c) => c.container_no || c.container)
+				.join(", "),
+)
 
 const panelRows = computed(() => {
 	if (!valid.value) return []
@@ -199,12 +325,53 @@ function doLookup() {
 	lookupRes.submit({ code: code.value })
 }
 
+// Open the vehicle/driver form, pre-filled from the FIRST selected container's
+// booking line (the same auto-fill the Desk Generate dialog does).
+function openGenerate() {
+	if (!selected.value.length || detail.value.payment_blocked) return
+	const first = detail.value.containers.find((x) => x.booking_code === selected.value[0])
+	const line = (first && first.line) || {}
+	const today = new Date().toISOString().slice(0, 10)
+	vehicle.value = {
+		truck_plate: line.truck_plate || "",
+		driver: line.driver || "",
+		driver_name: line.driver || "",
+		driver_phone: line.driver_phone || "",
+		ro: line.ro || "",
+		condition: line.condition || "",
+		cargo: line.cargo || "",
+		angkutan: "",
+		destination: "",
+		ex_vessel: "",
+		shipper: detail.value.customer || "",
+		tanggal_bongkar_actual: line.tanggal_bongkar || today,
+		tanggal_muat: today,
+		remarks: "",
+	}
+	genResult.value = null
+	showVehicleForm.value = true
+}
+
+function closeVehicleForm() {
+	showVehicleForm.value = false
+}
+
 function doGenerate() {
 	if (!selected.value.length || detail.value.payment_blocked) return
+	const vd = {}
+	for (const f of vehicleFields.value) {
+		const v = vehicle.value[f.key]
+		if (v != null && String(v).trim() !== "") vd[f.key] = v
+	}
 	generateRes
-		.submit({ booking: detail.value.booking, selected_codes: JSON.stringify(selected.value) })
+		.submit({
+			booking: detail.value.booking,
+			selected_codes: JSON.stringify(selected.value),
+			vehicle_data: JSON.stringify(vd),
+		})
 		.then((data) => {
 			genResult.value = data
+			showVehicleForm.value = false
 		})
 }
 
@@ -252,6 +419,7 @@ onBeforeUnmount(stopScan)
 
 function reset() {
 	stopScan()
+	showVehicleForm.value = false
 	code.value = ""
 	detail.value = null
 	selected.value = []

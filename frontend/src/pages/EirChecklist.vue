@@ -1,56 +1,55 @@
 <template>
-	<div class="mx-auto w-full max-w-lg space-y-4">
+	<div class="mx-auto w-full max-w-lg space-y-4 md:max-w-2xl">
 		<div class="flex flex-wrap items-center justify-between gap-2">
-			<h1 class="text-lg font-semibold">{{ labels.eirTitle }}</h1>
 			<div class="flex items-center gap-2">
-				<router-link
-					to="/eir/history"
-					class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-				>
-					{{ labels.eirHistory }}
+				<span class="oak-icon-tile h-9 w-9 bg-leaf-50 text-leaf-600"><Icon name="clipboard" :size="20" /></span>
+				<h1 class="text-lg font-extrabold tracking-tight">{{ labels.eirTitle }}</h1>
+			</div>
+			<div class="flex items-center gap-2">
+				<router-link to="/eir/history" class="oak-btn oak-btn-secondary px-3 py-2">
+					<Icon name="clock" :size="16" /> {{ labels.eirHistory }}
 				</router-link>
-				<button
-					v-if="header"
-					class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-					@click="reset"
-				>
-					{{ labels.newEir }}
+				<button v-if="header" class="oak-btn oak-btn-secondary px-3 py-2" @click="reset">
+					<Icon name="rotate-ccw" :size="16" /> {{ labels.newEir }}
 				</button>
 			</div>
 		</div>
 
 		<!-- Step 1 — source: container number + EIR type -->
-		<section class="space-y-3 rounded-lg border bg-white p-4">
+		<section class="oak-section space-y-4">
 			<div>
-				<label class="text-sm font-medium">{{ labels.containerNumber }}</label>
-				<div class="mt-1 flex gap-2">
+				<label class="oak-label">{{ labels.containerNumber }}</label>
+				<div class="flex gap-2">
 					<input
 						v-model.trim="containerNo"
 						type="text"
 						autocapitalize="characters"
 						:placeholder="labels.containerNumberPlaceholder"
-						class="w-full rounded-md border px-3 py-2 text-sm uppercase"
+						class="oak-input uppercase"
 						@keyup.enter="doFetch"
 					/>
 					<button
-						class="shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+						class="oak-btn oak-btn-primary shrink-0 px-4"
 						:disabled="!containerNo || openRes.loading"
 						@click="doFetch"
 					>
+						<Icon v-if="!openRes.loading" name="search" :size="16" />
 						{{ openRes.loading ? "…" : labels.eirFetch }}
 					</button>
 				</div>
-				<p v-if="fetchError" class="mt-1 text-sm text-red-600">{{ fetchError }}</p>
-				<p class="mt-1 text-xs text-gray-400">{{ labels.eirDraftHint }}</p>
+				<p v-if="fetchError" class="mt-1.5 flex items-center gap-1.5 text-sm text-red-600">
+					<Icon name="alert-circle" :size="15" /> {{ fetchError }}
+				</p>
+				<p class="mt-1.5 text-xs text-gray-400">{{ labels.eirDraftHint }}</p>
 			</div>
 			<div>
-				<label class="text-sm font-medium">{{ labels.eirType }}</label>
-				<div class="mt-1 grid grid-cols-2 gap-2">
+				<label class="oak-label">{{ labels.eirType }}</label>
+				<div class="grid grid-cols-2 gap-2">
 					<button
 						v-for="t in ['EIR-In', 'EIR-Out']"
 						:key="t"
-						class="rounded-md border px-3 py-2 text-sm font-medium"
-						:class="eirType === t ? 'border-blue-600 bg-blue-50 text-blue-700' : 'bg-white text-gray-700'"
+						class="oak-toggle"
+						:class="eirType === t ? 'oak-toggle-on' : 'oak-toggle-off'"
 						@click="eirType = t"
 					>
 						{{ t }}
@@ -62,72 +61,81 @@
 		<!-- Steps 2-6 appear once a draft is open -->
 		<template v-if="header">
 			<!-- Step 1b — referred voucher: pull shipper / truck / driver (read-only) -->
-			<section class="space-y-3 rounded-lg border bg-white p-4">
-				<p class="text-sm font-semibold text-gray-700">{{ labels.referredVoucher }}</p>
+			<section class="oak-section space-y-3">
+				<div class="flex items-center gap-2">
+					<Icon name="file-text" :size="16" class="text-gray-400" />
+					<p class="oak-section-title">{{ labels.referredVoucher }}</p>
+				</div>
 				<div>
 					<div class="flex gap-2">
 						<input
 							v-model.trim="referredVoucher"
 							type="text"
 							:placeholder="voucherPlaceholder"
-							class="w-full rounded-md border px-3 py-2 text-sm"
+							class="oak-input"
 							@keyup.enter="doVoucherFetch"
 						/>
 						<button
-							class="shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+							class="oak-btn oak-btn-primary shrink-0 px-4"
 							:disabled="voucherRes.loading"
 							@click="doVoucherFetch"
 						>
+							<Icon v-if="!voucherRes.loading" name="search" :size="16" />
 							{{ voucherRes.loading ? "…" : labels.eirFetch }}
 						</button>
 					</div>
-					<p class="mt-1 text-xs text-gray-400">{{ voucherHint }}</p>
-					<p v-if="voucherError" class="mt-1 text-sm text-red-600">{{ voucherError }}</p>
+					<p class="mt-1.5 text-xs text-gray-400">{{ voucherHint }}</p>
+					<p v-if="voucherError" class="mt-1.5 flex items-center gap-1.5 text-sm text-red-600">
+						<Icon name="alert-circle" :size="15" /> {{ voucherError }}
+					</p>
 				</div>
-				<dl class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
+				<dl class="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-xl bg-gray-50 p-3 text-sm">
 					<div>
-						<dt class="text-gray-500">{{ labels.shipper }}</dt>
-						<dd class="font-medium">{{ shipper || "—" }}</dd>
+						<dt class="text-xs text-gray-500">{{ labels.shipper }}</dt>
+						<dd class="font-semibold text-gray-800">{{ shipper || "—" }}</dd>
 					</div>
 					<div>
-						<dt class="text-gray-500">{{ labels.truckNo }}</dt>
-						<dd class="font-medium">{{ truckNo || "—" }}</dd>
+						<dt class="text-xs text-gray-500">{{ labels.truckNo }}</dt>
+						<dd class="font-semibold text-gray-800">{{ truckNo || "—" }}</dd>
 					</div>
 					<div>
-						<dt class="text-gray-500">{{ labels.driverName }}</dt>
-						<dd class="font-medium">{{ driver || "—" }}</dd>
+						<dt class="text-xs text-gray-500">{{ labels.driverName }}</dt>
+						<dd class="font-semibold text-gray-800">{{ driver || "—" }}</dd>
 					</div>
 					<div>
-						<dt class="text-gray-500">{{ labels.driverPhone }}</dt>
-						<dd class="font-medium">{{ driverPhone || "—" }}</dd>
+						<dt class="text-xs text-gray-500">{{ labels.driverPhone }}</dt>
+						<dd class="font-semibold text-gray-800">{{ driverPhone || "—" }}</dd>
 					</div>
 				</dl>
 			</section>
 
 			<!-- Step 2 — tank header (all from the Container master) -->
-			<section class="space-y-3 rounded-lg border bg-white p-4">
-				<p class="text-sm font-semibold text-gray-700">{{ labels.eirHeader }}</p>
-				<dl class="grid grid-cols-3 gap-x-3 gap-y-1.5 text-sm">
+			<section class="oak-section space-y-3">
+				<div class="flex items-center gap-2">
+					<Icon name="package" :size="16" class="text-gray-400" />
+					<p class="oak-section-title">{{ labels.eirHeader }}</p>
+				</div>
+				<dl class="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-xl bg-gray-50 p-3 text-sm sm:grid-cols-3">
 					<div v-for="f in headerCells" :key="f.label">
-						<dt class="text-gray-500">{{ f.label }}</dt>
-						<dd class="font-medium">{{ f.value ?? "—" }}</dd>
+						<dt class="text-xs text-gray-500">{{ f.label }}</dt>
+						<dd class="font-semibold text-gray-800">{{ f.value ?? "—" }}</dd>
 					</div>
 				</dl>
 				<div>
-					<label class="text-sm font-medium">{{ labels.tanggal }}</label>
-					<input v-model="tanggal" type="date" class="mt-1 w-full rounded-md border px-3 py-2 text-sm" />
+					<label class="oak-label">{{ labels.tanggal }}</label>
+					<input v-model="tanggal" type="date" class="oak-input" />
 				</div>
 			</section>
 
 			<!-- Step 3 — tank status -->
-			<section class="space-y-2 rounded-lg border bg-white p-4">
-				<label class="text-sm font-medium">{{ labels.tankStatus }}</label>
+			<section class="oak-section space-y-2">
+				<label class="oak-label">{{ labels.tankStatus }}</label>
 				<div class="grid grid-cols-3 gap-2">
 					<button
 						v-for="s in [labels.emptyClean, labels.emptyDirty, labels.laden]"
 						:key="s"
-						class="rounded-md border px-2 py-3 text-sm font-semibold"
-						:class="tankStatus === s ? 'border-blue-600 bg-blue-50 text-blue-700' : 'bg-white text-gray-700'"
+						class="oak-toggle px-2 py-3"
+						:class="tankStatus === s ? 'oak-toggle-on' : 'oak-toggle-off'"
 						@click="tankStatus = s"
 					>
 						{{ s }}
@@ -136,9 +144,9 @@
 			</section>
 
 			<!-- Step 3b — cargo (updates the container's Last Cargo on submit) -->
-			<section class="space-y-2 rounded-lg border bg-white p-4">
-				<label class="text-sm font-medium">{{ labels.cargo }}</label>
-				<select v-model="cargo" class="w-full rounded-md border px-3 py-2 text-sm">
+			<section class="oak-section space-y-2">
+				<label class="oak-label">{{ labels.cargo }}</label>
+				<select v-model="cargo" class="oak-input">
 					<option value="">— {{ labels.cargo }} —</option>
 					<option v-for="c in cargos" :key="c" :value="c">{{ c }}</option>
 				</select>
@@ -146,23 +154,30 @@
 			</section>
 
 			<!-- Step 4 — checklist grid (fixed 50 rows, grouped by area) -->
-			<section class="rounded-lg border bg-white p-4">
-				<div class="mb-2 flex items-baseline justify-between">
-					<p class="text-sm font-semibold text-gray-700">{{ labels.checklist }}</p>
+			<section class="oak-card overflow-hidden">
+				<div class="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+					<div class="flex items-center gap-2">
+						<Icon name="check-square" :size="16" class="text-gray-400" />
+						<p class="oak-section-title">{{ labels.checklist }}</p>
+					</div>
 					<p class="text-xs text-gray-400">{{ labels.acceptableHint }}</p>
 				</div>
 				<div v-for="g in groups" :key="g.area">
-					<p class="sticky top-0 z-10 -mx-4 bg-gray-100 px-4 py-1 text-xs font-semibold uppercase text-gray-600">
+					<p class="border-b border-gray-100 bg-gray-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
 						{{ g.area }}
 					</p>
-					<div v-for="item in g.items" :key="item.item_code" class="border-t py-2">
-						<p class="text-sm font-medium">{{ item.printed_no }}. {{ item.item_name }}</p>
-						<div class="mt-1 grid grid-cols-2 gap-2">
-							<select v-model="item.damage_code" class="rounded-md border px-2 py-1.5 text-sm">
+					<div
+						v-for="item in g.items"
+						:key="item.item_code"
+						class="border-b border-gray-100 px-4 py-3 last:border-b-0"
+					>
+						<p class="text-sm font-semibold text-gray-800">{{ item.printed_no }}. {{ item.item_name }}</p>
+						<div class="mt-2 grid grid-cols-2 gap-2">
+							<select v-model="item.damage_code" class="oak-input px-2.5 py-2">
 								<option value="">— {{ labels.colDamage }} —</option>
 								<option v-for="d in damageCodes" :key="d.code" :value="d.code">{{ d.code }} — {{ d.description }}</option>
 							</select>
-							<select v-model="item.repair_code" class="rounded-md border px-2 py-1.5 text-sm">
+							<select v-model="item.repair_code" class="oak-input px-2.5 py-2">
 								<option value="">— {{ labels.colRepair }} —</option>
 								<option v-for="r in repairCodes" :key="r.code" :value="r.code">{{ r.code }} — {{ r.description }}</option>
 							</select>
@@ -170,17 +185,17 @@
 						<!-- Photos for this item (multi) — saved per section, above the keterangan -->
 						<div class="mt-2 flex flex-wrap items-center gap-2">
 							<div v-for="(url, idx) in item.photos" :key="url" class="relative">
-								<img :src="url" class="h-14 w-14 rounded border object-cover" />
+								<img :src="url" class="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
 								<button
 									type="button"
-									class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gray-800 text-xs leading-none text-white"
+									class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-white shadow"
 									@click="removePhoto(item, idx)"
 								>
-									×
+									<Icon name="x" :size="12" />
 								</button>
 							</div>
 							<label
-								class="flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded border border-dashed border-gray-300 text-gray-400"
+								class="flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 text-gray-400 transition hover:border-brand-400 hover:text-brand-500"
 							>
 								<input
 									type="file"
@@ -193,8 +208,8 @@
 								/>
 								<span v-if="item.uploading" class="text-xs">…</span>
 								<template v-else>
-									<span class="text-lg leading-none">＋</span>
-									<span class="text-[9px]">{{ labels.photo }}</span>
+									<Icon name="camera" :size="18" />
+									<span class="text-[9px] font-medium">{{ labels.photo }}</span>
 								</template>
 							</label>
 						</div>
@@ -203,38 +218,44 @@
 							v-model.trim="item.remarks"
 							type="text"
 							:placeholder="labels.colRemarks"
-							class="mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+							class="oak-input mt-2 px-2.5 py-2"
 						/>
 					</div>
 				</div>
 			</section>
 
 			<!-- Step 5 — sign-off -->
-			<section class="space-y-3 rounded-lg border bg-white p-4">
-				<p class="text-sm font-semibold text-gray-700">{{ labels.signOff }}</p>
-				<div>
-					<label class="text-sm font-medium">{{ labels.eirRemarks }}</label>
-					<textarea v-model.trim="remarks" rows="2" class="mt-1 w-full rounded-md border px-3 py-2 text-sm"></textarea>
+			<section class="oak-section space-y-3">
+				<div class="flex items-center gap-2">
+					<Icon name="edit-3" :size="16" class="text-gray-400" />
+					<p class="oak-section-title">{{ labels.signOff }}</p>
 				</div>
-				<p class="text-sm text-gray-500">{{ labels.officer }}: <span class="font-medium text-gray-800">{{ session.user }}</span></p>
+				<div>
+					<label class="oak-label">{{ labels.eirRemarks }}</label>
+					<textarea v-model.trim="remarks" rows="2" class="oak-input"></textarea>
+				</div>
+				<p class="text-sm text-gray-500">{{ labels.officer }}: <span class="font-semibold text-gray-800">{{ session.user }}</span></p>
 			</section>
 
 			<!-- Step 5b — virtual signature of the EIR creator, directly above Submit -->
-			<section class="space-y-2 rounded-lg border bg-white p-4">
-				<p class="text-sm font-semibold text-gray-700">{{ labels.signature }}</p>
+			<section class="oak-section space-y-2">
+				<div class="flex items-center gap-2">
+					<Icon name="edit-2" :size="16" class="text-gray-400" />
+					<p class="oak-section-title">{{ labels.signature }}</p>
+				</div>
 				<p class="text-xs text-gray-500">
-					{{ labels.signedBy }}: <span class="font-medium text-gray-800">{{ session.user }}</span>
+					{{ labels.signedBy }}: <span class="font-semibold text-gray-800">{{ session.user }}</span>
 				</p>
 				<div v-if="signatureUrl && !signing">
-					<img :src="signatureUrl" class="h-28 w-full rounded border bg-white object-contain" />
-					<button type="button" class="mt-1 text-sm text-blue-600 underline" @click="startResign">
-						{{ labels.signAgain }}
+					<img :src="signatureUrl" class="h-28 w-full rounded-xl border border-gray-200 bg-white object-contain" />
+					<button type="button" class="oak-link mt-1.5 inline-flex items-center gap-1 text-sm" @click="startResign">
+						<Icon name="rotate-ccw" :size="14" /> {{ labels.signAgain }}
 					</button>
 				</div>
 				<div v-else>
 					<canvas
 						ref="sigCanvas"
-						class="w-full touch-none rounded border bg-white"
+						class="w-full touch-none rounded-xl border border-gray-200 bg-white"
 						style="height: 150px"
 						@pointerdown="sigDown"
 						@pointermove="sigMove"
@@ -242,8 +263,8 @@
 						@pointercancel="sigUp"
 						@pointerleave="sigUp"
 					></canvas>
-					<div class="mt-1 flex items-center gap-3 text-sm">
-						<button type="button" class="text-gray-600 underline" @click="clearSignature">{{ labels.clear }}</button>
+					<div class="mt-1.5 flex items-center gap-3 text-sm">
+						<button type="button" class="text-gray-600 underline underline-offset-2" @click="clearSignature">{{ labels.clear }}</button>
 						<span v-if="sigUploading" class="text-gray-400">…</span>
 						<span v-else-if="sigErr" class="text-red-600">{{ sigErr }}</span>
 						<span v-else class="text-gray-400">{{ labels.signHint }}</span>
@@ -253,27 +274,32 @@
 
 			<!-- Step 6 — auto-save status + finalize -->
 			<section class="space-y-2">
-				<p class="text-xs">
+				<p class="flex items-center gap-1.5 text-xs">
 					<span v-if="saveRes.loading" class="text-gray-400">{{ labels.savingDraft }}</span>
 					<span v-else-if="saveError" class="text-red-600">{{ saveError }}</span>
-					<span v-else-if="savedOk" class="text-green-600">✓ {{ labels.draftSaved }}</span>
+					<span v-else-if="savedOk" class="inline-flex items-center gap-1 text-leaf-600"><Icon name="check" :size="13" /> {{ labels.draftSaved }}</span>
 					<span v-else class="text-gray-400">{{ labels.eirAutosaveHint }}</span>
 				</p>
 				<button
-					class="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+					class="oak-btn oak-btn-primary w-full py-3"
 					:disabled="saveRes.loading"
 					@click="doSave(true)"
 				>
+					<Icon v-if="!saveRes.loading" name="check-circle" :size="18" />
 					{{ saveRes.loading ? "…" : labels.submitEir }}
 				</button>
 			</section>
 		</template>
 
 		<!-- Finalized -->
-		<section v-if="submitted" class="rounded-lg border border-green-200 bg-green-50 p-4">
-			<p class="font-medium text-green-800">✓ {{ labels.eirSubmitted }}</p>
-			<p class="mt-1 text-sm text-gray-700">{{ submitted }}</p>
-			<button class="mt-2 text-sm text-blue-600 underline" @click="submitted = null">{{ labels.newEir }}</button>
+		<section v-if="submitted" class="animate-slide-up rounded-2xl border border-leaf-200 bg-leaf-50 p-4">
+			<p class="flex items-center gap-2 font-bold text-leaf-800">
+				<Icon name="check-circle" :size="18" /> {{ labels.eirSubmitted }}
+			</p>
+			<p class="mt-1 pl-7 text-sm text-gray-700">{{ submitted }}</p>
+			<button class="oak-link mt-2 inline-flex items-center gap-1 pl-7 text-sm" @click="submitted = null">
+				<Icon name="plus" :size="14" /> {{ labels.newEir }}
+			</button>
 		</section>
 	</div>
 </template>
@@ -283,6 +309,7 @@ import { computed, nextTick, reactive, ref, watch } from "vue"
 import { createResource } from "frappe-ui"
 import { labels } from "@/utils/labels"
 import { session } from "@/data/session"
+import Icon from "@/components/Icon.vue"
 
 const containerNo = ref("")
 const eirType = ref("EIR-In")

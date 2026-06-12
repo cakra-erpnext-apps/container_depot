@@ -970,6 +970,14 @@ def _booking_gate_detail(booking) -> dict:
 		fields=["name", "container", "container_no", "state", "direction"],
 		order_by="container_no asc",
 	):
+		# Booking-line detail (truck/driver/voucher) so the gate form can auto-fill from
+		# the first selected container — same source the Desk Generate dialog uses.
+		line = frappe.db.get_value(
+			"Container Booking Item",
+			{"parent": booking, "container_no": c.container_no},
+			["condition", "cargo", "truck_plate", "driver", "driver_phone", "ro", "tanggal_bongkar"],
+			as_dict=True,
+		) or {}
 		containers.append({
 			"booking_code": c.name,
 			"container": c.container,
@@ -977,6 +985,7 @@ def _booking_gate_detail(booking) -> dict:
 			"code_state": c.state,
 			"direction": c.direction,
 			"order": _find_order_for_code(c.name),
+			"line": line,
 		})
 	return {
 		"booking": b.name,
@@ -1028,10 +1037,17 @@ def _latest_valid_cleaning_cert(container) -> str | None:
 
 
 @frappe.whitelist(methods=["POST"])
-def gate_generate_order(booking, selected_codes):
+def gate_generate_order(booking, selected_codes, vehicle_data=None):
 	"""Gate PWA: issue a submitted bon for up to 2 of a booking's containers. Refuses
-	when a Cash booking isn't Paid (pay at the cashier first). For Tank Out (Order
-	Muat) a valid Cleaning Certificate is auto-resolved per container."""
+	when a Cash booking isn't Paid (pay at the cashier first).
+
+	``vehicle_data`` (JSON string or dict) carries the truck/driver/voucher detail
+	entered in the gate form — the same shape the Desk "Generate" dialog sends to
+	``make_order`` (Tank In: ``truck_plate``/``driver``/``driver_phone``/``ro``/
+	``condition``/``cargo``/``tanggal_bongkar_actual``/``shipper``/``ex_vessel``/
+	``remarks``; Tank Out: ``truck_plate``/``driver_name``/``driver_phone``/``ro``/
+	``angkutan``/``destination``/``tanggal_muat``/``shipper``/``remarks``). For Tank
+	Out a valid Cleaning Certificate is auto-resolved per container."""
 	_require_authenticated_user()
 	b = frappe.db.get_value(
 		"Container Booking", booking, ["payment_type", "payment_status", "direction"], as_dict=True
@@ -1043,7 +1059,11 @@ def gate_generate_order(booking, selected_codes):
 
 	from container_depot.operations.order_generation import _as_code_list, make_order
 
-	vehicle_data = {}
+	vd = vehicle_data
+	if isinstance(vd, str):
+		vd = json.loads(vd) if vd.strip() else {}
+	vd = dict(vd) if isinstance(vd, dict) else {}  # copy; never mutate the caller's dict
+
 	if b.direction == "Tank Out":
 		certs = {}
 		for code in _as_code_list(selected_codes):
@@ -1056,9 +1076,13 @@ def gate_generate_order(booking, selected_codes):
 					)
 				)
 			certs[code] = cert
-		vehicle_data["cleaning_certificates"] = certs
+		vd["cleaning_certificates"] = certs
+		# Order Muat reads per-container remarks as a {code: text} dict — expand a single
+		# form string to every selected container so it isn't silently dropped.
+		if isinstance(vd.get("remarks"), str) and vd["remarks"].strip():
+			vd["remarks"] = {code: vd["remarks"] for code in _as_code_list(selected_codes)}
 
-	order_name = make_order(booking, selected_codes, vehicle_data=vehicle_data, submit=True)
+	order_name = make_order(booking, selected_codes, vehicle_data=vd, submit=True)
 	return {
 		"success": True,
 		"order_name": order_name,
