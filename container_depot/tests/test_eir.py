@@ -505,6 +505,21 @@ class TestEirCargoAndExVessel(FrappeTestCase):
 					   lines=[{"item_code": "01", "damage_code": "11"}], submit=True)
 		self.assertEqual(frappe.db.get_value("Container", c, "last_cargo"), "Acetic Acid")
 
+	def test_eir_in_submit_writes_eir_in_date(self):
+		c = _make_container("EIRV2000020", status="Gate_In")
+		d = eir.open_draft(container_no="EIRV2000020", inspection_type="EIR-In")
+		eir.save_draft(inspection=d["inspection"], inspection_type="EIR-In",
+					   tank_status="Empty Dirty", lines=[], submit=True)
+		self.assertIsNotNone(frappe.db.get_value("Container", c, "eir_in_date"))
+
+	def test_eir_out_submit_writes_eir_out_date(self):
+		# EIR-Out submit now records the container's gate-out date (was never written).
+		c = _make_container("EIRV2000021", status="Available")
+		d = eir.open_draft(container_no="EIRV2000021", inspection_type="EIR-Out")
+		eir.save_draft(inspection=d["inspection"], inspection_type="EIR-Out",
+					   tank_status="Empty Clean", lines=[], submit=True)
+		self.assertIsNotNone(frappe.db.get_value("Container", c, "eir_out_date"))
+
 	def test_prefill_returns_container_ex_vessel(self):
 		_make_container("EIRV3000001", ex_vessel="MV NEPTUNE")
 		data = eir.prefill(container_no="EIRV3000001")

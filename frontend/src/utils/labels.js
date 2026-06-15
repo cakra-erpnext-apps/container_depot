@@ -35,7 +35,8 @@ export const labels = {
 	maxGross: "Berat Kotor Maks (kg)", // Max gross weight
 	lastCargo: "Muatan Terakhir", // Last cargo
 	lastTest: "Tes Terakhir", // Last test date
-	eirInDate: "EIR-In Date", // EIR-In date from the Container master
+	eirInDate: "Last EIR-In Date", // last EIR-In date from the Container master
+	eirOutDate: "Last EIR-Out Date", // last EIR-Out date from the Container master
 	location: "Lokasi Yard", // Yard location
 	documents: "Dokumen", // Documents
 	noDocuments: "Belum ada dokumen", // No documents yet
@@ -175,6 +176,7 @@ export const labels = {
 	storageTargetCategory: "Kategori Tujuan", // Target category
 	storageRecommended: "Disarankan", // Recommended
 	storageNoRecommend: "Tidak ada zona yang cocok untuk status ini.", // no match
+	storageNoDepot: "Container belum di-assign ke depot — set depot-nya dulu (master Container) sebelum atur zona.", // container has no depot
 	storageSelectZone: "Pilih zona penempatan", // pick a zone
 	storageManualPick: "Pilih zona manual / lainnya", // manual zone picker toggle
 	storageRow: "Baris", // Row

@@ -123,7 +123,7 @@
 				</dl>
 				<div>
 					<label class="oak-label">{{ labels.tanggal }}</label>
-					<input v-model="tanggal" type="date" class="oak-input" />
+					<input v-model="tanggal" type="date" class="oak-input bg-gray-50 text-gray-500" readonly />
 				</div>
 			</section>
 
@@ -371,12 +371,14 @@ const groups = computed(() => {
 // the container number is the identity; all values come from the Container master).
 const headerCells = computed(() => {
 	const h = header.value || {}
+	// The gate-date cell follows the chosen EIR type: In -> EIR-In Date, Out -> EIR-Out Date.
+	const isOut = eirType.value === "EIR-Out"
 	return [
 		{ label: labels.containerNumber, value: h.container_no },
 		{ label: labels.serialNo, value: h.serial_no },
 		{ label: labels.dateManufacture, value: h.manufacture_date },
 		{ label: labels.ownerPrincipal, value: h.principal },
-		{ label: labels.eirInDate, value: h.eir_in_date },
+		{ label: isOut ? labels.eirOutDate : labels.eirInDate, value: isOut ? h.eir_out_date : h.eir_in_date },
 		{ label: labels.capacity, value: h.capacity },
 		{ label: labels.tare, value: h.tare_weight },
 		{ label: labels.maxGross, value: h.max_gross_weight },

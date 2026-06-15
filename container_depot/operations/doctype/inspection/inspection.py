@@ -54,8 +54,12 @@ class Inspection(Document):
 			self._save_container(container)
 		elif self.inspection_type == "Detailed Survey":
 			self._apply_survey_result(container)
+		elif self.inspection_type == "EIR-Out":
+			# Record the gate-out inspection date on the container (mirrors EIR-In).
+			container.eir_out_date = datetime.datetime.now()
+			self._save_container(container)
 		elif cargo_changed:
-			# No status transition (e.g. EIR-Out) but the cargo changed — persist it.
+			# Some other type with a cargo change — persist it.
 			self._save_container(container)
 
 		outcome = [p for p in (self.get("tank_status"), "damage found" if self.has_damage else None) if p]
