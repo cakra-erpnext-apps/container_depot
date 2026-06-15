@@ -182,6 +182,59 @@ def depot_rollup(zone_views):
 	return out
 
 
+def zone_tank_list(zone, search=None, start=0, page_length=50):
+	"""Containers physically in ``zone`` — the exact set :func:`zone_occupancy` counts.
+
+	Membership is by ``yard_zone`` + "still occupies a slot" (status not in
+	``_NOT_OCCUPYING``), so this list can never disagree with the zone card's ``X/Y``.
+	Unlike the generic inventory list it does NOT apply the per-container branch-depot
+	scope (the zone itself is what's branch-checked, by the caller) and reads with
+	``frappe.get_all`` (same permission-free read as the occupancy count) — a tank
+	whose own ``depot`` is blank or stale therefore still shows. Optional container_no
+	search + pagination; each row carries the derived UI status bucket.
+	"""
+	from container_depot.ess.inventory import (
+		_LIST_FIELDS,
+		_open_service_sets,
+		_pt_due_set,
+		derive_status,
+	)
+
+	start = cint(start)
+	page_length = cint(page_length) or 50
+	filters = {"yard_zone": zone, "status": ["not in", list(_NOT_OCCUPYING)]}
+	if search:
+		filters["container_no"] = ["like", f"%{str(search).strip()}%"]
+	rows = frappe.get_all(
+		"Container", filters=filters, fields=_LIST_FIELDS, order_by="container_no asc"
+	)
+	names = [r.name for r in rows]
+	cleaning, repair, inspection = _open_service_sets(names)
+	pt_due = _pt_due_set(names)
+	items = [
+		{
+			"name": r.name,
+			"container_no": r.container_no,
+			"container_type": r.container_type,
+			"principal": r.principal,
+			"depot": r.depot,
+			"yard_zone": r.yard_zone,
+			"status": derive_status(
+				r.status, r.name in cleaning, r.name in repair, r.name in inspection
+			),
+			"pt_due": r.name in pt_due,
+		}
+		for r in rows
+	]
+	return {
+		"success": True,
+		"total": len(items),
+		"start": start,
+		"page_length": page_length,
+		"items": items[start : start + page_length],
+	}
+
+
 def _scope_depots(container):
 	"""Ordered candidate depots for placing this container (per-branch policy).
 

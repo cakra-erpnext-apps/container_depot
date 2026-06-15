@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 from container_depot.api import _require_authenticated_user
 from container_depot.operations import yard
-from container_depot.operations.user_branch import get_user_depots
+from container_depot.operations.user_branch import assert_in_user_branch, get_user_depots
 
 # Roles allowed to RECORD a placement. Reads stay open to any authenticated PWA
 # user (and remain permission-aware on the underlying Container/Yard Zone rows).
@@ -75,12 +76,17 @@ def yard_overview(depot=None):
 def yard_zone_tanks(zone, search=None, start=0, page_length=50):
 	"""GET /api/v1/ess/yard-zone-tanks — containers currently in one zone.
 
-	Reuses the permission-aware tank list so depot scoping / DocPerms still apply.
+	Returns exactly the tanks the zone's occupancy bar counts (membership by yard_zone),
+	so the list never disagrees with ``X/Y``. The zone is branch-checked (its depot must
+	be in the caller's branch scope); within it, every tank is listed regardless of the
+	container's own (possibly blank/stale) depot.
 	"""
 	_require_authenticated_user()
-	from container_depot.ess.inventory import get_tank_list
-
-	return get_tank_list(yard_zone=zone, search=search, start=start, page_length=page_length)
+	z = frappe.db.get_value("Yard Zone", zone, ["name", "depot"], as_dict=True)
+	if not z:
+		return {"success": True, "total": 0, "start": cint(start), "page_length": cint(page_length) or 50, "items": []}
+	assert_in_user_branch(depot=z.depot)
+	return yard.zone_tank_list(zone, search=search, start=start, page_length=page_length)
 
 
 @frappe.whitelist(methods=["GET"])

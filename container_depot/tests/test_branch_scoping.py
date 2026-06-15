@@ -11,7 +11,7 @@ from container_depot.operations.user_branch import (
 )
 from container_depot.ess.context import get_user_context
 from container_depot.ess.inventory import get_tank_list, get_inventory_summary
-from container_depot.ess.yard import yard_overview
+from container_depot.ess.yard import yard_overview, yard_zone_tanks
 from container_depot.api import gate_lookup
 from container_depot.operations.eir import prefill, open_draft, create_eir
 from container_depot.ess.notifications import list_notifications
@@ -267,6 +267,36 @@ class TestYardOverviewScoping(FrappeTestCase):
 			self.assertIn(key, md)
 		self.assertEqual(md["zone_count"], 1)
 		self.assertEqual(md["capacity"], 10)
+
+	def test_zone_tanks_lists_by_zone_not_container_depot(self):
+		# A tank placed in a Medan zone but whose OWN depot is Surabaya (out of the Medan
+		# user's depot scope). Occupancy counts it by zone; the zone list must match it —
+		# regression for the "1/10 but the list says empty" bug.
+		frappe.set_user("Administrator")
+		if not frappe.db.exists("Container", "BSTU0000090"):
+			frappe.get_doc({
+				"doctype": "Container", "container_no": "BSTU0000090", "container_type": "ISO Tank",
+				"status": "Inspecting", "depot": "BST_SB1", "yard_zone": "BSTZ-MD",
+			}).insert(ignore_permissions=True)
+		frappe.db.commit()
+		try:
+			frappe.set_user(USER_MEDAN)
+			res = yard_zone_tanks("BSTZ-MD")
+			frappe.set_user("Administrator")
+			self.assertIn("BSTU0000090", [t["container_no"] for t in res["items"]])
+		finally:
+			frappe.set_user("Administrator")
+			frappe.db.delete("Container Movement", {"container": "BSTU0000090"})
+			frappe.db.delete("Container", {"name": "BSTU0000090"})
+			frappe.db.commit()
+
+	def test_zone_tanks_blocks_out_of_branch_zone(self):
+		frappe.set_user(USER_MEDAN)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				yard_zone_tanks("BSTZ-SB")  # Surabaya zone — out of the Medan user's branch
+		finally:
+			frappe.set_user("Administrator")
 
 
 class TestGateBranchBlock(FrappeTestCase):
