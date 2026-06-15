@@ -8,8 +8,7 @@ Carries the three Phase-3 critical controllers:
 2. TANK OUT gating (``validate`` when direction == 'Tank Out'): every item must
    reference a Container that is clean + ready, with a Cleaning Certificate
    whose ``valid_until`` covers today.
-3. 72h Booking Code issuance on submit; expiry runs hourly via
-   ``container_depot.tasks.expire_booking_codes`` (see hooks.py).
+3. Booking Code issuance on submit (one per item). Codes do not expire.
 """
 
 from __future__ import annotations
@@ -18,11 +17,10 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
-from frappe.utils import add_to_date, cint, getdate, now_datetime, today
+from frappe.utils import cint, getdate, now_datetime, today
 
 from container_depot import invoicing, pricing, pricing_model
 from container_depot.operations.doctype.booking_code.booking_code import (
-	CODE_TTL_HOURS,
 	generate_code,
 )
 from container_depot.operations.doctype.depot_contract.depot_contract import (
@@ -691,7 +689,6 @@ class ContainerBooking(Document):
 
 	def _issue_booking_codes(self):
 		issued_at = now_datetime()
-		expires_at = add_to_date(issued_at, hours=CODE_TTL_HOURS)
 		for item in self.items or []:
 			if item.booking_code:
 				continue
@@ -708,7 +705,6 @@ class ContainerBooking(Document):
 				"status_tag": status_tag_for_condition(item.condition),
 				"state": "Active",
 				"issued_at": issued_at,
-				"expires_at": expires_at,
 			}).insert(ignore_permissions=True)
 			# Persist the back-ref without re-validating the parent.
 			frappe.db.set_value(

@@ -1,7 +1,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, get_datetime, now_datetime
+from frappe.utils import cint
 
 # A single bon/voucher may carry at most this many containers.
 MAX_CONTAINERS_PER_ORDER = 2
@@ -177,8 +177,8 @@ def _code_owned_by_order(doc: Document, code: str) -> bool:
 
 def _validate_booking_code(doc: Document, expected_direction: str):
 	"""Validate every container row's Booking Code: right direction, in this
-	booking, 1..3 cap. A NEWLY added code must be ``Active`` and unexpired; a code
-	already on this order may be ``Used`` (it was consumed by this bon).
+	booking, 1..3 cap. A NEWLY added code must be ``Active``; a code already on
+	this order may be ``Used`` (it was consumed by this bon).
 	"""
 	rows = _order_rows(doc)
 	if not (1 <= len(rows) <= MAX_CONTAINERS_PER_ORDER):
@@ -199,7 +199,7 @@ def _validate_booking_code(doc: Document, expected_direction: str):
 		bc = frappe.db.get_value(
 			"Booking Code",
 			row.booking_code,
-			["state", "direction", "container", "container_no", "booking", "expires_at"],
+			["state", "direction", "container", "container_no", "booking"],
 			as_dict=True,
 		)
 		if not bc:
@@ -216,14 +216,12 @@ def _validate_booking_code(doc: Document, expected_direction: str):
 					row.booking_code, doc.booking
 				)
 			)
-		# Active/expiry only applies to a code being newly placed on this order.
+		# The Active check only applies to a code being newly placed on this order.
 		if not _code_owned_by_order(doc, row.booking_code):
 			if bc.state != "Active":
 				frappe.throw(
 					_("Booking Code {0} state is {1}; must be Active.").format(row.booking_code, bc.state)
 				)
-			if bc.expires_at and get_datetime(bc.expires_at) < now_datetime():
-				frappe.throw(_("Booking Code {0} has expired.").format(row.booking_code))
 		# Auto-populate the row's container + booking-line detail from the booking line.
 		# Order Bongkar reuses Container Booking Item, whose condition / cargo / Tgl.
 		# Bongkar are required, so a manually added container inherits the booking's

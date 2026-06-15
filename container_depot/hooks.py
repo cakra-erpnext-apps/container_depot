@@ -56,9 +56,6 @@ doc_events = {
 # --------------
 
 scheduler_events = {
-	"hourly": [
-		"container_depot.tasks.expire_booking_codes",
-	],
 	"daily": [
 		"container_depot.tasks.remind_periodic_test_due",
 		"container_depot.tasks.notify_customers",

@@ -115,13 +115,6 @@ class TestMakeOrderCore(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			make_order(booking, codes)
 
-	def test_rejects_expired_code(self):
-		booking, codes = _booking_with_codes(
-			code_direction="Tank In", count=1, prefix="MCEXP0", state="Active", offset_hours=-1
-		)
-		with self.assertRaises(frappe.ValidationError):
-			make_order(booking, codes)
-
 	def test_no_double_issue(self):
 		booking, codes = _booking_with_codes(code_direction="Tank In", count=1, prefix="MCDBL0")
 		make_order(booking, codes)

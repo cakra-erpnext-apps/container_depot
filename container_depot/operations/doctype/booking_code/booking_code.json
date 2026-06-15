@@ -108,10 +108,11 @@
       "fieldtype": "Column Break"
     },
     {
+      "description": "Deprecated — Booking Codes no longer expire.",
       "fieldname": "expires_at",
       "fieldtype": "Datetime",
       "label": "Expires At",
-      "reqd": 1
+      "read_only": 1
     },
     {
       "collapsible": 1,

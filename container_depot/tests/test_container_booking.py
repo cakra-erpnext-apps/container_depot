@@ -1,17 +1,15 @@
-"""Tests for the three Phase-3 critical controllers:
+"""Tests for the Phase-3 critical controllers:
 
 1. TOP credit-block (Container Booking.before_submit).
 2. TANK OUT gating (Container Booking.validate when direction == 'Tank Out').
-3. 72h Booking Code expiry (container_depot.tasks.expire_booking_codes).
 """
 
 from __future__ import annotations
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_days, add_to_date, now_datetime, today
+from frappe.utils import add_days, now_datetime, today
 
-from container_depot.tasks import expire_booking_codes
 from container_depot.tests.test_api import ensure_test_customer
 
 
@@ -646,75 +644,3 @@ class TestTankOutGating(FrappeTestCase):
 			self.assertIn("Ready", str(ctx.exception))
 		finally:
 			frappe.db.set_value("Container", self.container, "status", "Available")
-
-
-class TestBookingCodeExpiry(FrappeTestCase):
-	"""Scheduler-style expiry: Active codes whose expires_at < now → Expired."""
-
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.customer = ensure_test_customer("Phase3 Expiry Customer")
-		_cleanup_customer_world(cls.customer)
-		cls.contract = _make_active_contract(cls.customer, payment_type="Cash")
-
-	@classmethod
-	def tearDownClass(cls):
-		_cleanup_customer_world(cls.customer)
-		super().tearDownClass()
-
-	def test_expire_booking_codes_flips_stale(self):
-		# Create a booking + code with expires_at in the past.
-		from container_depot.operations.doctype.booking_code.booking_code import (
-			CODE_TTL_HOURS,
-			generate_code,
-		)
-		b = frappe.get_doc({
-			"doctype": "Container Booking",
-			"direction": "Tank In",
-			"customer": self.customer,
-			"contract": self.contract,
-			"booking_status": "Pending Confirmation",
-			"items": [{"container_no": "TANK0000099"}],
-		}).insert(ignore_permissions=True)
-		code = frappe.get_doc({
-			"doctype": "Booking Code",
-			"code": generate_code(),
-			"booking": b.name,
-			"direction": "Tank In",
-			"container_no": "TANK0000099",
-			"state": "Active",
-			"issued_at": add_to_date(now_datetime(), hours=-(CODE_TTL_HOURS + 1)),
-			"expires_at": add_to_date(now_datetime(), hours=-1),
-		}).insert(ignore_permissions=True)
-
-		expired = expire_booking_codes()
-		self.assertGreaterEqual(expired, 1)
-		code.reload()
-		self.assertEqual(code.state, "Expired")
-
-	def test_expire_booking_codes_leaves_active_alone(self):
-		from container_depot.operations.doctype.booking_code.booking_code import (
-			generate_code,
-		)
-		b = frappe.get_doc({
-			"doctype": "Container Booking",
-			"direction": "Tank In",
-			"customer": self.customer,
-			"contract": self.contract,
-			"booking_status": "Pending Confirmation",
-			"items": [{"container_no": "TANK0000098"}],
-		}).insert(ignore_permissions=True)
-		code = frappe.get_doc({
-			"doctype": "Booking Code",
-			"code": generate_code(),
-			"booking": b.name,
-			"direction": "Tank In",
-			"container_no": "TANK0000098",
-			"state": "Active",
-			"issued_at": now_datetime(),
-			"expires_at": add_to_date(now_datetime(), hours=+5),
-		}).insert(ignore_permissions=True)
-		expire_booking_codes()
-		code.reload()
-		self.assertEqual(code.state, "Active")

@@ -5,14 +5,13 @@ Sections (one row each, ``metric`` column carries the label):
 - Containers by status
 - Bookings by status (today)
 - Pending Orders (Bongkar / Muat)
-- Booking Codes expiring in the next 24h
 - Overdue Cleaning Certificates (valid_until < today)
 """
 
 from __future__ import annotations
 
 import frappe
-from frappe.utils import add_days, getdate, today
+from frappe.utils import getdate, today
 
 
 def execute(filters=None):
@@ -25,8 +24,6 @@ def execute(filters=None):
 	data.extend(_bookings_today())
 	data.append(_separator("Orders"))
 	data.extend(_pending_orders())
-	data.append(_separator("Booking Codes"))
-	data.extend(_codes_expiring_soon())
 	data.append(_separator("Cleaning Certificates"))
 	data.extend(_overdue_certs())
 
@@ -89,24 +86,6 @@ def _pending_orders():
 			{"section": dt, "metric": r["order_status"], "count": r["c"]} for r in rows
 		)
 	return out
-
-
-def _codes_expiring_soon():
-	end = add_days(today(), 1)
-	rows = frappe.db.sql(
-		"""
-		SELECT direction, COUNT(*) AS c
-		FROM `tabBooking Code`
-		WHERE state = 'Active' AND expires_at <= %s
-		GROUP BY direction
-		""",
-		(end,),
-		as_dict=True,
-	)
-	return [
-		{"section": "Codes expiring ≤24h", "metric": r["direction"], "count": r["c"]}
-		for r in rows
-	]
 
 
 def _overdue_certs():

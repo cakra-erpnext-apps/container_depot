@@ -1,6 +1,7 @@
-"""Booking Code: a single-use, 72h-expiring code printed as QR and given to a
-truck driver / SST. Created (one per booking item) when an Container Booking is
-confirmed and paid (or credit-approved for TOP).
+"""Booking Code: a single-use code printed as QR and given to a truck driver /
+SST. Created (one per booking item) when an Container Booking is confirmed and
+paid (or credit-approved for TOP). Codes do not expire — they stay usable until
+consumed onto a bon / order.
 """
 
 from __future__ import annotations
@@ -11,10 +12,7 @@ from io import BytesIO
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import add_to_date, now_datetime
-
-
-CODE_TTL_HOURS = 72
+from frappe.utils import now_datetime
 
 
 def generate_code() -> str:
@@ -38,8 +36,6 @@ class BookingCode(Document):
 			self.code = generate_code()
 		if not self.issued_at:
 			self.issued_at = now_datetime()
-		if not self.expires_at:
-			self.expires_at = add_to_date(self.issued_at, hours=CODE_TTL_HOURS)
 		if not self.qr_image:
 			self.qr_image = self._render_qr_image()
 
@@ -56,10 +52,8 @@ class BookingCode(Document):
 		return f"data:image/png;base64,{b64}"
 
 	def is_active(self) -> bool:
-		return self.state == "Active" and not self.is_expired()
+		return self.state == "Active"
 
 	def is_expired(self) -> bool:
-		from frappe.utils import get_datetime
-		if not self.expires_at:
-			return False
-		return get_datetime(self.expires_at) < now_datetime()
+		# Booking Codes no longer expire; retained for callers/back-compat.
+		return False

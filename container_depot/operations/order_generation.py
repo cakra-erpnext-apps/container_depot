@@ -8,8 +8,8 @@ logika").
 
 Rules enforced here:
 - 1..3 containers per bon (``MAX_CONTAINERS_PER_ORDER``).
-- every selected Booking Code must belong to ``booking``, be ``Active``, unexpired,
-  and share one direction (a bon is single-direction).
+- every selected Booking Code must belong to ``booking``, be ``Active``, and share
+  one direction (a bon is single-direction).
 - code selection + order creation + flipping codes to ``Used`` happen in a single
   transaction with the codes row-locked (``SELECT ... FOR UPDATE``) so two
   concurrent issues — or the hourly expiry job — can't double-spend a code.
@@ -21,7 +21,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now_datetime
+from frappe.utils import now_datetime
 
 MAX_CONTAINERS_PER_ORDER = 2
 
@@ -108,7 +108,7 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None, submit=Fals
 		# Row-lock the candidate codes for the whole transaction.
 		locked = frappe.db.sql(
 			"""
-			SELECT name, state, direction, booking, container, container_no, expires_at
+			SELECT name, state, direction, booking, container, container_no
 			FROM `tabBooking Code`
 			WHERE name IN %(codes)s
 			FOR UPDATE
@@ -136,8 +136,6 @@ def make_order(booking, selected_codes, vehicle_data=None, sst=None, submit=Fals
 				frappe.throw(
 					_("Container {0} is no longer pending (state {1}).").format(label, r.state)
 				)
-			if r.expires_at and get_datetime(r.expires_at) < now_datetime():
-				frappe.throw(_("Container {0}'s booking code has expired.").format(label))
 
 		customer = frappe.db.get_value("Container Booking", booking, "customer")
 		order = frappe.new_doc(order_doctype)

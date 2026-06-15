@@ -855,8 +855,8 @@ def sst_issue_order(qr_data, truck_plate=None, driver_name=None, driver_phone=No
 
 @frappe.whitelist()
 def get_booking_pending_containers(booking):
-	"""Containers on a booking still issuable onto a bon: Active, unexpired
-	Booking Codes. Drives the DMS 'Generate Bon / Order' dialog.
+	"""Containers on a booking still issuable onto a bon: Active Booking Codes.
+	Drives the DMS 'Generate Bon / Order' dialog.
 
 	Read-only; left unrestricted on HTTP method so the desk's ``frappe.call``
 	(which POSTs by default) can reach it."""
@@ -874,10 +874,10 @@ def get_booking_pending_containers(booking):
 		FROM `tabBooking Code` bc
 		LEFT JOIN `tabContainer Booking Item` i
 		       ON i.parent = bc.booking AND i.container_no = bc.container_no
-		WHERE bc.booking = %(booking)s AND bc.state = 'Active' AND bc.expires_at > %(now)s
+		WHERE bc.booking = %(booking)s AND bc.state = 'Active'
 		ORDER BY bc.container_no
 		""",
-		{"booking": booking, "now": now_datetime()},
+		{"booking": booking},
 		as_dict=True,
 	)
 
