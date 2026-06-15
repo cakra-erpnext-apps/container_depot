@@ -82,6 +82,9 @@
 						</button>
 					</div>
 				</template>
+				<p v-else-if="!rec.depot" class="flex items-center gap-1.5 text-sm text-amber-600">
+					<Icon name="alert-triangle" :size="15" /> {{ labels.storageNoDepot }}
+				</p>
 				<p v-else class="flex items-center gap-1.5 text-sm text-amber-600">
 					<Icon name="alert-triangle" :size="15" /> {{ labels.storageNoRecommend }}
 				</p>

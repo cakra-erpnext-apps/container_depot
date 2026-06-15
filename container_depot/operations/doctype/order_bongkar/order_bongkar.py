@@ -16,6 +16,8 @@ class OrderBongkar(Document):
 		_reconcile_codes(self)
 
 	def on_submit(self):
+		# Sync depot/status first so the activity log + ex_vessel see the arrived tank.
+		_sync_container_arrival(self)
 		_log_order_activity(self, "Order Bongkar")
 		_update_container_ex_vessel(self)
 		_ensure_order_qr(self)
@@ -81,6 +83,45 @@ def _update_container_ex_vessel(order: Document):
 	for row in _order_rows(order):
 		if row.get("container"):
 			frappe.db.set_value("Container", row.container, "ex_vessel", ex_vessel)
+
+
+# Statuses a tank may sit in *before* it has physically arrived. Only these advance
+# to Gate_In on a Tank In bon, so a tank already in process is never regressed.
+_ARRIVAL_SOURCE_STATUS = {None, "", "Booked", "Available", "Gate_Out"}
+
+
+def _sync_container_arrival(order: Document):
+	"""On Tank In (bongkar) submit, push the arrival facts the bon knows onto the
+	Container master:
+
+	* ``depot`` — always set from the booking's depot (it is never written anywhere
+	  else, so without this a gated-in tank keeps a blank depot — which breaks
+	  Depot Storage zone recommendation).
+	* ``status`` -> ``Gate_In`` for a not-yet-arrived tank.
+
+	Saved through the ORM so ``Container.before_save`` keeps ``inventory_stage`` in
+	step (-> Incoming) and ``Container.on_update`` logs the Status Container Movement.
+	The transitions used (Booked / Available / Gate_Out -> Gate_In) are all valid in
+	the state machine, so no automation bypass is needed.
+	"""
+	depot = (
+		frappe.db.get_value("Container Booking", order.booking, "depot")
+		if order.get("booking")
+		else None
+	)
+	for row in _order_rows(order):
+		if not row.get("container"):
+			continue
+		container = frappe.get_doc("Container", row.container)
+		changed = False
+		if depot and container.depot != depot:
+			container.depot = depot
+			changed = True
+		if container.status in _ARRIVAL_SOURCE_STATUS:
+			container.status = "Gate_In"
+			changed = True
+		if changed:
+			container.save(ignore_permissions=True)
 
 
 def _sync_booking(doc: Document):
