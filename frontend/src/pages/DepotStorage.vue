@@ -494,7 +494,7 @@ function loadZonePage(reset) {
 	zoneTanksRes
 		.submit({
 			zone: zoneModal.value.zone_code,
-			search: zoneSearch.value || undefined,
+			search: zoneSearch.value || "",
 			start: zoneStart.value,
 			page_length: ZONE_PAGE,
 		})

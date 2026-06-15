@@ -202,9 +202,15 @@ def zone_tank_list(zone, search=None, start=0, page_length=50):
 
 	start = cint(start)
 	page_length = cint(page_length) or 50
+	# Guard against junk search values: a GET caller (or frappe-ui serialising an
+	# `undefined`) can send the literal strings "undefined"/"null", which must not
+	# become a `LIKE "%undefined%"` that hides every tank in the zone.
+	term = str(search).strip() if search is not None else ""
+	if term.lower() in ("undefined", "null", "none"):
+		term = ""
 	filters = {"yard_zone": zone, "status": ["not in", list(_NOT_OCCUPYING)]}
-	if search:
-		filters["container_no"] = ["like", f"%{str(search).strip()}%"]
+	if term:
+		filters["container_no"] = ["like", f"%{term}%"]
 	rows = frappe.get_all(
 		"Container", filters=filters, fields=_LIST_FIELDS, order_by="container_no asc"
 	)
