@@ -58,6 +58,61 @@
 			</div>
 		</section>
 
+		<!-- Quick lists (landing only): latest drafts to resume + latest completed -->
+		<template v-if="!header">
+			<!-- Draft EIRs -->
+			<section class="oak-section space-y-3">
+				<div class="flex items-center justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<Icon name="edit-3" :size="16" class="text-amber-500" />
+						<p class="oak-section-title">{{ labels.eirDraftList }}</p>
+					</div>
+					<router-link to="/eir/history" class="oak-link text-sm">{{ labels.eirListMore }}</router-link>
+				</div>
+				<ul v-if="draftRes.loading && !draftItems.length" class="space-y-2">
+					<li v-for="n in 3" :key="n" class="oak-skeleton h-12 rounded-xl"></li>
+				</ul>
+				<p v-else-if="!draftItems.length" class="py-2 text-center text-sm text-gray-400">{{ labels.eirDraftEmpty }}</p>
+				<ul v-else class="divide-y divide-gray-100">
+					<li v-for="r in draftItems" :key="r.name">
+						<button class="flex w-full items-center gap-3 py-2.5 text-left" @click="resumeDraft(r)">
+							<span class="oak-icon-tile h-9 w-9 shrink-0 bg-amber-50 text-amber-600"><Icon name="clipboard" :size="16" /></span>
+							<div class="min-w-0 flex-1">
+								<p class="truncate font-semibold text-gray-900">{{ r.container_no || r.container }}</p>
+								<p class="truncate text-xs text-gray-500">{{ r.inspection_type }} · {{ fmtDate(r.eir_date || r.creation) }}</p>
+							</div>
+							<span class="oak-chip shrink-0 bg-amber-100 text-amber-800">{{ labels.eirResume }}</span>
+						</button>
+					</li>
+				</ul>
+			</section>
+
+			<!-- Completed (submitted) EIRs -->
+			<section class="oak-section space-y-3">
+				<div class="flex items-center justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<Icon name="check-circle" :size="16" class="text-leaf-600" />
+						<p class="oak-section-title">{{ labels.eirCompleteList }}</p>
+					</div>
+					<router-link to="/eir/history" class="oak-link text-sm">{{ labels.eirListMore }}</router-link>
+				</div>
+				<ul v-if="doneRes.loading && !doneItems.length" class="space-y-2">
+					<li v-for="n in 3" :key="n" class="oak-skeleton h-12 rounded-xl"></li>
+				</ul>
+				<p v-else-if="!doneItems.length" class="py-2 text-center text-sm text-gray-400">{{ labels.eirCompleteEmpty }}</p>
+				<ul v-else class="divide-y divide-gray-100">
+					<li v-for="r in doneItems" :key="r.name" class="flex items-center gap-3 py-2.5">
+						<span class="oak-icon-tile h-9 w-9 shrink-0 bg-leaf-50 text-leaf-600"><Icon name="clipboard" :size="16" /></span>
+						<div class="min-w-0 flex-1">
+							<p class="truncate font-semibold text-gray-900">{{ r.container_no || r.container }}</p>
+							<p class="truncate text-xs text-gray-500">{{ r.inspection_type }}<span v-if="r.tank_status"> · {{ r.tank_status }}</span> · {{ fmtDate(r.eir_date || r.creation) }}</p>
+						</div>
+						<span class="oak-chip shrink-0 bg-leaf-100 text-leaf-800">{{ labels.eirStatusSubmitted }}</span>
+					</li>
+				</ul>
+			</section>
+		</template>
+
 		<!-- Steps 2-6 appear once a draft is open -->
 		<template v-if="header">
 			<!-- Step 1b — referred voucher: pull shipper / truck / driver (read-only) -->
@@ -419,6 +474,37 @@ const openRes = createResource({
 	},
 })
 
+// Landing quick lists: the user's 3 latest drafts (resumable) + 3 latest submitted.
+const LANDING_LIMIT = 3
+const draftItems = ref([])
+const doneItems = ref([])
+const draftRes = createResource({
+	url: "container_depot.ess.inspections.eir_history",
+	method: "GET",
+	makeParams: () => ({ docstatus: 0, page_length: LANDING_LIMIT }),
+	auto: true,
+	onSuccess: (data) => (draftItems.value = data.items || []),
+})
+const doneRes = createResource({
+	url: "container_depot.ess.inspections.eir_history",
+	method: "GET",
+	makeParams: () => ({ docstatus: 1, page_length: LANDING_LIMIT }),
+	auto: true,
+	onSuccess: (data) => (doneItems.value = data.items || []),
+})
+function reloadLandingLists() {
+	draftRes.reload()
+	doneRes.reload()
+}
+function resumeDraft(r) {
+	containerNo.value = r.container_no || r.container
+	if (r.inspection_type) eirType.value = r.inspection_type
+	doFetch()
+}
+function fmtDate(v) {
+	return v ? String(v).slice(0, 10) : "—"
+}
+
 const saveRes = createResource({
 	url: "container_depot.ess.inspections.eir_save_draft",
 	method: "POST",
@@ -728,5 +814,6 @@ function reset() {
 		r.photos = []
 		r.photoErr = ""
 	})
+	reloadLandingLists()
 }
 </script>

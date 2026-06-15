@@ -669,19 +669,22 @@ def save_draft(
 	}
 
 
-def list_my_eirs(user=None, search=None, start=0, page_length=10) -> dict:
+def list_my_eirs(user=None, search=None, start=0, page_length=10, docstatus=None) -> dict:
 	"""The caller's own EIR inspections — newest first, searchable + paginated.
 
 	Hard-scoped to ``owner == user`` (and EIR-In / EIR-Out) so a user only ever sees the
 	EIRs they created. ``frappe.get_all`` is used deliberately (it ignores row-level
 	permissions) — the owner filter is the security boundary. Search matches the container
-	number or the EIR id; ``start`` / ``page_length`` paginate.
+	number or the EIR id; ``start`` / ``page_length`` paginate. Optional ``docstatus``
+	(0 = drafts, 1 = submitted) narrows the list for the checklist landing's quick lists.
 	"""
 	user = user or frappe.session.user
 	start = max(0, cint(start))
 	page_length = min(max(1, cint(page_length or 10)), 50)
 
 	filters = {"owner": user, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]}
+	if docstatus is not None and str(docstatus) != "":
+		filters["docstatus"] = cint(docstatus)
 	or_filters = None
 	if search and str(search).strip():
 		s = f"%{str(search).strip()}%"

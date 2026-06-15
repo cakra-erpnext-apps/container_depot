@@ -156,6 +156,13 @@ export const labels = {
 	eirStatusDraft: "Draf", // Draft
 	eirStatusSubmitted: "Submit", // Submitted
 	eirStatusCancelled: "Batal", // Cancelled
+	// Quick lists on the checklist landing (latest drafts / completed)
+	eirDraftList: "EIR Draf", // Draft EIRs
+	eirCompleteList: "EIR Selesai", // Completed EIRs
+	eirListMore: "Lihat semua", // See all (-> history)
+	eirDraftEmpty: "Belum ada draf EIR.", // No drafts yet
+	eirCompleteEmpty: "Belum ada EIR selesai.", // No completed EIRs yet
+	eirResume: "Lanjutkan", // Resume (open a draft)
 	// Virtual signature (EIR creator)
 	signature: "Tanda Tangan Pembuat EIR", // EIR creator signature
 	signedBy: "Ditandatangani oleh", // Signed by

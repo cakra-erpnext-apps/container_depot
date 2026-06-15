@@ -34,14 +34,20 @@ def eir_prefill(container=None, container_no=None, booking_code=None, order_bong
 
 
 @frappe.whitelist(methods=["GET"])
-def eir_history(search=None, start=0, page_length=10):
+def eir_history(search=None, start=0, page_length=10, docstatus=None):
 	"""GET /api/v1/ess/eir-history — the caller's own EIRs (newest first, paginated).
 
 	Searchable by container number / EIR id. Scoped to the logged-in user's own EIRs.
+	Optional ``docstatus`` (0 = drafts, 1 = submitted) narrows the list — used by the
+	checklist landing's "latest drafts / completed" quick lists.
 	"""
 	_require_authenticated_user()
 	return eir.list_my_eirs(
-		user=frappe.session.user, search=search, start=start, page_length=page_length
+		user=frappe.session.user,
+		search=search,
+		start=start,
+		page_length=page_length,
+		docstatus=docstatus,
 	)
 
 
