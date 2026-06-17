@@ -166,14 +166,14 @@ class TestEirCreate(FrappeTestCase):
 		self.assertEqual(cont.status, "Inspecting")
 		self.assertTrue(cont.eir_in_date)
 
-	def test_has_damage_false_for_acceptable_or_repair_only(self):
+	def test_acceptable_skipped_and_repair_only_not_damage(self):
 		c = _make_container("EIRC1000003")
 		lines = [
-			{"item_code": "01", "damage_code": "v"},   # Acceptable — stored, not "damage"
-			{"item_code": "02", "repair_code": "38"},  # repair only — not "damage"
+			{"item_code": "01", "damage_code": "v"},   # Acceptable + No Action (default) — NOT stored
+			{"item_code": "02", "repair_code": "38"},  # repair only — stored, but not "damage"
 		]
 		res = eir.create_eir(inspection_type="EIR-In", container=c, lines=lines, submit=False)
-		self.assertEqual(res["damage_rows"], 2)
+		self.assertEqual(res["damage_rows"], 1)
 		self.assertEqual(frappe.get_doc("Inspection", res["name"]).has_damage, 0)
 
 	def test_create_with_item_photos(self):

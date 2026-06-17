@@ -393,6 +393,17 @@ const rows = ref([])
 const damageCodes = ref([])
 const repairCodes = ref([])
 
+// Default condition: every part starts "Acceptable" (damage "v") + "No Action" (repair
+// "X"). A row only becomes a real finding when the operator picks another code or types a
+// remark; acceptable/no-action rows are never stored as damage entries.
+const ACCEPTABLE_DAMAGE = "v"
+const NO_ACTION_REPAIR = "X"
+function rowHasFinding(r) {
+	const dmg = r.damage_code && r.damage_code !== ACCEPTABLE_DAMAGE
+	const rep = r.repair_code && r.repair_code !== NO_ACTION_REPAIR
+	return Boolean(dmg || rep || (r.remarks && r.remarks.trim()))
+}
+
 // Checklist taxonomy + code lists (loaded once).
 const mastersRes = createResource({
 	url: "container_depot.ess.inspections.eir_masters",
@@ -403,7 +414,7 @@ const mastersRes = createResource({
 		repairCodes.value = data.repair_codes || []
 		cargos.value = data.cargos || []
 		rows.value = (data.checklist || []).map((i) =>
-			reactive({ ...i, damage_code: "", repair_code: "", remarks: "", photos: [], uploading: false, photoErr: "" })
+			reactive({ ...i, damage_code: ACCEPTABLE_DAMAGE, repair_code: NO_ACTION_REPAIR, remarks: "", photos: [], uploading: false, photoErr: "" })
 		)
 		// If a draft is already open (rare: fetch resolved before masters), apply it now.
 		if (header.value) applyDraftToRows(header.value)
@@ -580,8 +591,8 @@ function applyDraftToRows(data) {
 	})
 	rows.value.forEach((r) => {
 		const l = lineMap[r.item_code]
-		r.damage_code = (l && l.damage_code) || ""
-		r.repair_code = (l && l.repair_code) || ""
+		r.damage_code = (l && l.damage_code) || ACCEPTABLE_DAMAGE
+		r.repair_code = (l && l.repair_code) || NO_ACTION_REPAIR
 		r.remarks = (l && l.remarks) || ""
 		r.photos = photoMap[r.item_code] ? [...photoMap[r.item_code]] : []
 		r.photoErr = ""
@@ -596,8 +607,9 @@ function doFetch() {
 }
 
 function buildLines() {
+	// Only send rows with a real finding — Acceptable + No Action (the default) is skipped.
 	return rows.value
-		.filter((r) => r.damage_code || r.repair_code || (r.remarks && r.remarks.trim()))
+		.filter(rowHasFinding)
 		.map((r) => ({
 			item_code: r.item_code,
 			damage_code: r.damage_code || undefined,
@@ -810,8 +822,8 @@ function reset() {
 	sigCtx = null
 	result.value = null
 	rows.value.forEach((r) => {
-		r.damage_code = ""
-		r.repair_code = ""
+		r.damage_code = ACCEPTABLE_DAMAGE
+		r.repair_code = NO_ACTION_REPAIR
 		r.remarks = ""
 		r.photos = []
 		r.photoErr = ""

@@ -21,8 +21,10 @@ from frappe.utils import cint
 from container_depot.operations.user_branch import assert_in_user_branch
 
 # Damage code "v" = Acceptable — it is recorded as a condition but does not mean
-# the tank "has damage".
+# the tank "has damage". Repair code "X" = No Action. A part left at Acceptable +
+# No Action (the form default) carries no finding and is not stored.
 ACCEPTABLE_DAMAGE_CODE = "v"
+NO_ACTION_REPAIR_CODE = "X"
 
 
 def _guard_container_branch(container_name) -> None:
@@ -390,8 +392,12 @@ def _build_damage_rows(lines, items):
 		damage_code = (ln.get("damage_code") or "").strip() or None
 		repair_code = (ln.get("repair_code") or "").strip() or None
 		line_remarks = (ln.get("remarks") or "").strip() or None
-		if not (damage_code or repair_code or line_remarks):
-			continue  # Acceptable / empty — not stored.
+		# A part with no real finding — Acceptable (or blank) damage AND No Action (or
+		# blank) repair AND no remark — is the default condition and is not stored.
+		is_acceptable = damage_code in (None, ACCEPTABLE_DAMAGE_CODE)
+		is_no_action = repair_code in (None, NO_ACTION_REPAIR_CODE)
+		if is_acceptable and is_no_action and not line_remarks:
+			continue
 
 		item = items.get(item_code)
 		if not item:
