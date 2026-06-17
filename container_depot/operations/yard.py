@@ -74,16 +74,111 @@ def _latest_tank_condition(container_name):
 	return rows[0].tank_status if rows else None
 
 
-def _target_category(container):
-	"""The Yard Zone category a container should go to, refined by tank condition.
+def _latest_eir(container_name):
+	"""Most recent SUBMITTED EIR (EIR-In / EIR-Out) for a container, with its damage rows.
 
-	On arrival (Gate_In) the SOP splits by condition: Empty Clean tanks go straight
-	to clean storage, Empty Dirty tanks queue for cleaning. For every other status
-	the raw-status mapping is authoritative.
+	Returns ``None`` when the container has no submitted EIR yet. The summary drives both
+	the placement target category (:func:`_target_category`) and the recommendation panel's
+	"last inspection" card, so the operator sees what the EIR found before placing the tank.
 	"""
+	rows = frappe.get_all(
+		"Inspection",
+		filters={
+			"container": container_name,
+			"docstatus": 1,
+			"inspection_type": ["in", ["EIR-In", "EIR-Out"]],
+		},
+		fields=[
+			"name", "inspection_id", "inspection_type", "eir_date",
+			"tank_status", "cargo", "remarks", "owner", "inspector",
+		],
+		order_by="creation desc",
+		limit=1,
+	)
+	if not rows:
+		return None
+	eir = rows[0]
+	damages = frappe.get_all(
+		"Inspection Damage Entry",
+		filters={"parent": eir.name, "parenttype": "Inspection"},
+		fields=[
+			"checklist_item", "damage_description", "damage_type", "repair_code",
+			"severity", "area", "component", "part_face",
+		],
+		order_by="idx asc",
+		limit_page_length=0,
+	)
+	# Photos are stored per checklist item (Inspection Item Photo), not on the damage
+	# row — group them so each damage can show the photos taken for its item.
+	photos_by_item = {}
+	for p in frappe.get_all(
+		"Inspection Item Photo",
+		filters={"parent": eir.name, "parenttype": "Inspection"},
+		fields=["checklist_item", "photo"],
+		order_by="idx asc",
+		limit_page_length=0,
+	):
+		if p.photo:
+			photos_by_item.setdefault(p.checklist_item, []).append(p.photo)
+	# Resolve the damage / repair code masters to their human descriptions — these are
+	# the real captured data (severity is not collected in the PWA, it defaults to Minor).
+	dmg_codes = list({d.damage_type for d in damages if d.damage_type})
+	rep_codes = list({d.repair_code for d in damages if d.repair_code})
+	dmg_desc = (
+		{r.name: r.description for r in frappe.get_all(
+			"Inspection Damage Code", filters={"name": ["in", dmg_codes]}, fields=["name", "description"]
+		)} if dmg_codes else {}
+	)
+	rep_desc = (
+		{r.name: r.description for r in frappe.get_all(
+			"Inspection Repair Code", filters={"name": ["in", rep_codes]}, fields=["name", "description"]
+		)} if rep_codes else {}
+	)
+	for d in damages:
+		d["damage_label"] = dmg_desc.get(d.damage_type)
+		d["repair_label"] = rep_desc.get(d.repair_code)
+		d["photos"] = photos_by_item.get(d.checklist_item, [])
+
+	creator = eir.owner
+	return {
+		"name": eir.name,
+		"inspection_id": eir.inspection_id or eir.name,
+		"inspection_type": eir.inspection_type,
+		"eir_date": str(eir.eir_date)[:10] if eir.eir_date else None,
+		"tank_status": eir.tank_status,
+		"cargo": eir.cargo,
+		"remarks": eir.remarks,
+		"created_by": creator,
+		"created_by_name": (frappe.db.get_value("User", creator, "full_name") or creator) if creator else None,
+		"damages": damages,
+		"damage_count": len(damages),
+	}
+
+
+def _target_category(container, eir=None):
+	"""The Yard Zone category a container should go to, driven by its latest EIR.
+
+	Priority (per ops SOP), based on the most recent submitted EIR:
+	1. any damage logged  -> ``Workshop`` (needs repair before anything else)
+	2. tank ``Empty Dirty`` -> ``Empty Dirty Queue`` (queue for cleaning)
+	3. tank ``Empty Clean`` -> ``Survey`` (inspecting)
+
+	Laden tanks and containers without a submitted EIR fall back to the raw
+	``Container.status`` mapping (with the Gate_In condition split preserved).
+	"""
+	if eir is None:
+		eir = _latest_eir(container.name)
+	if eir:
+		if eir.get("damage_count"):
+			return "Workshop"
+		if eir.get("tank_status") == "Empty Dirty":
+			return "Empty Dirty Queue"
+		if eir.get("tank_status") == "Empty Clean":
+			return "Survey"
+
 	category = STATUS_TO_CATEGORY.get(container.status)
 	if container.status == "Gate_In":
-		condition = _latest_tank_condition(container.name)
+		condition = (eir or {}).get("tank_status") or _latest_tank_condition(container.name)
 		if condition == "Empty Clean":
 			return "Empty Clean"
 		if condition == "Empty Dirty":
@@ -272,15 +367,17 @@ def recommend_zones(container_no):
 	the operator can always place a tank manually, even when ``zones`` is empty.
 	"""
 	container = _resolve_container(container_no)
-	category = _target_category(container)
+	eir = _latest_eir(container.name)
+	category = _target_category(container, eir)
 	depots, branch = _scope_depots(container)
 	result = {
 		"container_no": container.container_no,
 		"status": container.status,
 		"depot": container.depot,
 		"branch": branch,
-		"condition": _latest_tank_condition(container.name),
+		"condition": (eir or {}).get("tank_status") or _latest_tank_condition(container.name),
 		"target_category": category,
+		"eir": eir,
 		"zones": [],
 		"all_zones": [],
 	}

@@ -40,17 +40,93 @@
 
 			<!-- Recommendation -->
 			<div v-if="rec" class="space-y-3 border-t border-gray-100 pt-3">
-				<div class="flex flex-wrap items-center gap-2 text-xs">
-					<span class="oak-chip bg-gray-100 text-gray-700">
-						{{ labels.storageStatus }}: <span class="font-semibold">{{ prettyStatus(rec.status) }}</span>
-					</span>
-					<span v-if="rec.condition" class="oak-chip bg-gray-100 text-gray-700">
-						{{ labels.storageCondition }}: <span class="font-semibold">{{ rec.condition }}</span>
-					</span>
-					<span v-if="rec.target_category" class="oak-chip bg-leaf-100 text-leaf-800">
-						{{ labels.storageTargetCategory }}: <span class="font-semibold">{{ categoryLabel(rec.target_category) }}</span>
-					</span>
+				<!-- Target category — the placement decision (most prominent) -->
+				<div v-if="rec.target_category" class="flex items-center gap-3 rounded-xl border border-leaf-200 bg-leaf-50 p-3">
+					<span class="oak-icon-tile h-10 w-10 shrink-0 bg-leaf-100 text-leaf-700"><Icon name="map-pin" :size="20" /></span>
+					<div class="min-w-0 flex-1">
+						<p class="text-[11px] font-semibold uppercase tracking-wide text-leaf-700/70">{{ labels.storageTargetCategory }}</p>
+						<p class="truncate text-base font-extrabold text-leaf-800">{{ categoryLabel(rec.target_category) }}</p>
+					</div>
+					<span class="oak-chip shrink-0 bg-white/70 text-gray-600">{{ prettyStatus(rec.status) }}</span>
 				</div>
+
+				<!-- Latest submitted EIR — the evidence behind the decision -->
+				<div v-if="rec.eir" class="space-y-2.5 rounded-xl border border-gray-200 bg-white p-3">
+					<div class="flex items-start justify-between gap-2">
+						<div class="min-w-0">
+							<div class="flex items-center gap-1.5">
+								<Icon name="clipboard" :size="14" class="shrink-0 text-gray-400" />
+								<p class="truncate text-xs font-bold text-gray-700">{{ labels.storageEirTitle }}</p>
+							</div>
+							<p class="mt-0.5 truncate font-mono text-[11px] text-gray-500">{{ rec.eir.inspection_id }}</p>
+						</div>
+						<span class="shrink-0 text-[11px] text-gray-400">{{ rec.eir.inspection_type }} · {{ rec.eir.eir_date || "—" }}</span>
+					</div>
+
+					<div class="grid grid-cols-2 gap-2">
+						<div class="rounded-lg bg-gray-50 px-2.5 py-1.5">
+							<p class="text-[10px] uppercase tracking-wide text-gray-400">{{ labels.storageEirTank }}</p>
+							<p class="truncate text-sm font-semibold text-gray-800">{{ rec.eir.tank_status || "—" }}</p>
+						</div>
+						<div class="rounded-lg bg-gray-50 px-2.5 py-1.5">
+							<p class="text-[10px] uppercase tracking-wide text-gray-400">{{ labels.storageEirCargo }}</p>
+							<p class="truncate text-sm font-semibold text-gray-800">{{ rec.eir.cargo || "—" }}</p>
+						</div>
+					</div>
+
+					<div v-if="rec.eir.created_by_name" class="flex items-center gap-1.5 text-xs text-gray-500">
+						<Icon name="user" :size="13" class="text-gray-400" />
+						{{ labels.storageEirBy }}: <span class="font-medium text-gray-700">{{ rec.eir.created_by_name }}</span>
+					</div>
+
+					<div>
+						<p class="mb-1 text-[10px] uppercase tracking-wide text-gray-400">{{ labels.storageDamages }} · {{ rec.eir.damage_count }}</p>
+						<ul v-if="rec.eir.damages && rec.eir.damages.length" class="space-y-1.5">
+							<li v-for="(d, i) in rec.eir.damages" :key="i" class="rounded-lg bg-gray-50 px-2.5 py-1.5">
+								<div class="flex flex-wrap items-center gap-1.5">
+									<span v-if="d.damage_type" class="oak-chip bg-red-100 text-red-700">
+										{{ d.damage_type }}<span v-if="d.damage_label"> · {{ d.damage_label }}</span>
+									</span>
+									<span v-if="d.repair_code" class="oak-chip bg-blue-100 text-blue-700">
+										<Icon name="tool" :size="11" /> {{ d.repair_code }}<span v-if="d.repair_label"> · {{ d.repair_label }}</span>
+									</span>
+								</div>
+								<p class="mt-1 text-xs text-gray-700">{{ damageLabel(d) }}</p>
+								<!-- Photos: hidden until tapped (avoid a wall of images) -->
+								<template v-if="d.photos && d.photos.length">
+									<button
+										class="oak-link mt-1.5 inline-flex items-center gap-1 text-xs"
+										@click="toggleDamagePhotos(i)"
+									>
+										<Icon :name="openDamagePhotos.has(i) ? 'chevron-up' : 'image'" :size="13" />
+										{{ openDamagePhotos.has(i) ? labels.storageHidePhotos : `${labels.storageShowPhotos} (${d.photos.length})` }}
+									</button>
+									<div v-if="openDamagePhotos.has(i)" class="mt-1.5 grid grid-cols-3 gap-1.5">
+										<a
+											v-for="(ph, pi) in d.photos"
+											:key="pi"
+											:href="ph"
+											target="_blank"
+											rel="noopener"
+											class="block overflow-hidden rounded-lg border border-gray-200"
+										>
+											<img :src="ph" loading="lazy" class="h-20 w-full object-cover" />
+										</a>
+									</div>
+								</template>
+							</li>
+						</ul>
+						<p v-else class="text-xs text-gray-400">{{ labels.storageNoDamage }}</p>
+					</div>
+
+					<div v-if="rec.eir.remarks">
+						<p class="text-[10px] uppercase tracking-wide text-gray-400">{{ labels.storageRemarks }}</p>
+						<p class="whitespace-pre-line text-xs text-gray-700">{{ rec.eir.remarks }}</p>
+					</div>
+				</div>
+				<p v-else class="flex items-center gap-1.5 text-xs text-gray-400">
+					<Icon name="info" :size="14" /> {{ labels.storageNoEir }}
+				</p>
 
 				<!-- Recommended zones (target category; scope = own depot then same branch) -->
 				<template v-if="rec.zones && rec.zones.length">
@@ -301,6 +377,7 @@ import {
 	statusLabel,
 	statusColors,
 } from "@/utils/labels"
+import { toast } from "@/utils/toast"
 import { userContext, branchLabel } from "@/data/context"
 import Icon from "@/components/Icon.vue"
 
@@ -318,6 +395,14 @@ const expandedDepot = ref(null) // which depot accordion is open
 const sopOpen = ref(false)
 const manualOpen = ref(false)
 const zoneModal = ref(null)
+// Which damage rows have their photos expanded (by index). Photos stay hidden until
+// tapped — a wall of images would clutter the recommendation card.
+const openDamagePhotos = ref(new Set())
+function toggleDamagePhotos(i) {
+	const s = new Set(openDamagePhotos.value)
+	s.has(i) ? s.delete(i) : s.add(i)
+	openDamagePhotos.value = s
+}
 
 // Zone tank list: server-side search + "Muat lebih" pagination state.
 const zoneSearch = ref("")
@@ -351,6 +436,7 @@ const recommendRes = createResource({
 		selectedZone.value = null
 		placed.value = null
 		manualOpen.value = false
+		openDamagePhotos.value = new Set()
 		// Auto-select the recommended zone for a one-tap happy path.
 		const pick = (data.zones || []).find((z) => z.recommended)
 		if (pick) selectedZone.value = pick.zone_code
@@ -437,6 +523,13 @@ function prettyStatus(s) {
 	return (s || "").replace(/_/g, " ")
 }
 
+// One-line label for an EIR damage row: description first, then a location hint.
+function damageLabel(d) {
+	const where = [d.component, d.area, d.part_face].filter(Boolean).join(" · ")
+	const desc = d.damage_description || d.damage_type || "—"
+	return where ? `${desc} (${where})` : desc
+}
+
 function barWidth(z) {
 	if (!z.capacity) return z.occupied ? "100%" : "0%"
 	return Math.min(100, Math.round((z.occupied / z.capacity) * 100)) + "%"
@@ -476,11 +569,17 @@ function doPlace() {
 		})
 		.then((data) => {
 			placed.value = data
+			toast.success(`${data.container_no || ""} → ${data.zone_name || data.yard_zone || ""}`.trim(), {
+				title: labels.storagePlaced,
+			})
 			form.value = { row: "", tier: null, bay: "" }
 			rec.value = null
 			selectedZone.value = null
 			containerNo.value = ""
 			overviewRes.reload()
+		})
+		.catch((err) => {
+			toast.error(err?.messages?.[0] || err?.message || labels.error)
 		})
 }
 

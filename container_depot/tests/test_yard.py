@@ -122,6 +122,48 @@ class TestYard(FrappeTestCase):
 		self.assertEqual(recommend_zones("YZTU0000010")["target_category"], "Cleaning Bay")
 		self.assertEqual(recommend_zones("YZTU0000003")["target_category"], "Ready")
 
+	def test_target_category_priority_from_eir(self):
+		# Pure priority logic, independent of the DB: damage > Empty Dirty > Empty Clean,
+		# then fall back to the status mapping for Laden / unmapped conditions.
+		from container_depot.operations.yard import _target_category
+
+		c = frappe._dict(name="UNUSED", status="Available")
+		self.assertEqual(_target_category(c, {"damage_count": 2, "tank_status": "Empty Clean"}), "Workshop")
+		self.assertEqual(_target_category(c, {"damage_count": 0, "tank_status": "Empty Dirty"}), "Empty Dirty Queue")
+		self.assertEqual(_target_category(c, {"damage_count": 0, "tank_status": "Empty Clean"}), "Survey")
+		# Laden has no EIR rule -> raw status mapping (Available -> Ready).
+		self.assertEqual(_target_category(c, {"damage_count": 0, "tank_status": "Laden"}), "Ready")
+
+	def test_recommend_uses_latest_eir_over_status(self):
+		# A submitted EIR with a damage row drives the target to Workshop even though the
+		# tank reads Empty Clean (which alone would be Survey). The EIR summary rides along.
+		from container_depot.operations import eir as eir_ops
+
+		_zone("YZT-WS-A", "Workshop", 5)
+		_container("YZTU0000030", "Gate_In")
+		try:
+			eir_ops.create_eir(
+				inspection_type="EIR-In",
+				container="YZTU0000030",
+				tank_status="Empty Clean",
+				lines=[{"item_code": "11", "damage_code": "12", "remarks": "broken"}],
+				submit=True,
+			)
+			res = recommend_zones("YZTU0000030")
+			self.assertEqual(res["target_category"], "Workshop")
+			self.assertIsNotNone(res["eir"])
+			self.assertEqual(res["eir"]["damage_count"], 1)
+			self.assertEqual(res["eir"]["tank_status"], "Empty Clean")
+			self.assertTrue(any(z["zone_code"] == "YZT-WS-A" for z in res["zones"]))
+		finally:
+			# EIR submit commits (Inspection.on_submit), so clean up explicitly to keep
+			# the class's shared fixtures intact for the other tests.
+			frappe.db.delete("Inspection", {"container": "YZTU0000030"})
+			frappe.db.delete("Container Movement", {"container": "YZTU0000030"})
+			frappe.db.delete("Container", {"name": "YZTU0000030"})
+			frappe.db.delete("Yard Zone", {"name": "YZT-WS-A"})
+			frappe.db.commit()
+
 	def test_recommend_ranks_emptiest_first(self):
 		res = recommend_zones("YZTU0000003")
 		codes = [z["zone_code"] for z in res["zones"]]
