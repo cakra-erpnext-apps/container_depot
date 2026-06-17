@@ -26,6 +26,8 @@ class OrderMuat(Document):
 	def on_submit(self):
 		_log_order_activity(self, "Order Muat")
 		_ensure_order_qr(self)
+		from container_depot.operations.notify import notify_order_gate
+		notify_order_gate(self, "out")
 
 	def on_cancel(self):
 		_release_codes(self)

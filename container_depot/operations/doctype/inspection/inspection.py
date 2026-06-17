@@ -71,6 +71,18 @@ class Inspection(Document):
 			summary=f"{self.inspection_type}" + (": " + ", ".join(outcome) if outcome else ""),
 		)
 
+		# In-app notification (PWA + Desk bell) for EIR-In/EIR-Out — carries the
+		# placement target category derived from THIS EIR (damage > Empty Dirty > Empty Clean).
+		if self.inspection_type in ("EIR-In", "EIR-Out"):
+			from container_depot.operations.notify import notify_eir_submitted
+			from container_depot.operations.yard import _target_category
+
+			category = _target_category(
+				container,
+				{"damage_count": 1 if self.has_damage else 0, "tank_status": self.get("tank_status")},
+			)
+			notify_eir_submitted(self, container, category)
+
 	def _save_container(self, container):
 		# Controller-driven status change: bypass the manual-transition guard.
 		frappe.flags.in_status_automation = True
