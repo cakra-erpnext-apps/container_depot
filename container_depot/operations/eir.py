@@ -529,6 +529,7 @@ def _draft_payload(doc, header: dict) -> dict:
 	checklist lines, photos and user-entered fields come from the draft.
 	"""
 	header["inspection"] = doc.name
+	header["inspection_id"] = doc.inspection_id or doc.name
 	header["inspection_type"] = doc.inspection_type
 	header["eir_date"] = doc.eir_date
 	header["tank_status"] = doc.tank_status

@@ -3,7 +3,10 @@
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<div class="flex items-center gap-2">
 				<span class="oak-icon-tile h-9 w-9 bg-leaf-50 text-leaf-600"><Icon name="clipboard" :size="20" /></span>
-				<h1 class="text-lg font-extrabold tracking-tight">{{ labels.eirTitle }}</h1>
+				<div class="min-w-0">
+					<h1 class="text-lg font-extrabold leading-tight tracking-tight">{{ labels.eirTitle }}</h1>
+					<p v-if="header" class="truncate font-mono text-[11px] text-gray-500">{{ eirCode }}</p>
+				</div>
 			</div>
 			<div class="flex items-center gap-2">
 				<router-link to="/eir/history" class="oak-btn oak-btn-secondary px-3 py-2">
@@ -15,7 +18,8 @@
 			</div>
 		</div>
 
-		<!-- Step 1 — source: container number + EIR type -->
+		<!-- Step 1 — source: container number (EIR is always EIR-In; EIR-Out is handled
+		     by the 3rd-party Survey flow, not this checklist) -->
 		<section class="oak-section space-y-4">
 			<div>
 				<label class="oak-label">{{ labels.containerNumber }}</label>
@@ -41,20 +45,6 @@
 					<Icon name="alert-circle" :size="15" /> {{ fetchError }}
 				</p>
 				<p class="mt-1.5 text-xs text-gray-400">{{ labels.eirDraftHint }}</p>
-			</div>
-			<div>
-				<label class="oak-label">{{ labels.eirType }}</label>
-				<div class="grid grid-cols-2 gap-2">
-					<button
-						v-for="t in ['EIR-In', 'EIR-Out']"
-						:key="t"
-						class="oak-toggle"
-						:class="eirType === t ? 'oak-toggle-on' : 'oak-toggle-off'"
-						@click="eirType = t"
-					>
-						{{ t }}
-					</button>
-				</div>
 			</div>
 		</section>
 
@@ -368,9 +358,13 @@ import { session } from "@/data/session"
 import Icon from "@/components/Icon.vue"
 
 const containerNo = ref("")
+// EIR is always EIR-In here. EIR-Out is done via the 3rd-party Survey flow, not this
+// checklist, so there is no In/Out picker.
 const eirType = ref("EIR-In")
 const header = ref(null)
 const inspection = ref(null)
+// EIR code shown once a draft is open (inspection_id, falling back to the docname).
+const eirCode = computed(() => header.value?.inspection_id || inspection.value || "")
 const tanggal = ref(new Date().toISOString().slice(0, 10))
 const tankStatus = ref("")
 const remarks = ref("")
@@ -438,14 +432,12 @@ const groups = computed(() => {
 // the container number is the identity; all values come from the Container master).
 const headerCells = computed(() => {
 	const h = header.value || {}
-	// The gate-date cell follows the chosen EIR type: In -> EIR-In Date, Out -> EIR-Out Date.
-	const isOut = eirType.value === "EIR-Out"
 	return [
 		{ label: labels.containerNumber, value: h.container_no },
 		{ label: labels.serialNo, value: h.serial_no },
 		{ label: labels.dateManufacture, value: h.manufacture_date },
 		{ label: labels.ownerPrincipal, value: h.principal },
-		{ label: isOut ? labels.eirOutDate : labels.eirInDate, value: isOut ? h.eir_out_date : h.eir_in_date },
+		{ label: labels.eirInDate, value: h.eir_in_date },
 		{ label: labels.capacity, value: h.capacity },
 		{ label: labels.tare, value: h.tare_weight },
 		{ label: labels.maxGross, value: h.max_gross_weight },
@@ -467,7 +459,6 @@ const openRes = createResource({
 		inspection.value = data.inspection
 		result.value = null
 		savedOk.value = false
-		if (data.inspection_type) eirType.value = data.inspection_type
 		tanggal.value = data.eir_date || new Date().toISOString().slice(0, 10)
 		tankStatus.value = data.tank_status || ""
 		remarks.value = data.doc_remarks || ""
@@ -510,7 +501,6 @@ function reloadLandingLists() {
 }
 function resumeDraft(r) {
 	containerNo.value = r.container_no || r.container
-	if (r.inspection_type) eirType.value = r.inspection_type
 	doFetch()
 }
 
@@ -542,8 +532,8 @@ const saveError = computed(() => {
 	return null
 })
 
-// Referred voucher — fetch the read-only shipment snapshot (Order Bongkar for EIR-In,
-// Order Muat for EIR-Out). On success, persist the validated reference via auto-save.
+// Referred voucher — fetch the read-only shipment snapshot from the Order Bongkar
+// (EIR is always EIR-In). On success, persist the validated reference via auto-save.
 const voucherRes = createResource({
 	url: "container_depot.ess.inspections.eir_voucher",
 	method: "GET",
@@ -568,8 +558,9 @@ const voucherError = computed(() => {
 	if (voucherRes.error) return voucherRes.error.messages?.[0] || voucherRes.error.message
 	return null
 })
-const voucherPlaceholder = computed(() => (eirType.value === "EIR-In" ? "ORD-BKR-…" : "ORD-MT-…"))
-const voucherHint = computed(() => (eirType.value === "EIR-In" ? labels.voucherHintIn : labels.voucherHintOut))
+// EIR is always EIR-In, so the referred voucher is always an Order Bongkar.
+const voucherPlaceholder = computed(() => "ORD-BKR-…")
+const voucherHint = computed(() => labels.voucherHintIn)
 function doVoucherFetch() {
 	voucherRes.submit({
 		voucher: referredVoucher.value || "",
@@ -791,18 +782,8 @@ function scheduleSave() {
 // Header fields + the whole checklist (codes, remarks, photos) trigger an auto-save.
 // The voucher reference is persisted via doVoucherFetch (only after it validates), so
 // it is intentionally not watched here.
-watch([eirType, tanggal, tankStatus, cargo, remarks, signatureUrl], scheduleSave)
+watch([tanggal, tankStatus, cargo, remarks, signatureUrl], scheduleSave)
 watch(rows, scheduleSave, { deep: true })
-
-// Flipping EIR direction changes the voucher doctype — clear the stale reference + snapshot.
-watch(eirType, () => {
-	if (suppressSave.value) return // a draft load sets the type; don't wipe its voucher
-	referredVoucher.value = ""
-	truckNo.value = ""
-	driver.value = ""
-	driverPhone.value = ""
-	shipper.value = ""
-})
 
 function reset() {
 	containerNo.value = ""
