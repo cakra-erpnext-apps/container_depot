@@ -59,6 +59,11 @@ def _booking_with_codes(*, code_direction, count, prefix, state="Active", offset
 		"booking_status": "Confirmed",
 		"items": [{"container_no": cno(i)} for i in range(1, count + 1)],
 	}).insert(ignore_permissions=True)
+	# A Confirmed booking is a submitted one — mark it docstatus 1 directly (the gate
+	# requires a submitted booking) without re-running on_submit (which would auto-issue
+	# its own codes, conflicting with the explicit ones created below).
+	frappe.db.set_value("Container Booking", booking.name, "docstatus", 1, update_modified=False)
+	frappe.db.sql("UPDATE `tabContainer Booking Item` SET docstatus=1 WHERE parent=%s", booking.name)
 	codes = []
 	for i in range(1, count + 1):
 		code = frappe.get_doc({

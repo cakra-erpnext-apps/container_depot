@@ -17,6 +17,11 @@ frappe.ui.form.on('Container Booking', {
 		if (!frm.is_new() && frm.doc.booking_status === 'Confirmed') {
 			frm.add_custom_button(__('Generate Bon / Order'), () => open_generate_dialog(frm));
 		}
+		// A submitted (Confirmed) booking can be reopened for a data correction WITHOUT
+		// reversing its payment — handy for a paid Cash booking that auto-confirmed.
+		if (!frm.is_new() && frm.doc.docstatus === 1) {
+			frm.add_custom_button(__('Revert to Draft'), () => _confirm_revert(frm));
+		}
 	},
 	_lock_actions(frm) {
 		// A booking is never permanently deleted or silently discarded — it is voided
@@ -111,6 +116,21 @@ function _confirm_void(frm) {
 				args: { booking: frm.doc.name },
 				freeze: true,
 				freeze_message: __('Cancelling …'),
+				callback: () => frm.reload_doc(),
+			});
+		}
+	);
+}
+
+function _confirm_revert(frm) {
+	frappe.confirm(
+		__('Reopen this confirmed booking as a draft to edit it? The payment (Sales Invoice + Payment Entries) and issued Booking Codes are kept — Submit again to re-confirm. Refused if a container is already in motion at the gate.'),
+		() => {
+			frappe.call({
+				method: 'container_depot.operations.doctype.container_booking.container_booking.revert_booking_to_draft',
+				args: { booking: frm.doc.name },
+				freeze: true,
+				freeze_message: __('Reverting to draft …'),
 				callback: () => frm.reload_doc(),
 			});
 		}

@@ -967,12 +967,22 @@ def _booking_gate_detail(booking) -> dict:
 		"Container Booking",
 		booking,
 		[
-			"name", "branch", "depot", "booking_status", "direction", "customer", "principal",
+			"name", "branch", "depot", "booking_status", "docstatus", "direction", "customer", "principal",
 			"lift_item", "payment_type", "payment_status", "sales_invoice", "do_reference", "remarks",
 		],
 		as_dict=True,
 	)
+	# Gate actions need a SUBMITTED (confirmed) booking. Until then the gate is blocked
+	# with a reason the operator can act on: pay at the cashier (Cash unpaid) or contact
+	# admin (paid/TOP but the booking isn't confirmed yet).
+	booking_submitted = b.docstatus == 1
 	payment_blocked = (b.payment_type == "Cash") and ((b.payment_status or "Unpaid") != "Paid")
+	if booking_submitted:
+		block_reason = None
+	elif payment_blocked:
+		block_reason = "cash_unpaid"
+	else:
+		block_reason = "not_submitted"
 	containers = []
 	for c in frappe.get_all(
 		"Booking Code",
@@ -1013,9 +1023,19 @@ def _booking_gate_detail(booking) -> dict:
 		"sales_invoice": b.sales_invoice,
 		"do_reference": b.do_reference,
 		"remarks": b.remarks,
+		"booking_submitted": booking_submitted,
 		"payment_blocked": payment_blocked,
+		"block_reason": block_reason,
 		"containers": containers,
 	}
+
+
+@frappe.whitelist(methods=["GET"])
+def gate_cargo_options():
+	"""Active Cargo names for the gate 'Generate Bon' form's cargo picker — mirrors the
+	Desk dialog's Cargo Link so the operator chooses from the master, not free text."""
+	_require_authenticated_user()
+	return {"cargos": frappe.get_all("Cargo", filters={"is_active": 1}, pluck="name", order_by="name asc")}
 
 
 @frappe.whitelist()
@@ -1060,12 +1080,14 @@ def gate_generate_order(booking, selected_codes, vehicle_data=None):
 	Out a valid Cleaning Certificate is auto-resolved per container."""
 	_require_authenticated_user()
 	b = frappe.db.get_value(
-		"Container Booking", booking, ["payment_type", "payment_status", "direction"], as_dict=True
+		"Container Booking", booking, ["payment_type", "payment_status", "direction", "docstatus"], as_dict=True
 	)
 	if not b:
 		frappe.throw(_("Booking {0} not found.").format(booking))
 	if (b.payment_type == "Cash") and ((b.payment_status or "Unpaid") != "Paid"):
 		frappe.throw(_("Booking Cash belum dibayar — bayar ke kasir dulu sebelum generate bon."))
+	if b.docstatus != 1:
+		frappe.throw(_("Booking belum disubmit / dikonfirmasi — hubungi admin sebelum generate bon."))
 
 	from container_depot.operations.order_generation import _as_code_list, make_order
 

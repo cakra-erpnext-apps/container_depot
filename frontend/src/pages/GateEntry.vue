@@ -65,21 +65,25 @@
 				</dl>
 			</section>
 
-			<!-- Cash unpaid → block generation, point to the cashier -->
+			<!-- Gate blocked: booking not yet confirmed. Reason-specific guidance. -->
 			<section
-				v-if="detail.payment_blocked"
+				v-if="detail.block_reason"
 				class="animate-slide-up rounded-2xl border border-red-200 bg-red-50 p-4"
 			>
 				<p class="flex items-center gap-2 font-semibold text-red-800">
-					<Icon name="alert-triangle" :size="18" /> {{ labels.gatePayBlocked }}
+					<Icon name="alert-triangle" :size="18" /> {{ labels.gateBlockedTitle }}
 				</p>
-				<p v-if="detail.sales_invoice" class="mt-1.5 pl-7 text-sm text-red-700">
+				<p class="mt-1 pl-7 text-sm text-red-700">
+					{{ detail.block_reason === "cash_unpaid" ? labels.gatePayBlocked : labels.gateNotSubmitted }}
+				</p>
+				<p v-if="detail.block_reason === 'cash_unpaid' && detail.sales_invoice" class="mt-1 pl-7 text-sm text-red-700">
 					{{ labels.gateInvoiceNo }}: <span class="font-semibold">{{ detail.sales_invoice }}</span>
 				</p>
 			</section>
 
-			<!-- Container list: existing bon shown per container; else selectable (max 2) -->
-			<section class="animate-slide-up space-y-2">
+			<!-- Container list: existing bon shown per container; else selectable (max 2).
+			     Hidden entirely while the gate is blocked — only the keterangan shows. -->
+			<section v-if="!detail.block_reason" class="animate-slide-up space-y-2">
 				<div class="flex items-center justify-between">
 					<p class="oak-section-title">{{ labels.gateContainers }}</p>
 					<span class="oak-chip bg-gray-100 text-gray-600">{{ detail.containers.length }}</span>
@@ -90,7 +94,7 @@
 				<ul v-else class="oak-card divide-y divide-gray-100 overflow-hidden">
 					<li v-for="c in detail.containers" :key="c.booking_code" class="flex items-center gap-3 px-4 py-3">
 						<input
-							v-if="selectable(c) && !detail.payment_blocked"
+							v-if="selectable(c) && !detail.block_reason"
 							type="checkbox"
 							class="h-5 w-5 shrink-0 accent-brand-600"
 							:checked="selected.includes(c.booking_code)"
@@ -115,7 +119,7 @@
 				</ul>
 
 				<button
-					v-if="!detail.payment_blocked"
+					v-if="!detail.block_reason"
 					class="oak-btn oak-btn-primary w-full"
 					:disabled="!selected.length"
 					@click="openGenerate"
@@ -123,7 +127,7 @@
 					<Icon name="file-plus" :size="18" />
 					{{ labels.gateGenerate + (selected.length ? ` (${selected.length})` : "") }}
 				</button>
-				<p v-if="!detail.payment_blocked" class="text-xs text-gray-400">{{ labels.gateSelectMax2 }}</p>
+				<p v-if="!detail.block_reason" class="text-xs text-gray-400">{{ labels.gateSelectMax2 }}</p>
 				<p v-if="generateError" class="flex items-center gap-1.5 text-sm text-red-600">
 					<Icon name="alert-circle" :size="15" /> {{ generateError }}
 				</p>
@@ -171,6 +175,12 @@
 								<option v-for="o in f.options" :key="o" :value="o">{{ o }}</option>
 							</select>
 							<textarea v-else-if="f.type === 'textarea'" v-model.trim="vehicle[f.key]" rows="2" class="oak-input"></textarea>
+							<template v-else-if="f.type === 'datalist'">
+								<input v-model.trim="vehicle[f.key]" :list="`dl-${f.key}`" class="oak-input" autocomplete="off" />
+								<datalist :id="`dl-${f.key}`">
+									<option v-for="o in f.options" :key="o" :value="o" />
+								</datalist>
+							</template>
 							<input v-else v-model.trim="vehicle[f.key]" :type="f.inputType || 'text'" class="oak-input" />
 						</div>
 					</div>
@@ -209,6 +219,7 @@ import { computed, nextTick, onBeforeUnmount, ref } from "vue"
 import { createResource } from "frappe-ui"
 import { Html5Qrcode } from "html5-qrcode"
 import { labels, directionLabel } from "@/utils/labels"
+import { toast } from "@/utils/toast"
 import Icon from "@/components/Icon.vue"
 
 const code = ref("")
@@ -241,6 +252,14 @@ const generateRes = createResource({
 	},
 })
 
+// Active cargo master for the "Generate Bon" cargo picker (datalist suggestions).
+const cargoRes = createResource({
+	url: "container_depot.api.gate_cargo_options",
+	method: "GET",
+	auto: true,
+})
+const cargoOptions = computed(() => cargoRes.data?.cargos || [])
+
 const valid = computed(() => detail.value && detail.value.valid)
 
 // Vehicle/driver form fields — mirrors the Desk "Generate" dialog, adapted to the
@@ -254,7 +273,7 @@ const vehicleFields = computed(() => {
 			{ key: "driver_phone", label: labels.driverPhone, inputType: "tel" },
 			{ key: "ro", label: labels.vRo, inputType: "text" },
 			{ key: "condition", label: labels.vCondition, type: "select", options: ["EMPTY CLEAN", "EMPTY DIRTY", "LADEN"] },
-			{ key: "cargo", label: labels.cargo, inputType: "text" },
+			{ key: "cargo", label: labels.cargo, type: "datalist", options: cargoOptions.value },
 			{ key: "tanggal_bongkar_actual", label: labels.vDateBongkar, inputType: "date" },
 			{ key: "shipper", label: labels.shipper, inputType: "text" },
 			{ key: "ex_vessel", label: labels.exVessel, inputType: "text" },
@@ -328,7 +347,7 @@ function doLookup() {
 // Open the vehicle/driver form, pre-filled from the FIRST selected container's
 // booking line (the same auto-fill the Desk Generate dialog does).
 function openGenerate() {
-	if (!selected.value.length || detail.value.payment_blocked) return
+	if (!selected.value.length || detail.value.block_reason) return
 	const first = detail.value.containers.find((x) => x.booking_code === selected.value[0])
 	const line = (first && first.line) || {}
 	const today = new Date().toISOString().slice(0, 10)
@@ -357,7 +376,7 @@ function closeVehicleForm() {
 }
 
 function doGenerate() {
-	if (!selected.value.length || detail.value.payment_blocked) return
+	if (!selected.value.length || detail.value.block_reason) return
 	const vd = {}
 	for (const f of vehicleFields.value) {
 		const v = vehicle.value[f.key]
@@ -372,6 +391,10 @@ function doGenerate() {
 		.then((data) => {
 			genResult.value = data
 			showVehicleForm.value = false
+			toast.success(data.order_name || data.order || "", { title: labels.gateGenerated })
+		})
+		.catch((err) => {
+			toast.error(err?.messages?.[0] || err?.message || labels.error)
 		})
 }
 

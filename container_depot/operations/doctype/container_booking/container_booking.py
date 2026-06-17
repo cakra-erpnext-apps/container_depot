@@ -62,6 +62,12 @@ class ContainerBooking(Document):
 		if self.direction == "Tank Out":
 			self._validate_tank_out_gating()
 
+	def after_insert(self):
+		# Notify Commercial / admin / Cashier that a new booking (and, for Cash, a
+		# payment to collect) exists — shows in the PWA + Desk bell.
+		from container_depot.operations.notify import notify_booking_created
+		notify_booking_created(self)
+
 	def before_save(self):
 		self._ensure_cash_invoice()
 		self._sync_payment_status_from_invoice()
@@ -91,6 +97,8 @@ class ContainerBooking(Document):
 			update_modified=False,
 		)
 		self._auto_invoice()
+		from container_depot.operations.notify import notify_booking_submitted
+		notify_booking_submitted(self)
 
 	def on_cancel(self):
 		"""Cancelling a booking unwinds everything it spun up:
@@ -790,6 +798,43 @@ def void_draft(booking):
 	return doc.booking_status
 
 
+@frappe.whitelist()
+def revert_booking_to_draft(booking):
+	"""Bring a SUBMITTED booking back to an editable draft WITHOUT touching its payment.
+
+	Use case: a Cash booking was paid (and so auto-confirmed), but a data correction is
+	needed before the tank moves. Unlike Cancel — which reverses the Payment Entries and
+	cancels the invoice — this keeps the paid Sales Invoice, its Payment Entries and the
+	issued Booking Codes intact, and just flips the same record back to a draft so it can be
+	edited and Submitted again (payment is already settled, so re-submit re-confirms it).
+
+	Refused once any Booking Code has been consumed onto a bon (state ``Used``): the tank is
+	already in motion at the gate, so the booking must not be reopened."""
+	doc = frappe.get_doc("Container Booking", booking)
+	doc.check_permission("cancel")
+	if doc.docstatus != 1:
+		frappe.throw(_("Hanya booking yang sudah disubmit yang bisa dikembalikan ke draft."))
+
+	used = frappe.get_all(
+		"Booking Code", filters={"booking": doc.name, "state": "Used"}, pluck="name"
+	)
+	if used:
+		frappe.throw(_(
+			"Tidak bisa dikembalikan ke draft: sudah ada container yang diproses di gate "
+			"(Booking Code {0}). Batalkan bon terkait dulu jika perlu mengubah data."
+		).format(", ".join(used)))
+
+	# Flip the same record back to an editable draft. Payment / invoice / codes are left
+	# exactly as they are — Submit again to re-confirm.
+	frappe.db.set_value(
+		"Container Booking", doc.name,
+		{"docstatus": 0, "booking_status": "Pending Confirmation"},
+		update_modified=False,
+	)
+	frappe.db.sql("UPDATE `tabContainer Booking Item` SET docstatus=0 WHERE parent=%s", doc.name)
+	return {"booking": doc.name, "docstatus": 0, "booking_status": "Pending Confirmation"}
+
+
 # ---- payment-status sync (booking ↔ its Sales Invoice) ----------------------
 # Scoped to Container Booking only: these helpers never touch monthly invoices or
 # any other billing artefact.
@@ -813,10 +858,11 @@ def _invoice_settlement(sales_invoice):
 def sync_bookings_for_invoice(sales_invoice):
 	"""Push a Sales Invoice's settlement state onto every Container Booking pinned to it.
 
-	Cash is 'pay first': the booking waits as a draft (Pending Payment) until the Cashier
-	settles its Sales Invoice. When the invoice reads Paid, the booking advances from
-	Pending Payment to **Pending Confirmation** (still a draft) — so the admin can verify
-	it and Submit it by hand. The booking is never auto-submitted."""
+	Cash is 'pay first': the booking waits as a draft until the Cashier settles its Sales
+	Invoice. When the invoice reads Paid, a Cash booking is **auto-submitted (confirmed)** —
+	the operator no longer confirms by hand. If the auto-submit can't go through (e.g. a
+	required field is missing) the booking is left at Pending Confirmation for the admin to
+	finish, and the gate shows "hubungi admin"."""
 	target = _invoice_settlement(sales_invoice)
 	if not target:
 		return
@@ -825,19 +871,40 @@ def sync_bookings_for_invoice(sales_invoice):
 			"Container Booking", name,
 			["payment_status", "docstatus", "payment_type", "booking_status"], as_dict=True,
 		)
-		updates = {}
 		if row.payment_status != target:
-			updates["payment_status"] = target
-		# Cash paid → ready for the operator's confirmation (no auto-submit).
+			frappe.db.set_value("Container Booking", name, "payment_status", target, update_modified=False)
+		# Cash paid → auto-confirm the booking. Best-effort: fall back to Pending
+		# Confirmation so a paid-but-unconfirmed booking is visible to the admin.
 		if (
 			target == "Paid"
 			and row.docstatus == 0
 			and (row.payment_type or "Cash") == "Cash"
-			and row.booking_status == "Pending Payment"
+			and row.booking_status in ("Pending Payment", "Pending Confirmation")
 		):
-			updates["booking_status"] = "Pending Confirmation"
-		if updates:
-			frappe.db.set_value("Container Booking", name, updates, update_modified=False)
+			if not _auto_submit_paid_booking(name) and row.booking_status != "Pending Confirmation":
+				frappe.db.set_value(
+					"Container Booking", name, "booking_status", "Pending Confirmation", update_modified=False
+				)
+
+
+def _auto_submit_paid_booking(name) -> bool:
+	"""Submit a paid Cash booking on the Cashier's behalf. Returns True on success.
+
+	Never raises — a failed auto-submit must not abort the payment that triggered it. A
+	savepoint isolates the rollback so only the failed submit is undone, never the Payment
+	Entry that is mid-flight in the same transaction."""
+	frappe.db.savepoint("auto_submit_booking")
+	try:
+		doc = frappe.get_doc("Container Booking", name)
+		if doc.docstatus != 0 or doc.booking_status == "Cancelled":
+			return False
+		doc.flags.ignore_permissions = True
+		doc.submit()
+		return True
+	except Exception:
+		frappe.db.rollback(save_point="auto_submit_booking")
+		frappe.log_error(frappe.get_traceback(), f"auto-submit paid booking {name}")
+		return False
 
 
 def on_payment_entry_change(doc, method=None):
