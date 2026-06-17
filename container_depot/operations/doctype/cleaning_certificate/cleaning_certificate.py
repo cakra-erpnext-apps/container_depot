@@ -18,7 +18,10 @@ class CleaningCertificate(Document):
 			self.prior_cargo = frappe.db.get_value("Container", self.container, "last_cargo")
 
 	def before_save(self):
-		if not self.valid_until:
+		# A statement-minted cert carries no time expiry (validity is anchored per EIR);
+		# the issuer sets flags.no_expiry so we leave valid_until blank (= valid forever,
+		# per _latest_valid_cleaning_cert / Order Muat, which skip the date check when blank).
+		if not self.valid_until and not self.flags.get("no_expiry"):
 			anchor = getdate(self.clean_date) if self.clean_date else getdate(today())
 			self.valid_until = add_days(anchor, CLEAN_CERT_TTL_DAYS)
 

@@ -71,6 +71,13 @@ const menu = [
 		tile: "bg-leaf-50 text-leaf-600",
 	},
 	{
+		to: "/cleaning",
+		icon: "droplet",
+		title: labels.cleaningTitle,
+		desc: labels.cleaningDesc,
+		tile: "bg-brand-50 text-brand-600",
+	},
+	{
 		to: "/storage",
 		icon: "layers",
 		title: labels.storage,

@@ -174,6 +174,38 @@ export const labels = {
 	signAgain: "Tanda tangan ulang", // Re-sign
 	clear: "Hapus", // Clear
 	signatureError: "Gagal mengunggah tanda tangan", // Signature upload failed
+	// Cleaning Statement (ISO tank cleanliness statement — surveyor)
+	cleaningTitle: "Cleaning Statement", // page + Home tile title
+	cleaningDesc: "Pernyataan kebersihan isotank (ISO)", // Home tile subtitle
+	cleaningReset: "Reset",
+	cleaningContainerPlaceholder: "No. container (mis. OAKU…)",
+	cleaningTankDetails: "Data Tank",
+	cleaningRefEir: "Referensi EIR",
+	cleaningChecklist: "Checklist Kebersihan",
+	cleaningYes: "Ya", // Yes
+	cleaningNo: "Tidak", // No
+	cleaningNote: "Catatan (bila tidak)…", // note when result is No
+	cleaningGasFree: "Gas Free",
+	cleaningO2: "O₂ %",
+	cleaningLel: "LEL %",
+	cleaningSeals: "Nomor Segel", // Seal numbers
+	cleaningSealManhole: "Segel Manhole",
+	cleaningSealAirline: "Segel Airline",
+	cleaningSealBottom: "Segel Bottom Outlet",
+	cleaningSignature: "Tanda Tangan Surveyor", // surveyor signature
+	cleaningResign: "Tanda tangan ulang", // re-sign
+	cleaningUploading: "Mengunggah…", // uploading
+	cleaningSubmit: "Submit Cleaning Statement",
+	cleaningSubmitted: "Cleaning Statement disubmit", // submitted toast
+	cleaningPrint: "Cetak / Unduh PDF", // print / download
+	cleaningTankType: "Tipe Tank",
+	cleaningClient: "Client / Prinsipal",
+	cleaningCapacity: "Kapasitas (L)",
+	cleaningTare: "Tare (kg)",
+	cleaningMgw: "MGW (kg)",
+	cleaningPrevCargo: "Cargo Sebelumnya",
+	cleaningMfgDate: "Tgl. Pembuatan",
+	cleaningLastTest: "Last Test",
 	// Depot Storage (yard placement — Operator Kalmar)
 	storage: "Depot Storage", // Home tile title
 	storageDesc: "Susun & lacak isotank per zona", // tile subtitle

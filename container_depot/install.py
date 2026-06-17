@@ -129,6 +129,20 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Surveyor":          {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "submit": 1, "cancel": 1, "report": 1},
 	},
+	# ISO Tank Cleanliness Statement (in-house surveyor cleanliness record). On submit
+	# it mints the no-expiry Cleaning Certificate the TANK OUT gate checks for.
+	"Cleaning Statement": {
+		"Customer":          {"read": 1, "report": 1},
+		"Surveyor":          {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
+		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "submit": 1, "cancel": 1, "report": 1},
+		"Operator Kalmar":   {"read": 1, "report": 1},
+		"Ops Supervisor":    {"read": 1, "report": 1},
+	},
+	"Cleaning Checklist Item": {
+		"Surveyor":          {"read": 1, "report": 1},
+		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
+		"Ops Supervisor":    {"read": 1, "report": 1},
+	},
 	"SST Activity Log": {
 		"IT Support":        {"read": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
@@ -243,6 +257,10 @@ ROLE_DOCTYPE_PERMISSIONS = {
 # into the matrix so setup_permissions() grants it like any other role.
 _PWA_DOCTYPE_PERMS = {
 	"Inspection":        {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
+	# Cleaning Statement create/submit also runs WITHOUT ignore_permissions
+	# (operations/cleaning.py), so the PWA role must carry create/submit.
+	"Cleaning Statement":      {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
+	"Cleaning Checklist Item": {"read": 1, "report": 1},
 	"Container":         {"read": 1, "report": 1},
 	"Yard Zone":         {"read": 1, "report": 1},
 	"Cargo":             {"read": 1, "report": 1},
