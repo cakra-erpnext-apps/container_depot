@@ -79,7 +79,7 @@
 							<span class="oak-icon-tile h-9 w-9 shrink-0 bg-amber-50 text-amber-600"><Icon name="clipboard" :size="16" /></span>
 							<div class="min-w-0 flex-1">
 								<p class="truncate font-semibold text-gray-900">{{ r.container_no || r.container }}</p>
-								<p class="truncate text-xs text-gray-500">{{ r.inspection_type }} · {{ fmtDate(r.eir_date || r.creation) }}</p>
+								<p class="truncate text-xs text-gray-500">{{ r.inspection_type }}</p>
 								<p class="truncate text-[11px] text-gray-400">{{ r.inspection_id || r.name }}</p>
 							</div>
 							<span class="oak-chip shrink-0 bg-amber-100 text-amber-800">{{ labels.eirResume }}</span>
@@ -106,7 +106,7 @@
 						<span class="oak-icon-tile h-9 w-9 shrink-0 bg-leaf-50 text-leaf-600"><Icon name="clipboard" :size="16" /></span>
 						<div class="min-w-0 flex-1">
 							<p class="truncate font-semibold text-gray-900">{{ r.container_no || r.container }}</p>
-							<p class="truncate text-xs text-gray-500">{{ r.inspection_type }}<span v-if="r.tank_status"> · {{ r.tank_status }}</span> · {{ fmtDate(r.eir_date || r.creation) }}</p>
+							<p class="truncate text-xs text-gray-500">{{ r.inspection_type }}<span v-if="r.tank_status"> · {{ r.tank_status }}</span></p>
 							<p class="truncate text-[11px] text-gray-400">{{ r.inspection_id || r.name }}</p>
 						</div>
 						<span class="oak-chip shrink-0 bg-leaf-100 text-leaf-800">{{ labels.eirStatusSubmitted }}</span>
@@ -178,10 +178,8 @@
 						<dd class="font-semibold text-gray-800">{{ f.value ?? "—" }}</dd>
 					</div>
 				</dl>
-				<div>
-					<label class="oak-label">{{ labels.tanggal }}</label>
-					<input v-model="tanggal" type="date" class="oak-input bg-gray-50 text-gray-500" readonly />
-				</div>
+				<!-- Tanggal EIR is hidden: it always equalled the created date, so it
+				     added no information. The form still sends today's date on submit. -->
 			</section>
 
 			<!-- Step 3 — tank status -->
@@ -503,9 +501,6 @@ function resumeDraft(r) {
 	containerNo.value = r.container_no || r.container
 	if (r.inspection_type) eirType.value = r.inspection_type
 	doFetch()
-}
-function fmtDate(v) {
-	return v ? String(v).slice(0, 10) : "—"
 }
 
 const saveRes = createResource({
