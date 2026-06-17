@@ -177,6 +177,15 @@ export const labels = {
 	// Depot Storage (yard placement — Operator Kalmar)
 	storage: "Depot Storage", // Home tile title
 	storageDesc: "Susun & lacak isotank per zona", // tile subtitle
+	// Monitor Container (inventory list, filter by status + principal)
+	monitorTitle: "Monitor Container", // page title
+	monitorDesc: "Pantau container per status & prinsipal", // Home tile subtitle
+	monitorSearch: "Cari nomor container…", // search placeholder
+	monitorAll: "Semua", // all statuses
+	monitorReady: "Siap Muat", // ready-for-pickup quick filter (ready bucket)
+	monitorAllPrincipals: "Semua Prinsipal", // principal filter default
+	monitorEmpty: "Tidak ada container untuk filter ini.", // empty state
+	monitorPtDue: "PT jatuh tempo", // periodic test due flag
 	storageTitle: "Depot Storage",
 	storagePlaceTitle: "Tempatkan Isotank", // Place an isotank
 	storagePlaceHint: "Masukkan nomor isotank — sistem menyarankan zona sesuai status.",

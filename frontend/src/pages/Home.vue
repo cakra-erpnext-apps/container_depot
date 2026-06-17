@@ -78,6 +78,13 @@ const menu = [
 		tile: "bg-leaf-50 text-leaf-600",
 	},
 	{
+		to: "/monitor",
+		icon: "grid",
+		title: labels.monitorTitle,
+		desc: labels.monitorDesc,
+		tile: "bg-brand-50 text-brand-600",
+	},
+	{
 		to: "/eir/history",
 		icon: "clock",
 		title: labels.eirHistoryTitle,

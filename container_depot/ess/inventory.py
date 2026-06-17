@@ -281,6 +281,27 @@ def get_tank_list(
 
 
 @frappe.whitelist(methods=["GET"])
+def list_container_principals():
+	"""Distinct principals (Tank Owners) that have at least one in-depot container in the
+	caller's branch scope — drives the Monitor Container principal filter.
+
+	GET /api/v1/ess/container-principals
+	"""
+	_require_authenticated_user()
+	filters = {"status": ["not in", EXCLUDED_FROM_INVENTORY], "principal": ["is", "set"]}
+	scoped = _apply_user_depot_scope(filters, None)
+	if scoped is None:
+		return {"principals": []}
+	names = sorted({n for n in frappe.get_all("Container", filters=scoped, pluck="principal", distinct=True) if n})
+	labels = (
+		{c.name: c.customer_name for c in frappe.get_all(
+			"Customer", filters={"name": ["in", names]}, fields=["name", "customer_name"]
+		)} if names else {}
+	)
+	return {"principals": [{"name": n, "label": labels.get(n) or n} for n in names]}
+
+
+@frappe.whitelist(methods=["GET"])
 def get_tank_detail(container):
 	"""Single-tank detail with derived status + periodic-test-due flag.
 

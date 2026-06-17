@@ -27,6 +27,11 @@ const routes = [
 		name: "DepotStorage",
 		component: () => import("@/pages/DepotStorage.vue"),
 	},
+	{
+		path: "/monitor",
+		name: "MonitorContainer",
+		component: () => import("@/pages/MonitorContainer.vue"),
+	},
 ]
 
 const router = createRouter({

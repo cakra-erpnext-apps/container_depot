@@ -369,6 +369,7 @@
 
 <script setup>
 import { computed, ref, onMounted } from "vue"
+import { useRoute } from "vue-router"
 import { createResource } from "frappe-ui"
 import {
 	labels,
@@ -413,8 +414,15 @@ const ZONE_PAGE = 50
 let zoneSearchTimer = null
 
 // Active branch label for the header ("Semua Branch" for HQ/unrestricted users).
+const route = useRoute()
 onMounted(() => {
 	if (!userContext.data) userContext.reload()
+	// Deep-link from Monitor Container: ?container=NICU1234567 → prefill + auto-recommend.
+	const c = route.query.container
+	if (c) {
+		containerNo.value = String(c).toUpperCase()
+		doRecommend()
+	}
 })
 const branch = computed(() => branchLabel())
 
