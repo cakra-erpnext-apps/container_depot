@@ -58,7 +58,14 @@ class CleaningStatement(Document):
 		container.status = "Available"
 		container.cleaning_status = "Completed"
 		container.certification_status = "Completed"
+		# Park the tank in the depot's Cleaning Bay zone. Physical yard movement is
+		# manual and may lag, so the system stamps the bay here at certification time.
+		bay = self._cleaning_bay_zone(container.depot)
+		if bay:
+			container.yard_zone = bay
 		self._save_container(container)
+
+		self._complete_cleaning_order()
 
 		cert = self._mint_cleaning_certificate()
 		self.db_set("cleaning_certificate", cert, update_modified=False)
@@ -78,6 +85,31 @@ class CleaningStatement(Document):
 			container.save(ignore_permissions=True)
 		finally:
 			frappe.flags.in_status_automation = False
+
+	def _cleaning_bay_zone(self, depot):
+		"""The active Cleaning Bay Yard Zone for the depot (None if none configured)."""
+		if not depot:
+			return None
+		return frappe.db.get_value(
+			"Yard Zone", {"depot": depot, "category": "Cleaning Bay", "is_active": 1}, "name"
+		)
+
+	def _complete_cleaning_order(self):
+		"""Complete the linked Cleaning Order: Completed + submitted (docstatus 1).
+
+		Per the lifecycle — Draft=Pending, In_Progress, Submit=Completed — submitting the
+		Cleaning Statement finalizes the order. Permissions are bypassed (the statement is
+		the authority); the order's own ``on_submit`` then re-affirms the container."""
+		if not self.cleaning_order:
+			return
+		co = frappe.get_doc("Cleaning Order", self.cleaning_order)
+		if co.docstatus == 1 or co.status == "Completed":
+			return
+		co.status = "Completed"
+		co.completed_by = self.signed_by or frappe.session.user
+		co.cleaning_end = datetime.datetime.now()
+		co.flags.ignore_permissions = True
+		co.submit()
 
 	def _mint_cleaning_certificate(self) -> str:
 		"""Create + submit a no-expiry Cleaning Certificate from this statement.

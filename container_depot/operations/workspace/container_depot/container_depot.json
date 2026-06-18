@@ -270,6 +270,36 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Cleaning Checklist Item",
+   "link_to": "Cleaning Checklist Item",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Yard Zone",
+   "link_to": "Yard Zone",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Yard Placement Rule",
+   "link_to": "Yard Placement Rule",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "SST & Audit",
    "type": "Card Break",
    "doctype": "Workspace Link"

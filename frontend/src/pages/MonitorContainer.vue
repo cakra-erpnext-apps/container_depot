@@ -38,6 +38,24 @@
 			</button>
 		</div>
 
+		<!-- Quick filters: today + needs-move (mismatch) -->
+		<div class="flex gap-1.5">
+			<button
+				class="flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+				:class="todayOnly ? 'border-brand-600 bg-brand-600 text-white' : 'border-gray-200 bg-white text-gray-600'"
+				@click="toggleToday"
+			>
+				<Icon name="calendar" :size="13" /> {{ labels.monitorToday }}
+			</button>
+			<button
+				class="flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+				:class="needsMoveOnly ? 'border-amber-500 bg-amber-500 text-white' : 'border-gray-200 bg-white text-gray-600'"
+				@click="toggleNeedsMove"
+			>
+				<Icon name="alert-triangle" :size="13" /> {{ labels.monitorNeedsMove }}
+			</button>
+		</div>
+
 		<!-- Principal filter -->
 		<div v-if="principals.length" class="flex items-center gap-2">
 			<Icon name="briefcase" :size="15" class="shrink-0 text-gray-400" />
@@ -72,7 +90,11 @@
 						<p class="mt-0.5 truncate text-xs text-gray-500">
 							<span v-if="c.principal">{{ c.principal }}</span>
 							<span v-if="c.yard_zone"> · {{ c.yard_zone }}</span>
+							<span v-else> · {{ labels.monitorNoZone }}</span>
 							<span v-if="c.pt_due" class="text-red-500"> · {{ labels.monitorPtDue }}</span>
+						</p>
+						<p v-if="c.needs_move" class="mt-0.5 truncate text-xs font-semibold text-amber-600">
+							<Icon name="arrow-right" :size="11" class="inline" /> {{ labels.monitorMoveTo }}: {{ c.target_category }}
 						</p>
 					</div>
 					<Icon name="chevron-right" :size="16" class="shrink-0 text-gray-300" />
@@ -105,6 +127,8 @@ const router = useRouter()
 const search = ref("")
 const statusFilter = ref("ready") // default to "ready for pickup / siap muat"
 const principalFilter = ref("")
+const todayOnly = ref(false)
+const needsMoveOnly = ref(false)
 const items = ref([])
 const total = ref(0)
 const start = ref(0)
@@ -135,6 +159,8 @@ const tankRes = createResource({
 		search: search.value || "",
 		status: statusFilter.value || "",
 		principal: principalFilter.value || "",
+		today: todayOnly.value ? 1 : 0,
+		needs_move: needsMoveOnly.value ? 1 : 0,
 		start: start.value,
 		page_length: PAGE,
 	}),
@@ -157,6 +183,16 @@ function loadMore() {
 }
 function setStatus(key) {
 	statusFilter.value = key
+	reload(true)
+}
+function toggleToday() {
+	todayOnly.value = !todayOnly.value
+	reload(true)
+}
+function toggleNeedsMove() {
+	needsMoveOnly.value = !needsMoveOnly.value
+	// "Perlu dipindahkan" spans all statuses — widen the status filter so nothing is hidden.
+	if (needsMoveOnly.value) statusFilter.value = ""
 	reload(true)
 }
 let searchTimer = null

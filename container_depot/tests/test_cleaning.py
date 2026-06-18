@@ -36,6 +36,7 @@ class TestCleaningStatement(FrappeTestCase):
 		for c in self._containers:
 			frappe.db.delete("Cleaning Certificate", {"container": c})
 			frappe.db.delete("Cleaning Statement", {"container": c})
+			frappe.db.delete("Cleaning Order", {"container": c})
 			frappe.db.delete("Container Activity", {"container": c})
 			frappe.db.delete("Container", {"name": c})
 		frappe.db.commit()
@@ -45,6 +46,12 @@ class TestCleaningStatement(FrappeTestCase):
 		c = _make_container(cno, **kw)
 		self._containers.append(c)
 		return c
+
+	def _cleaning_order(self, container, **kw):
+		co = frappe.get_doc({
+			"doctype": "Cleaning Order", "container": container, "status": "Pending", **kw,
+		}).insert(ignore_permissions=True)
+		return co.name
 
 	def _create(self, container, *, submit=False, results=None, **kw):
 		res = cleaning.create_cleaning_statement(container=container, submit=submit, results=results, **kw)
@@ -124,3 +131,41 @@ class TestCleaningStatement(FrappeTestCase):
 		)
 		self.assertEqual(len(acts), 1)
 		self.assertEqual(acts[0], "Cleaning Certificate")
+
+	# --- order-driven flow ----------------------------------------------------
+	def test_list_open_cleaning_orders_includes_open_order(self):
+		c = self._container("CLNLIST0001")
+		co = self._cleaning_order(c)
+		names = [o["name"] for o in cleaning.list_open_cleaning_orders()["items"]]
+		self.assertIn(co, names)
+
+	def test_start_cleaning_marks_in_progress(self):
+		c = self._container("CLNSTART001", status="Pending_Cleaning")
+		co = self._cleaning_order(c)
+		cleaning.start_cleaning(co)
+		self.assertEqual(frappe.db.get_value("Cleaning Order", co, "status"), "In_Progress")
+		self.assertEqual(frappe.db.get_value("Container", c, "status"), "Cleaning_In_Progress")
+
+	def test_prefill_from_cleaning_order_resolves_container(self):
+		c = self._container("CLNPFCO0001")
+		co = self._cleaning_order(c, cleaning_type="Steam Wash")
+		pf = cleaning.prefill(cleaning_order=co)
+		self.assertEqual(pf["container"], c)
+		self.assertEqual(pf["cleaning_order"], co)
+		self.assertEqual(pf["cleaning_type"], "Steam Wash")
+
+	def test_submit_from_order_completes_it_and_sets_cleaning_bay_zone(self):
+		# OAK1 has a seeded Cleaning Bay zone (OAK1-CBAY).
+		c = self._container("CLNBAY00001", status="Cleaning_In_Progress", depot="OAK1")
+		co = self._cleaning_order(c)
+		res = self._create(c, cleaning_order=co, cleaning_type="Hot Water", submit=True)
+
+		order = frappe.db.get_value("Cleaning Order", co, ["status", "cleaning_type", "docstatus"], as_dict=True)
+		self.assertEqual(order.status, "Completed")
+		self.assertEqual(order.docstatus, 1)  # Submit = Cleaning Complete
+		self.assertEqual(order.cleaning_type, "Hot Water")
+
+		container = frappe.db.get_value("Container", c, ["status", "yard_zone"], as_dict=True)
+		self.assertEqual(container.status, "Available")
+		self.assertEqual(container.yard_zone, "OAK1-CBAY")
+		self.assertTrue(res["cleaning_certificate"])

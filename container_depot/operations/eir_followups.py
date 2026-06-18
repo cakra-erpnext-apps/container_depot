@@ -76,8 +76,10 @@ def create_cleaning_order_from_eir(inspection, ignore_permissions=True):
 	co = frappe.new_doc("Cleaning Order")
 	co.container = insp.container
 	co.status = "Pending"
-	if insp.depot and co.meta.has_field("depot"):
-		co.depot = insp.depot
+	# Carry the depot (for branch-scoped notifications) — from the EIR, else the container.
+	depot = insp.depot or frappe.db.get_value("Container", insp.container, "depot")
+	if depot and co.meta.has_field("depot"):
+		co.depot = depot
 	co.insert(ignore_permissions=ignore_permissions)
 	return co.name
 

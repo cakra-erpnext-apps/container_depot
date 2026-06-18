@@ -599,7 +599,9 @@ class TestEirRevert(FrappeTestCase):
 
 	def test_revert_eir_in_restores_container_and_makes_draft(self):
 		c = _make_container("REVT1000001", status="Gate_In")
-		res = eir.create_eir(inspection_type="EIR-In", container=c, tank_status="Empty Dirty", submit=True)
+		# Empty Clean → Inspecting (an Empty-Dirty EIR would instead queue a Cleaning
+		# Order; that path is covered by test_eir_cleaning_flow). This test is about revert.
+		res = eir.create_eir(inspection_type="EIR-In", container=c, tank_status="Empty Clean", submit=True)
 		self.assertEqual(frappe.db.get_value("Container", c, "status"), "Inspecting")
 
 		eir.revert_to_draft(res["name"])

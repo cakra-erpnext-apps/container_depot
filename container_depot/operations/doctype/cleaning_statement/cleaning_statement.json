@@ -10,6 +10,7 @@
   "statement_id",
   "container",
   "container_no",
+  "cleaning_order",
   "inspection",
   "depot",
   "column_break_1",
@@ -70,6 +71,13 @@
    "in_list_view": 1,
    "label": "Tank No",
    "read_only": 1
+  },
+  {
+   "description": "The Cleaning Order this statement completes (the PWA flow always starts from an order).",
+   "fieldname": "cleaning_order",
+   "fieldtype": "Link",
+   "label": "Cleaning Order",
+   "options": "Cleaning Order"
   },
   {
    "description": "Source EIR — validity of this statement is anchored per EIR.",

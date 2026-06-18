@@ -49,8 +49,15 @@ class Inspection(Document):
 			container.last_cargo = self.cargo
 
 		if self.inspection_type == "EIR-In":
-			container.status = "Inspecting"
 			container.eir_in_date = datetime.datetime.now()
+			# A clean-but-dirty tank (no damage) is queued straight for cleaning (a
+			# Cleaning Order is auto-created below). A damaged tank needs M&R first, so it
+			# stays in inspecting (repair routing is handled separately).
+			if self.get("tank_status") == "Empty Dirty" and not self.has_damage:
+				container.status = "Pending_Cleaning"
+				container.cleaning_status = "Pending"
+			else:
+				container.status = "Inspecting"
 			self._save_container(container)
 		elif self.inspection_type == "Detailed Survey":
 			self._apply_survey_result(container)
@@ -82,6 +89,34 @@ class Inspection(Document):
 				{"damage_count": 1 if self.has_damage else 0, "tank_status": self.get("tank_status")},
 			)
 			notify_eir_submitted(self, container, category)
+
+		# Empty-Dirty (undamaged) EIR-In → auto-create a Cleaning Order so the cleaning
+		# team knows a tank is waiting, and notify them. (After cleaning, a Cleaning
+		# Statement issues the Cleaning Certificate — see operations/cleaning.py.)
+		if self.inspection_type == "EIR-In" and self.get("tank_status") == "Empty Dirty" and not self.has_damage:
+			self._ensure_cleaning_order(container)
+
+	def _ensure_cleaning_order(self, container):
+		"""Create (idempotently) a Pending Cleaning Order for this dirty tank and notify
+		the cleaning team — only the first time, so re-submits don't spam."""
+		from container_depot.operations import eir_followups
+		from container_depot.operations.container_activity import log_container_activity
+		from container_depot.operations.notify import notify_cleaning_order_created
+
+		had_open = frappe.db.exists(
+			"Cleaning Order", {"container": container.name, "status": ["in", ["Pending", "In_Progress"]]}
+		)
+		order = eir_followups.create_cleaning_order_from_eir(self.name)
+		if not order or had_open:
+			return  # nothing created (not dirty / already queued) — don't re-notify
+		log_container_activity(
+			container.name, "Cleaning",
+			reference_doctype="Cleaning Order", reference_name=order,
+			to_status=container.status,
+			performed_by=self.get("inspector"),
+			summary="Cleaning order auto-created from Empty-Dirty EIR",
+		)
+		notify_cleaning_order_created(order)
 
 	def _save_container(self, container):
 		# Controller-driven status change: bypass the manual-transition guard.

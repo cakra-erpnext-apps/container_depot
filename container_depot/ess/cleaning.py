@@ -22,10 +22,26 @@ def cleaning_masters():
 
 
 @frappe.whitelist(methods=["GET"])
-def cleaning_prefill(container=None, container_no=None, inspection=None):
-	"""GET /api/v1/ess/cleaning-prefill?container_no=… — Container master auto-fill."""
+def cleaning_orders(start=0, page_length=20, search=None):
+	"""GET /api/v1/ess/cleaning-orders — open Cleaning Orders worklist (depot-scoped)."""
 	_require_authenticated_user()
-	return cleaning.prefill(container=container, container_no=container_no, inspection=inspection)
+	return cleaning.list_open_cleaning_orders(start=start, page_length=page_length, search=search)
+
+
+@frappe.whitelist(methods=["POST"])
+def cleaning_start(cleaning_order=None):
+	"""POST /api/v1/ess/cleaning-start — mark a Cleaning Order In_Progress (Mulai)."""
+	_require_authenticated_user()
+	return cleaning.start_cleaning(cleaning_order)
+
+
+@frappe.whitelist(methods=["GET"])
+def cleaning_prefill(container=None, container_no=None, inspection=None, cleaning_order=None):
+	"""GET /api/v1/ess/cleaning-prefill?cleaning_order=… — Container master auto-fill."""
+	_require_authenticated_user()
+	return cleaning.prefill(
+		container=container, container_no=container_no, inspection=inspection, cleaning_order=cleaning_order
+	)
 
 
 @frappe.whitelist(methods=["GET"])
@@ -40,6 +56,8 @@ def cleaning_history(search=None, start=0, page_length=10, docstatus=None):
 @frappe.whitelist(methods=["POST"])
 def cleaning_create(
 	container=None,
+	cleaning_order=None,
+	cleaning_type=None,
 	inspection=None,
 	date_of_issue=None,
 	place_of_issue=None,
@@ -58,6 +76,8 @@ def cleaning_create(
 	_require_authenticated_user()
 	return cleaning.create_cleaning_statement(
 		container=container,
+		cleaning_order=cleaning_order,
+		cleaning_type=cleaning_type,
 		inspection=inspection,
 		date_of_issue=date_of_issue,
 		place_of_issue=place_of_issue,

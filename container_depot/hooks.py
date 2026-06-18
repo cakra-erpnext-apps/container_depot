@@ -97,6 +97,8 @@ website_route_rules = [
 	{"from_route": "/api/v1/ess/eir-save-draft", "to_route": "container_depot.ess.inspections.eir_save_draft"},
 	# ESS PWA Cleaning Statement (ISO tank cleanliness statement) endpoints
 	{"from_route": "/api/v1/ess/cleaning-masters", "to_route": "container_depot.ess.cleaning.cleaning_masters"},
+	{"from_route": "/api/v1/ess/cleaning-orders", "to_route": "container_depot.ess.cleaning.cleaning_orders"},
+	{"from_route": "/api/v1/ess/cleaning-start", "to_route": "container_depot.ess.cleaning.cleaning_start"},
 	{"from_route": "/api/v1/ess/cleaning-prefill", "to_route": "container_depot.ess.cleaning.cleaning_prefill"},
 	{"from_route": "/api/v1/ess/cleaning-history", "to_route": "container_depot.ess.cleaning.cleaning_history"},
 	{"from_route": "/api/v1/ess/cleaning-create", "to_route": "container_depot.ess.cleaning.cleaning_create"},

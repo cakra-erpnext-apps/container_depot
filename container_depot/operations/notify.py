@@ -25,6 +25,9 @@ GATE_ROLES = {PWA_ROLE, "Security", "Admin Ops", "Ops Supervisor", "Management"}
 # Bookings are commercial/admin work; the Cashier is included so a Cash booking's
 # payment is collected promptly.
 BOOKING_ROLES = {PWA_ROLE, "Commercial", "Admin Ops", "Ops Supervisor", "Management", "Cashier"}
+# Cleaning work — the yard/cleaning crew (Operator Kalmar) plus ops oversight. "Depot
+# PWA" is the blanket PWA role real cleaning users actually hold, so it is included.
+CLEANING_ROLES = {PWA_ROLE, "Operator Kalmar", "Admin Ops", "Ops Supervisor", "Management"}
 
 # Yard Zone category → short Indonesian label used in the EIR notification subject.
 CATEGORY_LABEL = {
@@ -110,6 +113,25 @@ def notify_eir_submitted(inspection, container, target_category):
 		subject=subject,
 		branch=_depot_branch(container.get("depot")),
 		roles=EIR_ROLES,
+	)
+
+
+def notify_cleaning_order_created(cleaning_order):
+	"""Fire when a Cleaning Order is auto-created from an Empty-Dirty EIR — tells the
+	cleaning team a tank is queued for cleaning so they can pick it up."""
+	co = frappe.db.get_value(
+		"Cleaning Order", cleaning_order,
+		["name", "container", "container_no", "depot", "order_id"], as_dict=True,
+	)
+	if not co:
+		return
+	subject = f"Cleaning Order {co.order_id or co.name} • {co.container_no or co.container} — siap dikerjakan"
+	notify(
+		doctype="Cleaning Order",
+		name=co.name,
+		subject=subject,
+		branch=_depot_branch(co.depot),
+		roles=CLEANING_ROLES,
 	)
 
 

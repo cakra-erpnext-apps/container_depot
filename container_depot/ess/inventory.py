@@ -206,7 +206,8 @@ def get_inventory_summary(depot=None):
 
 @frappe.whitelist(methods=["GET"])
 def get_tank_list(
-	search=None, principal=None, status=None, yard_zone=None, depot=None, start=0, page_length=50
+	search=None, principal=None, status=None, yard_zone=None, depot=None,
+	today=0, needs_move=0, start=0, page_length=50,
 ):
 	"""Searchable / filterable / paginated tank list with derived status.
 
@@ -250,12 +251,41 @@ def get_tank_list(
 	cleaning, repair, inspection = _open_service_sets(names)
 	pt_due = _pt_due_set(names)
 
+	# Placement-rule context for the "needs move" (mismatch) flag: the allowed yard
+	# categories per raw status vs the container's current zone category.
+	from container_depot.operations.yard import status_categories_map, zone_category_map
+
+	cats_map = status_categories_map()
+	zone_cat = zone_category_map([r.yard_zone for r in rows])
+
+	today_flag = cint(today)
+	needs_move_flag = cint(needs_move)
+	today_set = None
+	if today_flag and names:
+		today_set = set(
+			frappe.get_all(
+				"Container Activity",
+				filters={"container": ["in", names], "activity_time": [">=", frappe.utils.today()]},
+				pluck="container",
+				distinct=True,
+			)
+		)
+
 	items = []
 	for r in rows:
 		bucket = derive_status(
 			r.status, r.name in cleaning, r.name in repair, r.name in inspection
 		)
 		if status and bucket != status:
+			continue
+		if today_set is not None and r.name not in today_set:
+			continue
+		allowed = cats_map.get(r.status) or []
+		current_cat = zone_cat.get(r.yard_zone) if r.yard_zone else None
+		# Mismatch when the status has allowed categories but the tank sits outside all
+		# of them (or isn't placed yet). The first allowed category is the suggested target.
+		nm = bool(allowed) and current_cat not in allowed
+		if needs_move_flag and not nm:
 			continue
 		items.append(
 			{
@@ -267,6 +297,10 @@ def get_tank_list(
 				"yard_zone": r.yard_zone,
 				"status": bucket,
 				"pt_due": r.name in pt_due,
+				"needs_move": nm,
+				"target_category": allowed[0] if allowed else None,
+				"allowed_categories": allowed,
+				"current_category": current_cat,
 			}
 		)
 

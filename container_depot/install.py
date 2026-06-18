@@ -143,6 +143,15 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
 	},
+	# Cleaning Order — the cleaning team's worklist (auto-created from Empty-Dirty EIRs,
+	# completed when the Cleaning Statement is submitted). Editable from the PWA.
+	"Cleaning Order": {
+		"Surveyor":          {"read": 1, "write": 1, "report": 1},
+		"Operator Kalmar":   {"read": 1, "write": 1, "report": 1},
+		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "submit": 1, "cancel": 1, "report": 1},
+		"Ops Supervisor":    {"read": 1, "write": 1, "report": 1},
+		"Management":        {"read": 1, "report": 1, "export": 1},
+	},
 	"SST Activity Log": {
 		"IT Support":        {"read": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
@@ -189,6 +198,15 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Surveyor":          {"read": 1, "report": 1},
 		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
 		"Ops Supervisor":    {"read": 1, "report": 1},
+	},
+	# Status -> allowed yard category master (drives placement + the 'needs move' list).
+	"Yard Placement Rule": {
+		"Operator Kalmar":   {"read": 1, "report": 1},
+		"Surveyor":          {"read": 1, "report": 1},
+		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "delete": 1, "report": 1},
+		"Ops Supervisor":    {"read": 1, "report": 1},
+		"Management":        {"read": 1, "report": 1, "export": 1},
+		"IT Support":        {"read": 1, "report": 1},
 	},
 	"Periodic Test": {
 		"Customer":          {"read": 1, "report": 1},
@@ -261,8 +279,12 @@ _PWA_DOCTYPE_PERMS = {
 	# (operations/cleaning.py), so the PWA role must carry create/submit.
 	"Cleaning Statement":      {"read": 1, "create": 1, "write": 1, "submit": 1, "report": 1},
 	"Cleaning Checklist Item": {"read": 1, "report": 1},
+	# The PWA Cleaning menu lists open orders and edits them (cleaning type) before
+	# completing via the statement.
+	"Cleaning Order":          {"read": 1, "write": 1, "report": 1},
 	"Container":         {"read": 1, "report": 1},
 	"Yard Zone":         {"read": 1, "report": 1},
+	"Yard Placement Rule": {"read": 1, "report": 1},
 	"Cargo":             {"read": 1, "report": 1},
 	"Order Bongkar":     {"read": 1, "report": 1},
 	"Order Muat":        {"read": 1, "report": 1},

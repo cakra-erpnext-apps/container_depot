@@ -176,9 +176,18 @@ export const labels = {
 	signatureError: "Gagal mengunggah tanda tangan", // Signature upload failed
 	// Cleaning Statement (ISO tank cleanliness statement — surveyor)
 	cleaningTitle: "Cleaning Statement", // page + Home tile title
-	cleaningDesc: "Pernyataan kebersihan isotank (ISO)", // Home tile subtitle
-	cleaningReset: "Reset",
-	cleaningContainerPlaceholder: "No. container (mis. OAKU…)",
+	cleaningDesc: "Daftar cleaning order & terbitkan sertifikat", // Home tile subtitle
+	cleaningOrdersHint: "Pilih cleaning order untuk dikerjakan", // worklist hint
+	cleaningOrdersSearch: "Cari no. container / order…",
+	cleaningOrdersEmpty: "Tidak ada cleaning order terbuka.",
+	cleaningOrder: "Cleaning Order",
+	cleaningType: "Metode Cleaning", // cleaning method
+	cleaningTypeUnset: "Belum diset", // not set
+	cleaningPending: "Pending",
+	cleaningInProgress: "Dikerjakan", // In Progress
+	cleaningStart: "Mulai", // start cleaning button
+	cleaningStarted: "Cleaning dimulai", // started toast
+	cleaningBack: "Kembali", // back to list
 	cleaningTankDetails: "Data Tank",
 	cleaningRefEir: "Referensi EIR",
 	cleaningChecklist: "Checklist Kebersihan",
@@ -218,6 +227,10 @@ export const labels = {
 	monitorAllPrincipals: "Semua Prinsipal", // principal filter default
 	monitorEmpty: "Tidak ada container untuk filter ini.", // empty state
 	monitorPtDue: "PT jatuh tempo", // periodic test due flag
+	monitorToday: "Hari Ini", // today filter
+	monitorNeedsMove: "Perlu Dipindahkan", // needs-move (mismatch) filter
+	monitorMoveTo: "Pindahkan ke", // move target prefix
+	monitorNoZone: "Belum ada zona", // no yard zone yet
 	storageTitle: "Depot Storage",
 	storagePlaceTitle: "Tempatkan Isotank", // Place an isotank
 	storagePlaceHint: "Masukkan nomor isotank — sistem menyarankan zona sesuai status.",

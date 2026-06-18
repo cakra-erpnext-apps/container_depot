@@ -49,6 +49,66 @@ STATUS_TO_CATEGORY = {
 _NOT_OCCUPYING = ("Gate_Out",)
 
 
+def status_categories_map() -> dict:
+	"""Container status -> list of allowed Yard Zone categories.
+
+	Reads the user-editable ``Yard Placement Rule`` master (each rule's
+	``allowed_categories`` child table) and layers it over the built-in
+	:data:`STATUS_TO_CATEGORY` defaults — the master wins (even an empty list, which
+	means "not placeable"); statuses with no active rule fall back to the default.
+	The FIRST category is the recommended target."""
+	mapping = {s: ([c] if c else []) for s, c in STATUS_TO_CATEGORY.items()}
+	rules = frappe.get_all(
+		"Yard Placement Rule", filters={"is_active": 1}, fields=["name", "container_status"]
+	)
+	if not rules:
+		return mapping
+	children = frappe.get_all(
+		"Yard Placement Rule Category",
+		filters={"parent": ["in", [r.name for r in rules]], "parenttype": "Yard Placement Rule"},
+		fields=["parent", "category"],
+		order_by="idx asc",
+	)
+	by_parent = {}
+	for ch in children:
+		by_parent.setdefault(ch.parent, []).append(ch.category)
+	for r in rules:
+		mapping[r.container_status] = by_parent.get(r.name, [])
+	return mapping
+
+
+def status_category_map() -> dict:
+	"""Container status -> its *primary* (recommended) allowed category, or ``None``.
+
+	Back-compat helper over :func:`status_categories_map` — the first allowed
+	category is the recommendation target."""
+	return {s: (cats[0] if cats else None) for s, cats in status_categories_map().items()}
+
+
+def allowed_categories_for_status(status) -> list:
+	"""All yard categories a container in ``status`` may sit in (per the rule master)."""
+	return status_categories_map().get(status, [])
+
+
+def allowed_category_for_status(status) -> str | None:
+	"""The primary (recommended) yard category for a raw container status."""
+	cats = status_categories_map().get(status) or []
+	return cats[0] if cats else None
+
+
+def zone_category_map(zone_names) -> dict:
+	"""``{Yard Zone name: category}`` for the given zones (blank input -> empty map)."""
+	names = [z for z in set(zone_names or []) if z]
+	if not names:
+		return {}
+	return {
+		z.name: z.category
+		for z in frappe.get_all(
+			"Yard Zone", filters={"name": ["in", names]}, fields=["name", "category"]
+		)
+	}
+
+
 def _resolve_container(container_no):
 	"""Return the Container doc for a container number (lenient, case-insensitive)."""
 	if not container_no or not isinstance(container_no, str):
@@ -205,7 +265,7 @@ def _target_category(container, eir=None):
 		if eir.get("tank_status") == "Empty Clean":
 			return "Survey"
 
-	category = STATUS_TO_CATEGORY.get(container.status)
+	category = status_category_map().get(container.status)
 	if container.status == "Gate_In":
 		condition = (eir or {}).get("tank_status") or _latest_tank_condition(container.name)
 		if condition == "Empty Clean":

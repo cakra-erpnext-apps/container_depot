@@ -7,29 +7,12 @@
 					{{ labels.cleaningTitle }}
 				</h1>
 				<p v-if="header" class="truncate font-mono text-[11px] text-gray-500">{{ header.container_no }}</p>
+				<p v-else class="text-sm text-gray-500">{{ labels.cleaningOrdersHint }}</p>
 			</div>
-			<button v-if="header" class="oak-btn oak-btn-secondary px-3 py-2" @click="reset">
-				<Icon name="x" :size="16" /> {{ labels.cleaningReset }}
+			<button v-if="header" class="oak-btn oak-btn-secondary px-3 py-2" @click="backToList">
+				<Icon name="arrow-left" :size="16" /> {{ labels.cleaningBack }}
 			</button>
 		</div>
-
-		<!-- Step 1 — pick the container -->
-		<section class="oak-card p-4 space-y-2">
-			<label class="oak-label">{{ labels.containerNumber }}</label>
-			<div class="flex gap-2">
-				<input
-					v-model="containerNo"
-					class="oak-input uppercase"
-					:placeholder="labels.cleaningContainerPlaceholder"
-					@keyup.enter="doFetch"
-				/>
-				<button class="oak-btn oak-btn-primary shrink-0 px-4" :disabled="prefillRes.loading" @click="doFetch">
-					<Icon v-if="prefillRes.loading" name="loader" :size="16" class="animate-spin" />
-					<span v-else>{{ labels.eirFetch }}</span>
-				</button>
-			</div>
-			<p v-if="fetchErr" class="text-sm text-red-600">{{ fetchErr }}</p>
-		</section>
 
 		<!-- Created/submitted confirmation -->
 		<section v-if="submitted" class="oak-card border-leaf-200 bg-leaf-50 p-4 space-y-2">
@@ -42,8 +25,54 @@
 			</a>
 		</section>
 
+		<!-- WORKLIST: open cleaning orders -->
+		<section v-if="!header && !submitted" class="space-y-3">
+			<div class="flex gap-2">
+				<input
+					v-model="search"
+					class="oak-input uppercase"
+					:placeholder="labels.cleaningOrdersSearch"
+					@keyup.enter="reloadOrders"
+				/>
+				<button class="oak-btn oak-btn-secondary shrink-0 px-3" @click="reloadOrders">
+					<Icon name="search" :size="16" />
+				</button>
+			</div>
+
+			<div v-if="ordersRes.loading" class="oak-card p-6 text-center text-gray-400">
+				<Icon name="loader" :size="20" class="animate-spin" />
+			</div>
+			<div v-else-if="!orders.length" class="oak-card p-6 text-center text-gray-400">
+				{{ labels.cleaningOrdersEmpty }}
+			</div>
+			<div v-for="o in orders" :key="o.name" class="oak-card flex items-center gap-3 p-4">
+				<button class="oak-press flex min-w-0 flex-1 items-center gap-3 text-left" @click="openOrder(o)">
+					<span class="oak-icon-tile h-11 w-11 shrink-0 bg-brand-50 text-brand-600">
+						<Icon name="droplet" :size="20" />
+					</span>
+					<div class="min-w-0 flex-1">
+						<p class="truncate font-bold text-gray-900">{{ o.container_no || o.container }}</p>
+						<p class="truncate text-xs text-gray-500">
+							{{ o.order_id }} · {{ o.cleaning_type || labels.cleaningTypeUnset }}
+							<span v-if="o.last_cargo"> · {{ o.last_cargo }}</span>
+						</p>
+					</div>
+				</button>
+				<button
+					v-if="o.status !== 'In_Progress'"
+					class="oak-btn oak-btn-secondary shrink-0 px-3 py-1.5 text-xs"
+					:disabled="startRes.loading"
+					@click.stop="startOrder(o)"
+				>
+					{{ labels.cleaningStart }}
+				</button>
+				<span v-else class="oak-chip shrink-0 bg-amber-50 text-amber-700">{{ labels.cleaningInProgress }}</span>
+			</div>
+		</section>
+
+		<!-- FORM: fill the statement for the selected order -->
 		<template v-if="header && !submitted">
-			<!-- Step 2 — tank header (read-only, from the Container master) -->
+			<!-- Tank header (read-only, from the Container master) -->
 			<section class="oak-card p-4">
 				<p class="oak-section-title mb-2">{{ labels.cleaningTankDetails }}</p>
 				<dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -52,12 +81,21 @@
 						<dd class="truncate font-medium text-gray-800">{{ cell.value || "—" }}</dd>
 					</div>
 				</dl>
-				<p v-if="header.inspection" class="mt-2 font-mono text-[11px] text-gray-400">
-					{{ labels.cleaningRefEir }}: {{ header.inspection }}
+				<p v-if="header.cleaning_order" class="mt-2 font-mono text-[11px] text-gray-400">
+					{{ labels.cleaningOrder }}: {{ header.cleaning_order }}
 				</p>
 			</section>
 
-			<!-- Step 3 — the 12 cleanliness checks -->
+			<!-- Cleaning method (editable on the order) -->
+			<section class="oak-card p-4 space-y-2">
+				<label class="oak-label">{{ labels.cleaningType }}</label>
+				<select v-model="cleaningType" class="oak-input">
+					<option value="">— {{ labels.cleaningTypeUnset }} —</option>
+					<option v-for="t in CLEANING_TYPES" :key="t" :value="t">{{ t }}</option>
+				</select>
+			</section>
+
+			<!-- The 12 cleanliness checks -->
 			<section class="oak-card p-4 space-y-3">
 				<p class="oak-section-title">{{ labels.cleaningChecklist }}</p>
 				<div v-for="g in groups" :key="g.section" class="space-y-2">
@@ -87,7 +125,7 @@
 				</div>
 			</section>
 
-			<!-- Step 4 — gas free reading -->
+			<!-- Gas free reading -->
 			<section class="oak-card p-4 space-y-2">
 				<p class="oak-section-title">{{ labels.cleaningGasFree }}</p>
 				<div class="grid grid-cols-2 gap-2">
@@ -113,7 +151,7 @@
 				</div>
 			</section>
 
-			<!-- Step 5 — seal numbers -->
+			<!-- Seal numbers -->
 			<section class="oak-card p-4 space-y-2">
 				<p class="oak-section-title">{{ labels.cleaningSeals }}</p>
 				<div>
@@ -130,13 +168,13 @@
 				</div>
 			</section>
 
-			<!-- Step 6 — remarks -->
+			<!-- Remarks -->
 			<section class="oak-card p-4 space-y-2">
 				<label class="oak-label">{{ labels.eirRemarks }}</label>
 				<textarea v-model="remarks" rows="3" class="oak-input"></textarea>
 			</section>
 
-			<!-- Step 7 — surveyor signature -->
+			<!-- Surveyor signature -->
 			<section class="oak-card p-4 space-y-2">
 				<div class="flex items-center justify-between">
 					<p class="oak-section-title">{{ labels.cleaningSignature }}</p>
@@ -187,14 +225,19 @@ import { labels } from "@/utils/labels"
 import { toast } from "@/utils/toast"
 import Icon from "@/components/Icon.vue"
 
-const containerNo = ref("")
+const CLEANING_TYPES = [
+	"PP Wash", "Methanol Rinse", "Steam Wash", "Hot Water", "Chemical", "Detergent", "Nitrogen Purge",
+]
+
+const search = ref("")
+const orders = ref([])
 const header = ref(null)
 const submitted = ref(null)
-const fetchErr = ref("")
 
-const checklist = ref([]) // master taxonomy (12 rows)
-const rows = ref([]) // reactive per-item result/note state
+const checklist = ref([])
+const rows = ref([])
 
+const cleaningType = ref("")
 const gasFree = ref("")
 const o2 = ref("")
 const lel = ref("")
@@ -212,7 +255,7 @@ const printUrl = computed(() =>
 )
 
 // Checklist taxonomy (loaded once).
-const mastersRes = createResource({
+createResource({
 	url: "container_depot.ess.cleaning.cleaning_masters",
 	method: "GET",
 	auto: true,
@@ -222,6 +265,21 @@ const mastersRes = createResource({
 		buildRows()
 	},
 })
+
+// Open cleaning orders worklist.
+const ordersRes = createResource({
+	url: "container_depot.ess.cleaning.cleaning_orders",
+	method: "GET",
+	auto: true,
+	onSuccess: (data) => (orders.value = data.items || []),
+})
+
+function reloadOrders() {
+	// Pass search only when non-empty — frappe-ui serializes `undefined` as the literal
+	// string "undefined", which would filter the list down to nothing.
+	const s = search.value.trim()
+	ordersRes.fetch(s ? { search: s } : {})
+}
 
 function buildRows() {
 	rows.value = (checklist.value || []).map((i) => reactive({ ...i, result: "Yes", note: "" }))
@@ -259,24 +317,38 @@ const prefillRes = createResource({
 	method: "GET",
 	onSuccess(data) {
 		header.value = data
-		// Prefill seal numbers from the container's last-known values (editable).
+		cleaningType.value = data.cleaning_type || ""
 		sealManhole.value = data.seal_manhole || ""
 		sealAirline.value = data.seal_airline || ""
 		sealBottom.value = data.seal_bottom_outlet || ""
-		if (data.default_remarks && !remarks.value) remarks.value = data.default_remarks
-		if (!rows.value.length) buildRows()
+		if (data.default_remarks) remarks.value = data.default_remarks
+		buildRows()
 	},
 	onError(err) {
-		fetchErr.value = err?.messages?.[0] || err?.message || labels.error
+		toast.error(err?.messages?.[0] || err?.message || labels.error)
 	},
 })
 
-function doFetch() {
-	fetchErr.value = ""
-	const no = containerNo.value.trim().toUpperCase()
-	if (!no) return
+function openOrder(o) {
 	submitted.value = null
-	prefillRes.fetch({ container_no: no })
+	prefillRes.fetch({ cleaning_order: o.name })
+}
+
+// "Mulai Cleaning" — move the order to In_Progress (container -> Cleaning In Progress).
+const startRes = createResource({
+	url: "container_depot.ess.cleaning.cleaning_start",
+	method: "POST",
+	onSuccess() {
+		toast.success(labels.cleaningStarted)
+		reloadOrders()
+	},
+	onError(err) {
+		toast.error(err?.messages?.[0] || err?.message || labels.error)
+	},
+})
+
+function startOrder(o) {
+	startRes.fetch({ cleaning_order: o.name })
 }
 
 const createRes = createResource({
@@ -284,7 +356,9 @@ const createRes = createResource({
 	method: "POST",
 	onSuccess(data) {
 		submitted.value = data
+		header.value = null
 		toast.success(labels.cleaningSubmitted, { title: data.statement_id || data.name })
+		reloadOrders()
 	},
 	onError(err) {
 		toast.error(err?.messages?.[0] || err?.message || labels.error)
@@ -299,7 +373,9 @@ function submit() {
 		note: r.note || undefined,
 	}))
 	createRes.fetch({
+		cleaning_order: header.value.cleaning_order || undefined,
 		container: header.value.container,
+		cleaning_type: cleaningType.value || undefined,
 		inspection: header.value.inspection || undefined,
 		gas_free: gasFree.value || undefined,
 		o2_percent: o2.value !== "" ? o2.value : undefined,
@@ -314,11 +390,15 @@ function submit() {
 	})
 }
 
-function reset() {
+function backToList() {
 	header.value = null
 	submitted.value = null
-	containerNo.value = ""
-	fetchErr.value = ""
+	resetForm()
+	reloadOrders()
+}
+
+function resetForm() {
+	cleaningType.value = ""
 	gasFree.value = ""
 	o2.value = ""
 	lel.value = ""
