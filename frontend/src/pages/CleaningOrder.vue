@@ -58,6 +58,7 @@
 							{{ o.order_id }} · {{ o.cleaning_type || labels.cleaningTypeUnset }}
 							<span v-if="o.last_cargo"> · {{ o.last_cargo }}</span>
 						</p>
+						<p class="truncate text-[11px] text-gray-400">{{ labels.createdOn }} {{ fmtDate(o.order_created) }}</p>
 					</div>
 				</button>
 				<button
@@ -254,6 +255,8 @@ import Icon from "@/components/Icon.vue"
 
 const route = useRoute()
 const router = useRouter()
+
+const fmtDate = (v) => (v ? String(v).slice(0, 10) : "—")
 
 const CLEANING_TYPES = [
 	"PP Wash", "Methanol Rinse", "Steam Wash", "Hot Water", "Chemical", "Detergent", "Nitrogen Purge",

@@ -55,6 +55,7 @@
 					<div class="min-w-0 flex-1">
 						<p class="truncate font-bold text-gray-900">{{ o.container_no || o.container }}</p>
 						<p class="truncate text-xs text-gray-500">{{ o.repair_order_id }} · {{ o.principal || "—" }}</p>
+						<p class="truncate text-[11px] text-gray-400">{{ labels.createdOn }} {{ fmtDate(o.creation) }}</p>
 					</div>
 				</button>
 				<button
@@ -260,6 +261,8 @@ import Icon from "@/components/Icon.vue"
 
 const route = useRoute()
 const router = useRouter()
+
+const fmtDate = (v) => (v ? String(v).slice(0, 10) : "—")
 
 const search = ref("")
 const orders = ref([])

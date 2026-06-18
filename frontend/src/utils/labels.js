@@ -188,6 +188,7 @@ export const labels = {
 	navCleaning: "Cleaning", // bottom-nav label
 	cleaningOrdersSearch: "Cari no. container / order…",
 	cleaningOrdersEmpty: "Tidak ada cleaning order terbuka.",
+	createdOn: "Dibuat", // worklist row: created-on date prefix
 	cleaningOrder: "Cleaning Order",
 	cleaningType: "Metode Cleaning", // cleaning method
 	cleaningTypeUnset: "Belum diset", // not set
