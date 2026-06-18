@@ -1,14 +1,13 @@
-"""Core ISO Tank Cleanliness Statement logic for the web/checklist flow.
+"""Core cleaning logic for the PWA Cleaning Order flow.
 
 Mirrors ``operations/eir.py``: deliberately free of ``@frappe.whitelist`` so the
 same functions back both the ESS PWA wrappers (``ess/cleaning.py``) and any Desk /
 automation caller — the endpoint layer only adds auth + whitelisting.
 
-The statement inspects a physical container, so the **Container is the key**: its
-template fields (tank type, manufacture / last-test date, tare, MWG, capacity,
-principal, previous cargo) come straight from the Container master. The surveyor
-fills the 12 cleanliness checks + gas-free + seal numbers; submit (in the
-controller) drives the Container and mints the gating certificate.
+Flow: EIR (Empty Dirty) -> Cleaning Order (auto-created, Pending) -> the team starts
+it (In_Progress) -> fills the cleanliness checklist and submits -> Completed, which
+mints the Cleaning Certificate. The cleanliness detail (checklist / gas free / seals /
+signature) lives on the Cleaning Order itself — there is no separate statement doc.
 """
 
 from __future__ import annotations
@@ -17,16 +16,23 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, today
+from frappe.utils import cint, now_datetime, today
 
 from container_depot.operations.user_branch import assert_in_user_branch, get_user_branches
 
-# Default boiler-plate the OAK statement prints unless the surveyor overrides it.
+# Default boiler-plate the OAK cleanliness statement prints unless the team overrides it.
 DEFAULT_REMARKS = "TANK ALREADY STEAM 100°C\nTANK ALREADY PASSED LEAK TEST 1 BAR"
+
+# Tank-spec fields read from the Container master for the form header + print.
+_CONTAINER_FIELDS = [
+	"name", "container_no", "container_type", "manufacture_date", "last_test_date",
+	"tare_weight", "max_gross_weight", "capacity", "principal", "last_cargo",
+	"depot", "seal_manhole", "seal_airline", "seal_bottom_outlet",
+]
 
 
 def _guard_container_branch(container_name) -> None:
-	"""Block cleaning-statement actions on a container outside the user's branch."""
+	"""Block cleaning actions on a container outside the user's branch."""
 	depot = frappe.db.get_value("Container", container_name, "depot")
 	assert_in_user_branch(depot=depot)
 
@@ -39,26 +45,11 @@ def get_cleaning_masters() -> dict:
 		fields=["item_code", "section", "item_name", "sequence"],
 		order_by="sequence asc",
 	)
-	return {
-		"checklist": checklist,
-		"default_remarks": DEFAULT_REMARKS,
-	}
-
-
-def _resolve_container(container=None, container_no=None) -> str:
-	name = container or container_no
-	if not name:
-		frappe.throw(_("Provide a container number."))
-	if not frappe.db.exists("Container", name):
-		# container_no may differ from docname on legacy data — look it up.
-		name = frappe.db.get_value("Container", {"container_no": name}) or name
-	if not frappe.db.exists("Container", name):
-		frappe.throw(_("Container {0} not found.").format(container or container_no))
-	return name
+	return {"checklist": checklist, "default_remarks": DEFAULT_REMARKS}
 
 
 def _latest_eir(container: str) -> str | None:
-	"""The newest submitted EIR for the container (the statement's validity anchor)."""
+	"""The newest submitted EIR for the container (the cleaning's source / anchor)."""
 	return frappe.db.get_value(
 		"Inspection",
 		{"container": container, "docstatus": 1, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]},
@@ -75,14 +66,30 @@ def _default_place_of_issue(user, depot) -> str | None:
 	return depot
 
 
+def cargo_history(container, limit=4) -> list:
+	"""The container's recent cargo history from Container Booking Item — newest to
+	oldest, capped at ``limit`` (default 4)."""
+	cno = frappe.db.get_value("Container", container, "container_no")
+	rows = frappe.get_all(
+		"Container Booking Item",
+		filters={"cargo": ["is", "set"]},
+		or_filters={"container": container, "container_no": cno},
+		fields=["cargo", "tanggal_bongkar", "creation"],
+		order_by="creation desc",
+		limit_page_length=cint(limit),
+	)
+	return [
+		{"cargo": r.cargo, "date": str(r.tanggal_bongkar or r.creation)[:10]}
+		for r in rows
+	]
+
+
 def list_open_cleaning_orders(start=0, page_length=20, search=None) -> dict:
 	"""Open Cleaning Orders (Pending / In_Progress) the cleaning team still has to
 	work — the PWA Cleaning menu's worklist. Depot-scoped to the caller's branch."""
-	from frappe.utils import cint
-
 	from container_depot.operations.user_branch import get_user_depots
 
-	filters = {"status": ["in", ["Pending", "In_Progress"]]}
+	filters = {"status": ["in", ["Pending", "In_Progress"]], "docstatus": 0}
 	depots = get_user_depots()
 	if depots is not None:
 		filters["depot"] = ["in", depots or [""]]  # restricted user: only their depots
@@ -105,8 +112,8 @@ def list_open_cleaning_orders(start=0, page_length=20, search=None) -> dict:
 
 def start_cleaning(cleaning_order):
 	"""Move a Cleaning Order from Pending to In_Progress (the team has started work) and
-	mirror it onto the container (-> Cleaning_In_Progress). The order stays a draft —
-	it is only submitted (Completed) when the Cleaning Statement is submitted."""
+	mirror it onto the container (-> Cleaning_In_Progress). The order stays a draft — it
+	is only submitted (Completed) when the cleanliness checklist is finalized."""
 	co = frappe.db.get_value(
 		"Cleaning Order", cleaning_order, ["name", "container", "status", "docstatus"], as_dict=True
 	)
@@ -142,51 +149,35 @@ def start_cleaning(cleaning_order):
 	return {"success": True, "name": co.name, "status": "In_Progress", "container_status": cont.status}
 
 
-def _order_detail(cleaning_order):
-	"""Resolve a Cleaning Order to (container, inspection, order summary) for prefill."""
-	co = frappe.db.get_value(
-		"Cleaning Order", cleaning_order,
-		["name", "container", "order_id", "status", "cleaning_type"], as_dict=True,
-	)
-	if not co:
-		frappe.throw(_("Cleaning Order {0} not found.").format(cleaning_order))
-	if not co.container:
-		frappe.throw(_("Cleaning Order {0} has no container.").format(cleaning_order))
-	return co
-
-
-def prefill(container=None, container_no=None, inspection=None, cleaning_order=None) -> dict:
-	"""Resolve the statement header from the Container master + auto fields.
-
-	The PWA flow always starts from a Cleaning Order: ``cleaning_order`` resolves the
-	container (and the statement is linked + completes that order on submit). AUTO-FILL
-	(from Container): tank_no, tank_type, date_of_manufacture, tare, mgw, capacity,
-	client/principal, last_test_date, previous_cargo. AUTO: date_of_issue = today,
-	place_of_issue = branch default, signed_by = session user. ``inspection`` is the
-	source EIR (defaulted to the container's latest submitted EIR).
-	"""
-	order = None
-	if cleaning_order:
-		order = _order_detail(cleaning_order)
-		container = container or order.container
-	name = _resolve_container(container, container_no)
-	c = frappe.db.get_value(
-		"Container", name,
-		["name", "container_no", "container_type", "manufacture_date", "last_test_date",
-		 "tare_weight", "max_gross_weight", "capacity", "principal", "last_cargo",
-		 "depot", "seal_manhole", "seal_airline", "seal_bottom_outlet"],
-		as_dict=True,
-	)
-	if not c:
-		frappe.throw(_("Container {0} not found.").format(container or container_no))
-
-	_guard_container_branch(c.name)
-
+def get_cleaning_order_detail(cleaning_order) -> dict:
+	"""Everything the PWA form needs for one Cleaning Order: the order's own cleanliness
+	state, the tank spec from the Container master, the saved checklist, recent cargo
+	history and the issue defaults."""
+	co = frappe.get_doc("Cleaning Order", cleaning_order)
+	_guard_container_branch(co.container)
+	c = frappe.db.get_value("Container", co.container, _CONTAINER_FIELDS, as_dict=True) or frappe._dict()
 	user = frappe.session.user
 	return {
-		"container": c.name,
-		"container_no": c.container_no,
-		"tank_no": c.container_no,
+		"name": co.name,
+		"order_id": co.order_id,
+		"status": co.status,
+		"docstatus": co.docstatus,
+		"container": co.container,
+		"container_no": co.container_no or c.container_no,
+		"inspection": co.inspection or _latest_eir(co.container),
+		"cleaning_type": co.cleaning_type,
+		"gas_free": co.gas_free,
+		"o2_percent": co.o2_percent,
+		"lel_percent": co.lel_percent,
+		"seal_manhole": co.seal_manhole or c.seal_manhole,
+		"seal_airline": co.seal_airline or c.seal_airline,
+		"seal_bottom_outlet": co.seal_bottom_outlet or c.seal_bottom_outlet,
+		"remarks": co.remarks or DEFAULT_REMARKS,
+		"signed_by": co.signed_by or user,
+		"date_of_issue": co.date_of_issue or today(),
+		"place_of_issue": co.place_of_issue or _default_place_of_issue(user, c.depot),
+		"cleaning_certificate": co.cleaning_certificate,
+		# Tank spec (read-only, from the Container master).
 		"tank_type": c.container_type,
 		"date_of_manufacture": c.manufacture_date,
 		"last_test_date": c.last_test_date,
@@ -195,21 +186,12 @@ def prefill(container=None, container_no=None, inspection=None, cleaning_order=N
 		"capacity": c.capacity,
 		"client": c.principal,
 		"previous_cargo": c.last_cargo,
-		"depot": c.depot,
-		# Seals prefilled from the container's last-known values (editable).
-		"seal_manhole": c.seal_manhole,
-		"seal_airline": c.seal_airline,
-		"seal_bottom_outlet": c.seal_bottom_outlet,
-		# AUTO header.
-		"date_of_issue": today(),
-		"place_of_issue": _default_place_of_issue(user, c.depot),
-		"signed_by": user,
-		"inspection": inspection or _latest_eir(c.name),
+		# Saved checklist + recent cargo history + defaults.
+		"saved_checklist": [
+			{"item_code": r.checklist_item, "result": r.result, "note": r.note} for r in co.checklist
+		],
+		"cargo_history": cargo_history(co.container),
 		"default_remarks": DEFAULT_REMARKS,
-		# Cleaning Order context (PWA flow is always order-driven).
-		"cleaning_order": order.name if order else None,
-		"cleaning_type": order.cleaning_type if order else None,
-		"order_status": order.status if order else None,
 	}
 
 
@@ -226,11 +208,8 @@ def _as_bool(value) -> bool:
 
 
 def _build_checklist_rows(results) -> list:
-	"""Map the surveyor's payload to Cleaning Statement Item rows for ALL active items.
-
-	Every active checklist item is recorded (full statement). ``results`` is a flat
-	``[{item_code, result, note}]`` payload; missing items default to result "Yes".
-	"""
+	"""Map the surveyor's payload to checklist rows for ALL active items. ``results`` is
+	a flat ``[{item_code, result, note}]`` payload; missing items default to "Yes"."""
 	items = frappe.get_all(
 		"Cleaning Checklist Item",
 		filters={"is_active": 1},
@@ -258,13 +237,9 @@ def _build_checklist_rows(results) -> list:
 	return rows
 
 
-def create_cleaning_statement(
-	container=None,
+def save_cleaning_order(
 	cleaning_order=None,
 	cleaning_type=None,
-	inspection=None,
-	date_of_issue=None,
-	place_of_issue=None,
 	gas_free=None,
 	o2_percent=None,
 	lel_percent=None,
@@ -276,90 +251,49 @@ def create_cleaning_statement(
 	results=None,
 	submit=False,
 ) -> dict:
-	"""Build (and optionally submit) a Cleaning Statement from the PWA payload.
+	"""Save the cleanliness detail onto a Cleaning Order and, when ``submit`` is true,
+	complete it (which mints the Cleaning Certificate). Submitting requires the order to
+	have been started (``before_submit`` guards this). Permissions are NOT bypassed."""
+	if not cleaning_order:
+		frappe.throw(_("cleaning_order is required."))
+	co = frappe.get_doc("Cleaning Order", cleaning_order)
+	if co.docstatus == 1:
+		frappe.throw(_("Cleaning Order sudah selesai."))
+	_guard_container_branch(co.container)
 
-	The PWA flow starts from a Cleaning Order: ``cleaning_order`` resolves the container
-	and is linked + completed on submit. The header auto-fields (tank spec, principal,
-	previous cargo, depot) are resolved server-side from the Container so the client only
-	sends the surveyor's input. When ``submit`` is true the statement is submitted and
-	its ``on_submit`` moves the container toward Available, parks it in the Cleaning Bay,
-	completes the order, and mints the no-expiry Cleaning Certificate. Permissions are NOT
-	bypassed — Frappe enforces Cleaning Statement create/submit on the caller.
-	"""
-	if cleaning_order and not container:
-		container = _order_detail(cleaning_order).container
-	if not container:
-		frappe.throw(_("container (or cleaning_order) is required."))
-	name = _resolve_container(container)
-	_guard_container_branch(name)
+	if cleaning_type is not None:
+		co.cleaning_type = cleaning_type
+	if gas_free is not None:
+		co.gas_free = gas_free
+	co.o2_percent = o2_percent
+	co.lel_percent = lel_percent
+	if seal_manhole is not None:
+		co.seal_manhole = seal_manhole
+	if seal_airline is not None:
+		co.seal_airline = seal_airline
+	if seal_bottom_outlet is not None:
+		co.seal_bottom_outlet = seal_bottom_outlet
+	co.remarks = remarks if remarks is not None else (co.remarks or DEFAULT_REMARKS)
+	if signature:
+		co.surveyor_signature = signature
+	if not co.signed_by:
+		co.signed_by = frappe.session.user
+	if not co.date_of_issue:
+		co.date_of_issue = today()
+	if not co.place_of_issue:
+		co.place_of_issue = _default_place_of_issue(frappe.session.user, co.depot)
+	if results is not None:
+		co.set("checklist", _build_checklist_rows(results))
 
-	# An updated cleaning method, if the team picked one, is recorded on the order.
-	if cleaning_order and cleaning_type:
-		frappe.db.set_value("Cleaning Order", cleaning_order, "cleaning_type", cleaning_type)
-
-	pf = prefill(container=name, inspection=inspection, cleaning_order=cleaning_order)
-
-	doc = frappe.new_doc("Cleaning Statement")
-	doc.container = name
-	doc.container_no = pf["container_no"]
-	doc.cleaning_order = cleaning_order
-	doc.inspection = inspection or pf.get("inspection")
-	doc.depot = pf.get("depot")
-	doc.date_of_issue = date_of_issue or pf["date_of_issue"]
-	doc.place_of_issue = place_of_issue or pf.get("place_of_issue")
-	doc.signed_by = frappe.session.user
-	# Tank spec snapshot (also covered by fetch_from for Desk entry).
-	doc.tank_type = pf.get("tank_type")
-	doc.date_of_manufacture = pf.get("date_of_manufacture")
-	doc.last_test_date = pf.get("last_test_date")
-	doc.tare = pf.get("tare")
-	doc.mgw = pf.get("mgw")
-	doc.capacity = pf.get("capacity")
-	doc.client = pf.get("client")
-	doc.previous_cargo = pf.get("previous_cargo")
-	# Surveyor input.
-	doc.gas_free = gas_free
-	doc.o2_percent = o2_percent
-	doc.lel_percent = lel_percent
-	doc.seal_manhole = seal_manhole
-	doc.seal_airline = seal_airline
-	doc.seal_bottom_outlet = seal_bottom_outlet
-	doc.remarks = remarks if remarks is not None else DEFAULT_REMARKS
-	doc.surveyor_signature = signature
-	doc.set("checklist", _build_checklist_rows(results))
-
-	doc.insert()  # NOT ignore_permissions — let Frappe enforce Cleaning Statement create.
+	co.save()  # NOT ignore_permissions — Frappe enforces Cleaning Order write on the caller.
 	if _as_bool(submit):
-		doc.submit()  # on_submit drives the container + mints the certificate.
+		co.submit()  # before_submit gate (must be started) + on_submit mints the cert
 
 	return {
 		"success": True,
-		"name": doc.name,
-		"statement_id": doc.statement_id,
-		"docstatus": doc.docstatus,
-		"cleaning_certificate": doc.get("cleaning_certificate"),
+		"name": co.name,
+		"order_id": co.order_id,
+		"status": co.status,
+		"docstatus": co.docstatus,
+		"cleaning_certificate": co.get("cleaning_certificate"),
 	}
-
-
-def list_my_statements(user=None, search=None, start=0, page_length=10, docstatus=None) -> dict:
-	"""Paginated list of the caller's own Cleaning Statements (newest first)."""
-	from frappe.utils import cint
-
-	user = user or frappe.session.user
-	filters = {"owner": user}
-	if docstatus is not None and str(docstatus) != "":
-		filters["docstatus"] = cint(docstatus)
-	or_filters = None
-	if search:
-		or_filters = {"container_no": ["like", f"%{search}%"], "statement_id": ["like", f"%{search}%"]}
-	items = frappe.get_all(
-		"Cleaning Statement",
-		filters=filters,
-		or_filters=or_filters,
-		fields=["name", "statement_id", "container", "container_no", "date_of_issue", "docstatus"],
-		order_by="creation desc",
-		start=cint(start),
-		page_length=cint(page_length),
-	)
-	total = frappe.db.count("Cleaning Statement", filters)
-	return {"items": items, "total": total, "start": cint(start), "page_length": cint(page_length)}

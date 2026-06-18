@@ -1,9 +1,8 @@
-"""ESS PWA Cleaning Statement endpoints — thin ``@frappe.whitelist`` wrappers.
+"""ESS PWA Cleaning Order endpoints — thin ``@frappe.whitelist`` wrappers.
 
 Per the integration rule (mirrors ``ess/inspections.py``): endpoints here only add
 authentication + whitelisting + GET/POST gating; every bit of resolution/build logic
-lives in ``container_depot.operations.cleaning`` so the same code backs the PWA and
-any Desk / automation caller.
+lives in ``container_depot.operations.cleaning``.
 """
 
 from __future__ import annotations
@@ -28,6 +27,13 @@ def cleaning_orders(start=0, page_length=20, search=None):
 	return cleaning.list_open_cleaning_orders(start=start, page_length=page_length, search=search)
 
 
+@frappe.whitelist(methods=["GET"])
+def cleaning_order_detail(cleaning_order=None):
+	"""GET /api/v1/ess/cleaning-order-detail — one order's cleanliness state + tank spec."""
+	_require_authenticated_user()
+	return cleaning.get_cleaning_order_detail(cleaning_order)
+
+
 @frappe.whitelist(methods=["POST"])
 def cleaning_start(cleaning_order=None):
 	"""POST /api/v1/ess/cleaning-start — mark a Cleaning Order In_Progress (Mulai)."""
@@ -35,32 +41,10 @@ def cleaning_start(cleaning_order=None):
 	return cleaning.start_cleaning(cleaning_order)
 
 
-@frappe.whitelist(methods=["GET"])
-def cleaning_prefill(container=None, container_no=None, inspection=None, cleaning_order=None):
-	"""GET /api/v1/ess/cleaning-prefill?cleaning_order=… — Container master auto-fill."""
-	_require_authenticated_user()
-	return cleaning.prefill(
-		container=container, container_no=container_no, inspection=inspection, cleaning_order=cleaning_order
-	)
-
-
-@frappe.whitelist(methods=["GET"])
-def cleaning_history(search=None, start=0, page_length=10, docstatus=None):
-	"""GET /api/v1/ess/cleaning-history — the caller's own Cleaning Statements."""
-	_require_authenticated_user()
-	return cleaning.list_my_statements(
-		user=frappe.session.user, search=search, start=start, page_length=page_length, docstatus=docstatus
-	)
-
-
 @frappe.whitelist(methods=["POST"])
-def cleaning_create(
-	container=None,
+def cleaning_order_save(
 	cleaning_order=None,
 	cleaning_type=None,
-	inspection=None,
-	date_of_issue=None,
-	place_of_issue=None,
 	gas_free=None,
 	o2_percent=None,
 	lel_percent=None,
@@ -72,15 +56,11 @@ def cleaning_create(
 	results=None,
 	submit=False,
 ):
-	"""POST /api/v1/ess/cleaning-create — build (and optionally submit) a statement."""
+	"""POST /api/v1/ess/cleaning-order-save — save cleanliness detail (submit=1 completes)."""
 	_require_authenticated_user()
-	return cleaning.create_cleaning_statement(
-		container=container,
+	return cleaning.save_cleaning_order(
 		cleaning_order=cleaning_order,
 		cleaning_type=cleaning_type,
-		inspection=inspection,
-		date_of_issue=date_of_issue,
-		place_of_issue=place_of_issue,
 		gas_free=gas_free,
 		o2_percent=o2_percent,
 		lel_percent=lel_percent,

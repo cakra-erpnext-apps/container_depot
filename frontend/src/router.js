@@ -24,8 +24,8 @@ const routes = [
 	},
 	{
 		path: "/cleaning",
-		name: "CleaningStatement",
-		component: () => import("@/pages/CleaningStatement.vue"),
+		name: "CleaningOrder",
+		component: () => import("@/pages/CleaningOrder.vue"),
 	},
 	{
 		path: "/storage",

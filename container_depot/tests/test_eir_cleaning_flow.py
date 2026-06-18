@@ -40,12 +40,14 @@ class TestEirCleaningFlow(FrappeTestCase):
 		return c, res["name"]
 
 	def test_empty_dirty_eir_creates_pending_cleaning_order(self):
-		c, _ = self._eir_in("DIRTYEIR001", tank_status="Empty Dirty")
+		c, eir_name = self._eir_in("DIRTYEIR001", tank_status="Empty Dirty")
 		orders = frappe.get_all(
-			"Cleaning Order", filters={"container": c}, fields=["name", "status"]
+			"Cleaning Order", filters={"container": c}, fields=["name", "status", "inspection"]
 		)
 		self.assertEqual(len(orders), 1)
 		self.assertEqual(orders[0].status, "Pending")
+		# EIR -> Cleaning Order: the order carries its source EIR.
+		self.assertEqual(orders[0].inspection, eir_name)
 		container = frappe.db.get_value("Container", c, ["status", "cleaning_status"], as_dict=True)
 		self.assertEqual(container.status, "Pending_Cleaning")
 		self.assertEqual(container.cleaning_status, "Pending")

@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.model.document import Document
 import datetime
 import hashlib
@@ -53,9 +54,30 @@ class CleaningOrder(Document):
 		self.priority_score = score
 		return score
 
+	def before_submit(self):
+		"""A normal (non-re-clean) order can only be submitted once cleaning has started,
+		and submitting it = Completed. (Re-cleaning keeps its own approval-driven flow.)"""
+		if self.is_recleaning:
+			return
+		if not self.cleaning_start:
+			frappe.throw(_("Mulai cleaning dulu sebelum submit (selesaikan) order ini."))
+		self.status = "Completed"
+		if not self.cleaning_end:
+			self.cleaning_end = datetime.datetime.now()
+		if not self.completed_by:
+			self.completed_by = frappe.session.user
+		if not self.signed_by:
+			self.signed_by = frappe.session.user
+		if not self.date_of_issue:
+			self.date_of_issue = frappe.utils.today()
+
 	def on_submit(self):
-		"""Update container status when cleaning order is submitted."""
+		"""Update container status when cleaning order is submitted. For a normal clean
+		this completes the tank (-> Available, parked in the Cleaning Bay) and mints the
+		no-expiry Cleaning Certificate that the TANK OUT gate checks for."""
 		self._propagate_to_container(log_always=True)
+		if not self.is_recleaning and self.status == "Completed":
+			self.db_set("cleaning_certificate", self._mint_cleaning_certificate(), update_modified=False)
 
 	def on_update_after_submit(self):
 		"""Status / approval edits after submit also drive the container so a
@@ -86,7 +108,13 @@ class CleaningOrder(Document):
 				container.cleaning_status = "In_Progress"
 			elif self.status == "Completed":
 				container.cleaning_status = "Completed"
+				container.certification_status = "Completed"
 				container.status = "Available"
+				# Park the tank in the depot's Cleaning Bay zone. Physical yard movement is
+				# manual and may lag, so the system stamps the bay at completion.
+				bay = self._cleaning_bay_zone(container.depot)
+				if bay:
+					container.yard_zone = bay
 
 		# Controller-driven status change: bypass the manual-transition guard.
 		frappe.flags.in_status_automation = True
@@ -108,3 +136,37 @@ class CleaningOrder(Document):
 				performed_by=self.get("completed_by") or self.get("assigned_to"),
 				summary=f"Cleaning {self.status.lower().replace('_', ' ')} ({label})",
 			)
+
+	def _cleaning_bay_zone(self, depot):
+		"""The active Cleaning Bay Yard Zone for the depot (None if none configured)."""
+		if not depot:
+			return None
+		return frappe.db.get_value(
+			"Yard Zone", {"depot": depot, "category": "Cleaning Bay", "is_active": 1}, "name"
+		)
+
+	def _mint_cleaning_certificate(self) -> str:
+		"""Create + submit a no-expiry Cleaning Certificate from this completed order.
+
+		Idempotent: returns the already-minted certificate if present. The cert is the
+		gating token consumed by Order Muat / ``_latest_valid_cleaning_cert``; the rich
+		cleanliness detail (checklist, gas free, seals) stays on this order. Validity is
+		anchored per source EIR (no time expiry), so ``valid_until = None``."""
+		if self.cleaning_certificate:
+			return self.cleaning_certificate
+		cert = frappe.new_doc("Cleaning Certificate")
+		cert.container = self.container
+		cert.cleaning_order = self.name
+		cert.clean_date = self.date_of_issue or self.cleaning_end or datetime.datetime.now()
+		cert.cleaning_method = self.cleaning_type or "Steam Wash"
+		cert.certified_by = self.signed_by or self.completed_by or frappe.session.user
+		cert.prior_cargo = frappe.db.get_value("Container", self.container, "last_cargo")
+		cert.valid_until = None  # no expiry — validity is anchored per EIR
+		cert.flags.no_expiry = True
+		cert.remarks = (
+			f"Auto-issued from Cleaning Order {self.name}"
+			+ (f" (EIR {self.inspection})" if self.inspection else "")
+		)
+		cert.insert(ignore_permissions=True)
+		cert.submit()
+		return cert.name

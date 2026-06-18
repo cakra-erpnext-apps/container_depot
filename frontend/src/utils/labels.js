@@ -174,10 +174,18 @@ export const labels = {
 	signAgain: "Tanda tangan ulang", // Re-sign
 	clear: "Hapus", // Clear
 	signatureError: "Gagal mengunggah tanda tangan", // Signature upload failed
-	// Cleaning Statement (ISO tank cleanliness statement — surveyor)
-	cleaningTitle: "Cleaning Statement", // page + Home tile title
-	cleaningDesc: "Daftar cleaning order & terbitkan sertifikat", // Home tile subtitle
+	// Cleaning Order (ISO tank cleanliness — cleaning team)
+	cleaningTitle: "Cleaning Order", // page + Home tile + nav title
+	cleaningDesc: "Kerjakan cleaning order & terbitkan sertifikat", // Home tile subtitle
 	cleaningOrdersHint: "Pilih cleaning order untuk dikerjakan", // worklist hint
+	cleaningCargoHistory: "Riwayat Cargo", // cargo history (from booking items)
+	cleaningNoCargoHistory: "Belum ada riwayat cargo.", // no cargo history
+	cleaningStartFull: "Mulai Cleaning", // start button (in form)
+	cleaningStartFirst: "Mulai cleaning dulu sebelum bisa diselesaikan.", // gate hint
+	cleaningSave: "Simpan", // save draft
+	cleaningComplete: "Selesaikan (Submit)", // complete/submit
+	cleaningSaved: "Tersimpan", // saved toast
+	navCleaning: "Cleaning", // bottom-nav label
 	cleaningOrdersSearch: "Cari no. container / order…",
 	cleaningOrdersEmpty: "Tidak ada cleaning order terbuka.",
 	cleaningOrder: "Cleaning Order",
@@ -204,8 +212,7 @@ export const labels = {
 	cleaningSignature: "Tanda Tangan Surveyor", // surveyor signature
 	cleaningResign: "Tanda tangan ulang", // re-sign
 	cleaningUploading: "Mengunggah…", // uploading
-	cleaningSubmit: "Submit Cleaning Statement",
-	cleaningSubmitted: "Cleaning Statement disubmit", // submitted toast
+	cleaningSubmitted: "Cleaning order selesai & sertifikat terbit", // completed toast
 	cleaningPrint: "Cetak / Unduh PDF", // print / download
 	cleaningTankType: "Tipe Tank",
 	cleaningClient: "Client / Prinsipal",

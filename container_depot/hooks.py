@@ -95,13 +95,12 @@ website_route_rules = [
 	{"from_route": "/api/v1/ess/eir-create", "to_route": "container_depot.ess.inspections.eir_create"},
 	{"from_route": "/api/v1/ess/eir-open-draft", "to_route": "container_depot.ess.inspections.eir_open_draft"},
 	{"from_route": "/api/v1/ess/eir-save-draft", "to_route": "container_depot.ess.inspections.eir_save_draft"},
-	# ESS PWA Cleaning Statement (ISO tank cleanliness statement) endpoints
+	# ESS PWA Cleaning Order (ISO tank cleanliness) endpoints
 	{"from_route": "/api/v1/ess/cleaning-masters", "to_route": "container_depot.ess.cleaning.cleaning_masters"},
 	{"from_route": "/api/v1/ess/cleaning-orders", "to_route": "container_depot.ess.cleaning.cleaning_orders"},
+	{"from_route": "/api/v1/ess/cleaning-order-detail", "to_route": "container_depot.ess.cleaning.cleaning_order_detail"},
 	{"from_route": "/api/v1/ess/cleaning-start", "to_route": "container_depot.ess.cleaning.cleaning_start"},
-	{"from_route": "/api/v1/ess/cleaning-prefill", "to_route": "container_depot.ess.cleaning.cleaning_prefill"},
-	{"from_route": "/api/v1/ess/cleaning-history", "to_route": "container_depot.ess.cleaning.cleaning_history"},
-	{"from_route": "/api/v1/ess/cleaning-create", "to_route": "container_depot.ess.cleaning.cleaning_create"},
+	{"from_route": "/api/v1/ess/cleaning-order-save", "to_route": "container_depot.ess.cleaning.cleaning_order_save"},
 	# SPA deep links: serve the /depot shell for any sub-route so a hard refresh on
 	# e.g. /depot/eir doesn't 404 — the Vue router then renders the route client-side.
 	{"from_route": "/depot/<path:app_path>", "to_route": "depot"},

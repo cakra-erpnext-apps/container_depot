@@ -6,6 +6,7 @@ container_depot.patches.v0_19.reshape_container_booking
 container_depot.patches.v0_20.drop_legacy_booking_columns
 container_depot.patches.v0_21.reshape_order_bongkar
 container_depot.patches.v0_26.rename_eir_doctypes_to_inspection
+container_depot.patches.v0_33.drop_cleaning_statement
 
 [post_model_sync]
 container_depot.patches.v0_2.migrate_container_principal_to_customer
