@@ -22,6 +22,23 @@ frappe.ui.form.on('Container Booking', {
 		if (!frm.is_new() && frm.doc.docstatus === 1) {
 			frm.add_custom_button(__('Revert to Draft'), () => _confirm_revert(frm));
 		}
+		// If the linked Sales Invoice was cancelled, the booking is stuck unbilled —
+		// offer to generate a fresh draft invoice for THIS booking and re-link it
+		// (no need to amend the dead invoice, which the booking wouldn't follow).
+		if (
+			!frm.is_new() &&
+			frm.doc.docstatus === 1 &&
+			frm.doc.booking_status !== 'Cancelled' &&
+			frm.doc.sales_invoice
+		) {
+			frappe.db.get_value('Sales Invoice', frm.doc.sales_invoice, 'docstatus', (r) => {
+				if (r && cint(r.docstatus) === 2) {
+					frm.add_custom_button(__('Regenerate Invoice'), () => _confirm_regenerate(frm)).addClass(
+						'btn-primary'
+					);
+				}
+			});
+		}
 	},
 	_lock_actions(frm) {
 		// A booking is never permanently deleted or silently discarded — it is voided
@@ -117,6 +134,29 @@ function _confirm_void(frm) {
 				freeze: true,
 				freeze_message: __('Cancelling …'),
 				callback: () => frm.reload_doc(),
+			});
+		}
+	);
+}
+
+function _confirm_regenerate(frm) {
+	frappe.confirm(
+		__('The linked Sales Invoice was cancelled. Create a fresh draft invoice for this booking and link it?'),
+		() => {
+			frappe.call({
+				method: 'container_depot.operations.doctype.container_booking.container_booking.regenerate_invoice',
+				args: { booking: frm.doc.name },
+				freeze: true,
+				freeze_message: __('Generating invoice …'),
+				callback(r) {
+					frm.reload_doc();
+					if (r.message) {
+						frappe.show_alert({
+							message: __('New draft invoice {0} created.', [r.message]),
+							indicator: 'green',
+						});
+					}
+				},
 			});
 		}
 	);

@@ -50,6 +50,17 @@ doc_events = {
 		"on_submit": "container_depot.operations.doctype.container_booking.container_booking.on_payment_entry_change",
 		"on_cancel": "container_depot.operations.doctype.container_booking.container_booking.on_payment_entry_change",
 	},
+	# Keep a Container Booking pinned to a VALID Sales Invoice. EVERY handler below is a
+	# no-op unless a Container Booking links the invoice (or its amended_from), so general
+	# ERPNext invoicing is untouched:
+	#   amend  -> repoint the booking to the new (amended) invoice
+	#   submit -> resync the booking's payment_status from the invoice
+	#   cancel -> mark the booking Unpaid so it can be regenerated
+	"Sales Invoice": {
+		"after_insert": "container_depot.operations.doctype.container_booking.container_booking.relink_amended_invoice",
+		"on_submit": "container_depot.operations.doctype.container_booking.container_booking.sync_booking_on_invoice_submit",
+		"on_cancel": "container_depot.operations.doctype.container_booking.container_booking.resync_booking_on_invoice_cancel",
+	},
 }
 
 # Scheduled Jobs

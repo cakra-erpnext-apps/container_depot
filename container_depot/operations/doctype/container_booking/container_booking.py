@@ -855,6 +855,83 @@ def _invoice_settlement(sales_invoice):
 	return "Invoiced"
 
 
+# --- Sales Invoice → Container Booking bridge -------------------------------------
+# Every handler below is a no-op unless a Container Booking is pinned to the invoice,
+# so plain ERPNext invoices (sales, POS, anything not born from a booking) are left
+# completely untouched. Wired in hooks.doc_events["Sales Invoice"].
+
+def relink_amended_invoice(doc, method=None):
+	"""after_insert: when a booking's Sales Invoice is amended, the new invoice carries
+	``amended_from`` = the old one. Move the booking's link onto the new invoice so the
+	booking follows the amendment instead of dangling on the cancelled original."""
+	if not doc.amended_from:
+		return
+	for name in frappe.get_all(
+		"Container Booking", filters={"sales_invoice": doc.amended_from}, pluck="name"
+	):
+		frappe.db.set_value("Container Booking", name, "sales_invoice", doc.name, update_modified=False)
+
+
+def sync_booking_on_invoice_submit(doc, method=None):
+	"""on_submit: push the invoice's settlement onto any booking pinned to it (covers an
+	invoice submitted directly, including an amended one). Guarded inside
+	``sync_bookings_for_invoice`` — no-op when no booking links it."""
+	sync_bookings_for_invoice(doc.name)
+
+
+def resync_booking_on_invoice_cancel(doc, method=None):
+	"""on_cancel: a booking's Sales Invoice was cancelled DIRECTLY (not via the booking's
+	own cancel — that path sets ``booking_status`` = Cancelled first, which we skip). Mark
+	the still-live booking Unpaid so it surfaces as needing a fresh invoice (Regenerate)."""
+	for name in frappe.get_all("Container Booking", filters={"sales_invoice": doc.name}, pluck="name"):
+		row = frappe.db.get_value(
+			"Container Booking", name, ["docstatus", "booking_status", "payment_status"], as_dict=True
+		)
+		if (
+			row
+			and row.docstatus == 1
+			and row.booking_status != "Cancelled"
+			and row.payment_status != "Cancelled"
+		):
+			frappe.db.set_value("Container Booking", name, "payment_status", "Unpaid", update_modified=False)
+
+
+@frappe.whitelist()
+def regenerate_invoice(booking):
+	"""Create a fresh DRAFT Sales Invoice for a confirmed booking whose linked invoice was
+	cancelled (or is gone), and re-link it — so the booking can be re-billed without amending
+	the dead invoice (which would leave a -1 duplicate the booking never follows). Scoped to
+	Container Booking only."""
+	frappe.has_permission("Container Booking", ptype="write", throw=True)
+	doc = frappe.get_doc("Container Booking", booking)
+	if doc.docstatus != 1 or doc.booking_status == "Cancelled":
+		frappe.throw(_("Only a confirmed booking can regenerate its invoice."))
+	cur = doc.sales_invoice
+	if cur and frappe.db.exists("Sales Invoice", cur) and frappe.db.get_value("Sales Invoice", cur, "docstatus") != 2:
+		frappe.throw(_("Booking still has a live Sales Invoice {0}. Cancel it first.").format(cur))
+	_total, rate, service = doc._booking_amount()
+	qty = len(doc.items or []) or 1
+	si = invoicing.create_draft_sales_invoice(
+		doc.customer,
+		[{
+			"item_code": service,
+			"description": f"Container Booking {doc.name} · {service} · {qty} ctr (regenerated)",
+			"qty": qty,
+			"rate": rate or 0,
+		}],
+		due_days=30,
+		remarks=f"Regenerated for Container Booking {doc.name} after the previous invoice was cancelled.",
+		currency=doc.currency,
+		selling_price_list=doc.price_list,
+		branch=doc.branch,
+	)
+	if not si:
+		frappe.throw(_("Could not create a Sales Invoice (is the site invoice-ready?)."))
+	doc.db_set("sales_invoice", si, update_modified=False)
+	doc.db_set("payment_status", "Unpaid", update_modified=False)
+	return si
+
+
 def sync_bookings_for_invoice(sales_invoice):
 	"""Push a Sales Invoice's settlement state onto every Container Booking pinned to it.
 
