@@ -15,7 +15,8 @@ What it seeds
 * Yard Placement Rule    — reuses patches.v0_32 (status → category defaults)
 * Cleaning Checklist     — reuses patches.v0_31 (12 rows)
 * Cargo                  — reuses patches.v0_12 (data/cargo_list.json)
-* Item Group + Item      — from reference/seed/{Item_Group,Item}.csv (embedded below)
+* Item Group + Item      — from reference/seed/{Item_Group,Item}.csv (embedded below);
+                           item_code == item_name (the descriptive name is the identity)
 * Depot Service Menu     — Booking / Cleaning / Maintenance (group filters)
 * Customer               — Stolt, Bertschi
 
@@ -109,7 +110,9 @@ ITEM_GROUPS = [
     "Service Packages",
 ]
 
-# (item_code, item_group, stock_uom, item_name)
+# (legacy_code, item_group, stock_uom, item_name). item_code == item_name now — the
+# descriptive name is the item's identity; the first column is kept only as a
+# reference to the original short SKU and is no longer used.
 ITEMS = [
     ('L-OFF', 'LOLO', 'Nos', 'Lift Off'),
     ('L-ON', 'LOLO', 'Nos', 'Lift On'),
@@ -288,11 +291,12 @@ def _ensure_item_group(name):
         }).insert(ignore_permissions=True)
 
 
-def _ensure_item(code, group, uom, name):
-    if frappe.db.exists("Item", code):
+def _ensure_item(group, uom, name):
+    """item_code == item_name — the descriptive name is the item's identity."""
+    if frappe.db.exists("Item", name):
         return
     frappe.get_doc({
-        "doctype": "Item", "item_code": code, "item_name": name,
+        "doctype": "Item", "item_code": name, "item_name": name,
         "item_group": group, "stock_uom": uom,
         "is_stock_item": 0, "is_sales_item": 1,
     }).insert(ignore_permissions=True)
@@ -366,8 +370,8 @@ def run():
     for name in ITEM_GROUPS:
         _ensure_item_group(name)
     print(f"[seed_dev] Item Group: {len(ITEM_GROUPS)}")
-    for code, group, uom, name in ITEMS:
-        _ensure_item(code, group, uom, name)
+    for _code, group, uom, name in ITEMS:
+        _ensure_item(group, uom, name)
     print(f"[seed_dev] Item: {len(ITEMS)}")
 
     for name, sequence, groups in MENUS:
@@ -401,8 +405,8 @@ def clear():
 
     for name, _seq, _groups in MENUS:
         _del("Depot Service Menu", name)
-    for code, *_ in ITEMS:
-        _del("Item", code)
+    for _code, _group, _uom, name in ITEMS:
+        _del("Item", name)
     for name in ITEM_GROUPS:
         _del("Item Group", name)
     for code, *_ in SBY_ZONES:
