@@ -300,6 +300,16 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Depot Service Menu",
+   "link_to": "Depot Service Menu",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link",
+   "doctype": "Workspace Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "SST & Audit",
    "type": "Card Break",
    "doctype": "Workspace Link"

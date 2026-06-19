@@ -157,6 +157,47 @@ def notify_repair_order_created(repair_order):
 	)
 
 
+def notify_repair_order_pending_approval(repair_order):
+	"""Fire when an M&R estimate is submitted to the owner — tells the team a decision
+	is awaited (and, once owner self-service is live, the owner). Carries the cost."""
+	ro = frappe.db.get_value(
+		"Repair Order", repair_order,
+		["name", "container", "container_no", "depot", "repair_order_id", "total_cost"], as_dict=True,
+	)
+	if not ro:
+		return
+	subject = (
+		f"M&R {ro.repair_order_id or ro.name} • {ro.container_no or ro.container} — "
+		f"menunggu persetujuan owner (est. {ro.total_cost or 0})"
+	)
+	notify(
+		doctype="Repair Order",
+		name=ro.name,
+		subject=subject,
+		branch=_depot_branch(ro.depot),
+		roles=MR_ROLES,
+	)
+
+
+def notify_repair_order_decided(repair_order):
+	"""Fire when the owner's decision is recorded — tells the M&R team the outcome
+	(Approved / Rejected / Revision Requested) so they can start work or revise."""
+	ro = frappe.db.get_value(
+		"Repair Order", repair_order,
+		["name", "container", "container_no", "depot", "repair_order_id", "status"], as_dict=True,
+	)
+	if not ro:
+		return
+	subject = f"M&R {ro.repair_order_id or ro.name} • {ro.container_no or ro.container} — owner: {ro.status}"
+	notify(
+		doctype="Repair Order",
+		name=ro.name,
+		subject=subject,
+		branch=_depot_branch(ro.depot),
+		roles=MR_ROLES,
+	)
+
+
 def notify_order_gate(order, direction):
 	"""Fire when an Order Bongkar (Gate In) / Order Muat (Gate Out) is submitted.
 

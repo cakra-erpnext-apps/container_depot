@@ -11,9 +11,11 @@
     "item_name",
     "is_stock_item",
     "quantity",
+    "decision",
     "column_break_1",
     "rate",
     "amount",
+    "owner_remark",
     "remark",
     "photos"
   ],
@@ -50,6 +52,15 @@
       "label": "Qty"
     },
     {
+      "default": "Pending",
+      "description": "Owner's per-line decision. Only Approved lines are repaired, issued from stock, and billed.",
+      "fieldname": "decision",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Owner Decision",
+      "options": "Pending\nApproved\nRejected"
+    },
+    {
       "fieldname": "column_break_1",
       "fieldtype": "Column Break"
     },
@@ -65,6 +76,12 @@
       "fieldtype": "Currency",
       "label": "Amount",
       "read_only": 1
+    },
+    {
+      "description": "Owner's note on this line (e.g. why it was rejected).",
+      "fieldname": "owner_remark",
+      "fieldtype": "Small Text",
+      "label": "Owner Remark"
     },
     {
       "fieldname": "remark",

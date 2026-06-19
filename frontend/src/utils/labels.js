@@ -270,6 +270,26 @@ export const labels = {
 	mrComplete: "Selesaikan", // complete (issues stock)
 	mrCompleted: "M&R selesai & part dikeluarkan dari stok", // completed toast
 	mrRemove: "Hapus", // remove part row
+	// Owner approval (Fase B — depot records the owner's decision)
+	mrStatus: "Status",
+	mrTotal: "Total Estimasi", // estimate total
+	mrSubmitApproval: "Ajukan ke Owner", // Draft/Revision -> Pending Approval
+	mrSubmittedToast: "Diajukan ke owner",
+	mrApprovalTitle: "Persetujuan Owner",
+	mrApprovalHint: "Owner memutuskan tiap item. Hanya item disetujui yang dikerjakan & ditagih.",
+	mrOwnerNote: "Catatan Owner",
+	mrOwnerNotePlaceholder: "Alasan revisi / penolakan (opsional)…",
+	mrLineApprove: "Setujui",
+	mrLineReject: "Tolak",
+	mrApprove: "Setujui Semua / Sebagian",
+	mrReject: "Tolak Semua",
+	mrRequestRevision: "Minta Revisi",
+	mrDecisionToast: "Keputusan tersimpan",
+	mrRevisionBanner: "Owner minta revisi. Sesuaikan item lalu ajukan lagi.",
+	mrRejectedBanner: "M&R ditolak owner.",
+	mrApprovedReadonly: "Estimasi disetujui — siap dikerjakan.",
+	mrAwaitingDecision: "Menunggu keputusan owner.",
+	mrNeedItemFirst: "Tambahkan minimal satu item dulu.",
 	// Depot Storage (yard placement — Operator Kalmar)
 	storage: "Depot Storage", // Home tile title
 	storageDesc: "Susun & lacak isotank per zona", // tile subtitle
@@ -358,6 +378,8 @@ export const repairStatusLabels = {
 	Draft: "Draf",
 	"Pending Approval": "Menunggu Persetujuan",
 	Approved: "Disetujui",
+	Rejected: "Ditolak",
+	"Revision Requested": "Minta Revisi",
 	"In Progress": "Dikerjakan",
 	Completed: "Selesai",
 	Cancelled: "Dibatalkan",

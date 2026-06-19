@@ -33,6 +33,7 @@ frappe.ui.form.on("Depot Contract", {
 	refresh(frm) {
 		frm.trigger("_set_tariff_item_query");
 		frm.trigger("_set_status_actions");
+		frm.trigger("_set_bulk_buttons");
 		frm.trigger("_apply_edit_lock");
 	},
 	_set_status_actions(frm) {
@@ -48,6 +49,126 @@ frappe.ui.form.on("Depot Contract", {
 			const btn = frm.add_custom_button(__(label), () => container_depot_transition(frm, target));
 			if (type === "primary") btn.removeClass("btn-default").addClass("btn-primary");
 		});
+	},
+	_set_bulk_buttons(frm) {
+		// Fast ways to fill the Price List lines: by menu (filter) or pasted from Excel.
+		// Only while the contract is still editable.
+		const editable = frm.is_new() || ["Draft", "Negotiation"].includes(frm.doc.status);
+		if (!editable) return;
+		const group = __("Price List");
+
+		// "Add from Menu" — bulk-add the Base Price List items of a chosen Depot
+		// Service Menu (e.g. all Maintenance items). Client-side; no save needed.
+		frm.add_custom_button(
+			__("Add from Menu"),
+			() => {
+				if (!frm.doc.base_price_list) {
+					frappe.msgprint(__("Select a Base Price List first."));
+					return;
+				}
+				const d = new frappe.ui.Dialog({
+					title: __("Add items from menu"),
+					fields: [
+						{
+							fieldname: "menu",
+							fieldtype: "Link",
+							options: "Depot Service Menu",
+							label: __("Service Menu"),
+							reqd: 1,
+							get_query: () => ({ filters: { is_active: 1 } }),
+						},
+						{ fieldname: "replace", fieldtype: "Check", label: __("Replace existing lines") },
+					],
+					primary_action_label: __("Add"),
+					primary_action(values) {
+						frappe.call({
+							method: "container_depot.operations.doctype.depot_contract.depot_contract.base_price_list_lines_for_menu",
+							args: { base_price_list: frm.doc.base_price_list, menu: values.menu },
+							callback(r) {
+								const rows = r.message || [];
+								if (values.replace) frm.clear_table("tariff_lines");
+								rows.forEach((ln) => {
+									const row = frm.add_child("tariff_lines");
+									row.item = ln.item;
+									row.uom = ln.uom;
+									row.rate = ln.rate;
+									row.manhour_rate = ln.manhour_rate;
+									row.currency = frm.doc.currency;
+								});
+								frm.refresh_field("tariff_lines");
+								d.hide();
+								frappe.show_alert({
+									message: __("Added {0} line(s) from {1}.", [rows.length, values.menu]),
+									indicator: "green",
+								});
+							},
+						});
+					},
+				});
+				d.show();
+			},
+			group
+		);
+
+		// "Paste from Excel" — server-side import (needs a saved contract).
+		frm.add_custom_button(
+			__("Paste from Excel"),
+			() => {
+				if (frm.is_new()) {
+					frappe.msgprint(__("Save the contract once before pasting lines."));
+					return;
+				}
+				if (!frm.doc.base_price_list) {
+					frappe.msgprint(__("Select a Base Price List first (it fills missing rate / UoM)."));
+					return;
+				}
+				const d = new frappe.ui.Dialog({
+					title: __("Paste from Excel"),
+					fields: [
+						{
+							fieldname: "hint",
+							fieldtype: "HTML",
+							options: `<p class="text-muted small">${__(
+								"One item per line. Columns (tab or comma): Item, Rate, Manhour Rate, UoM. Only Item is required — the rest default from the Base Price List."
+							)}</p>`,
+						},
+						{ fieldname: "text", fieldtype: "Small Text", label: __("Rows"), reqd: 1 },
+						{ fieldname: "replace", fieldtype: "Check", label: __("Replace existing lines") },
+					],
+					primary_action_label: __("Import"),
+					primary_action(values) {
+						frappe.call({
+							method: "container_depot.operations.doctype.depot_contract.depot_contract.import_tariff_lines",
+							args: { contract: frm.doc.name, text: values.text, replace: values.replace ? 1 : 0 },
+							freeze: true,
+							freeze_message: __("Importing…"),
+							callback(r) {
+								const m = r.message || {};
+								d.hide();
+								frm.reload_doc();
+								let msg = __("Added {0}, skipped {1}. Total {2} line(s).", [
+									m.added || 0,
+									m.skipped || 0,
+									m.total_lines || 0,
+								]);
+								if ((m.errors || []).length) {
+									msg += "<br><b>" + __("Not imported:") + "</b><br>" + m.errors.join("<br>");
+									frappe.msgprint({
+										title: __("Import finished with warnings"),
+										message: msg,
+										indicator: "orange",
+									});
+								} else {
+									frappe.show_alert({ message: msg, indicator: "green" });
+								}
+							},
+						});
+					},
+				});
+				d.show();
+			},
+			group
+		);
 	},
 	_apply_edit_lock(frm) {
 		// Editable only in Draft / Negotiation; Active and terminal states are locked.

@@ -97,6 +97,16 @@ ROLE_DOCTYPE_PERMISSIONS = {
 		"Management":        {"read": 1, "report": 1, "export": 1},
 		"IT Support":        {"read": 1, "report": 1},
 	},
+	# Depot Service Menu — a dynamic, group-based filter over the Item catalog
+	# (Booking / Cleaning / Maintenance). Commercial / Admin Ops maintain it; the
+	# M&R picker reads it (also granted to the PWA role via _PWA_DOCTYPE_PERMS).
+	"Depot Service Menu": {
+		"Commercial":        {"read": 1, "create": 1, "write": 1, "delete": 1, "report": 1},
+		"Admin Ops":         {"read": 1, "create": 1, "write": 1, "report": 1},
+		"Ops Supervisor":    {"read": 1, "report": 1},
+		"Management":        {"read": 1, "report": 1, "export": 1},
+		"IT Support":        {"read": 1, "report": 1},
+	},
 	"Container": {
 		"Customer":          {"read": 1, "report": 1},
 		"Security":          {"read": 1, "report": 1},
@@ -278,6 +288,9 @@ _PWA_DOCTYPE_PERMS = {
 	"Container":         {"read": 1, "report": 1},
 	"Yard Zone":         {"read": 1, "report": 1},
 	"Yard Placement Rule": {"read": 1, "report": 1},
+	# The M&R item picker filters by the "Maintenance" Depot Service Menu under the
+	# caller's session (operations/service_menu.py), so the PWA role must read it.
+	"Depot Service Menu": {"read": 1, "report": 1},
 	"Cargo":             {"read": 1, "report": 1},
 	"Order Bongkar":     {"read": 1, "report": 1},
 	"Order Muat":        {"read": 1, "report": 1},

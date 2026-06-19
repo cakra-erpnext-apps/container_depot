@@ -356,6 +356,18 @@
             "collapsible": 1,
             "indent": 0,
             "keep_closed": 0,
+            "label": "Depot Service Menu",
+            "link_to": "Depot Service Menu",
+            "link_type": "DocType",
+            "show_arrow": 0,
+            "type": "Link",
+            "icon": "es-line-filter"
+        },
+        {
+            "child": 1,
+            "collapsible": 1,
+            "indent": 0,
+            "keep_closed": 0,
             "label": "Price List",
             "link_to": "Price List",
             "link_type": "DocType",

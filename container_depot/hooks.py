@@ -106,6 +106,8 @@ website_route_rules = [
 	{"from_route": "/api/v1/ess/mr-order-detail", "to_route": "container_depot.ess.repairs.mr_order_detail"},
 	{"from_route": "/api/v1/ess/mr-warehouses", "to_route": "container_depot.ess.repairs.mr_warehouses"},
 	{"from_route": "/api/v1/ess/mr-items", "to_route": "container_depot.ess.repairs.mr_items"},
+	{"from_route": "/api/v1/ess/mr-submit-approval", "to_route": "container_depot.ess.repairs.mr_submit_approval"},
+	{"from_route": "/api/v1/ess/mr-decision", "to_route": "container_depot.ess.repairs.mr_decision"},
 	{"from_route": "/api/v1/ess/mr-start", "to_route": "container_depot.ess.repairs.mr_start"},
 	{"from_route": "/api/v1/ess/mr-order-save", "to_route": "container_depot.ess.repairs.mr_order_save"},
 	# SPA deep links: serve the /depot shell for any sub-route so a hard refresh on

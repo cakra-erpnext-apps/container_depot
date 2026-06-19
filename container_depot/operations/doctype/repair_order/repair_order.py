@@ -14,6 +14,24 @@ class RepairOrder(Document):
 		unique = hashlib.md5(f"{timestamp}{frappe.generate_hash()[:10]}".encode()).hexdigest()[:8].upper()
 		return f"RO-{unique}"
 
+	def validate(self):
+		self._validate_status_transition()
+
+	def _validate_status_transition(self):
+		"""Enforce the owner-approval status machine (MR_TRANSITIONS). The transition
+		functions in operations/mr.py drive these; a direct status edit that skips a step
+		(e.g. Draft -> In Progress without approval) is rejected. New docs may start at
+		Draft (the default) so EIR auto-create / tests can seed them."""
+		from container_depot.operations.mr import MR_TRANSITIONS
+
+		before = self.get_doc_before_save()
+		if not before or before.status == self.status:
+			return
+		if self.status not in MR_TRANSITIONS.get(before.status, []):
+			frappe.throw(
+				frappe._("Tidak bisa mengubah status M&R dari {0} ke {1}.").format(before.status, self.status)
+			)
+
 	def before_save(self):
 		"""Auto-fetch principal, calculate costs, and update container status"""
 		self.fetch_principal_from_container()
@@ -52,7 +70,9 @@ class RepairOrder(Document):
 			)
 			row.rate = resolve_price(row.item, price_list) if row.item else 0.0
 			row.amount = float(row.quantity or 0.0) * float(row.rate or 0.0)
-			total_cost += row.amount
+			# Owner-rejected lines aren't repaired or billed — exclude from the total.
+			if (row.get("decision") or "Pending") != "Rejected":
+				total_cost += row.amount
 
 		# Legacy estimate lines (pre-split) — manual qty × price + labour.
 		for item in self.get("estimation_items") or []:
@@ -78,8 +98,10 @@ class RepairOrder(Document):
 		# Map Repair Order status to Container status and repair_status
 		if self.status == "Draft":
 			container_doc.repair_status = "Pending_Estimate"
-		elif self.status == "Pending Approval":
+		elif self.status in ("Pending Approval", "Revision Requested"):
+			# Awaiting the owner's decision (or their requested revision) — tank parked.
 			container_doc.repair_status = "Awaiting_Approval"
+			container_doc.status = "Awaiting_MR_Approval"
 		elif self.status in ["Approved", "In Progress"]:
 			container_doc.repair_status = "In_Progress"
 			container_doc.status = "Repair_In_Progress"
@@ -87,7 +109,8 @@ class RepairOrder(Document):
 			container_doc.repair_status = "Completed"
 			# Repair finished → back to the ready pool.
 			container_doc.status = "Available"
-		elif self.status == "Cancelled":
+		elif self.status in ("Cancelled", "Rejected"):
+			# Rejected: damage not repaired — clear repair flag, container handled manually.
 			container_doc.repair_status = "Not_Required"
 
 		# Controller-driven status change: bypass the manual-transition guard.

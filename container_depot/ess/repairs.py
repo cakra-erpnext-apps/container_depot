@@ -17,15 +17,9 @@ import frappe
 from container_depot.api import _require_authenticated_user
 from container_depot.operations import mr
 
-# Allowed Repair Order status transitions (matches the doctype Select options).
-REPAIR_TRANSITIONS = {
-	"Draft": ["Pending Approval", "Cancelled"],
-	"Pending Approval": ["Approved", "Cancelled"],
-	"Approved": ["In Progress", "Cancelled"],
-	"In Progress": ["Completed", "Cancelled"],
-	"Completed": [],
-	"Cancelled": [],
-}
+# Allowed Repair Order status transitions — single source of truth in operations/mr.py
+# (the owner-approval state machine, shared by the controller, PWA, and Desk).
+REPAIR_TRANSITIONS = mr.MR_TRANSITIONS
 
 _ITEM_FIELDS = [
 	"part_description",
@@ -164,8 +158,25 @@ def mr_items(search=None, repair_order=None, start=0, page_length=20):
 
 
 @frappe.whitelist(methods=["POST"])
+def mr_submit_approval(repair_order=None):
+	"""POST /api/v1/ess/mr-submit-approval — submit the estimate to the owner (Pending Approval)."""
+	_require_authenticated_user()
+	frappe.has_permission("Repair Order", doc=repair_order, ptype="write", throw=True)
+	return mr.submit_for_approval(repair_order)
+
+
+@frappe.whitelist(methods=["POST"])
+def mr_decision(repair_order=None, decision=None, line_decisions=None, note=None):
+	"""POST /api/v1/ess/mr-decision — record the owner's decision (Approved / Rejected /
+	Revision Requested), with optional per-line decisions (partial approval)."""
+	_require_authenticated_user()
+	frappe.has_permission("Repair Order", doc=repair_order, ptype="write", throw=True)
+	return mr.record_decision(repair_order, decision, line_decisions=line_decisions, note=note)
+
+
+@frappe.whitelist(methods=["POST"])
 def mr_start(repair_order=None):
-	"""POST /api/v1/ess/mr-start — start the M&R (In Progress)."""
+	"""POST /api/v1/ess/mr-start — start the Approved M&R (In Progress)."""
 	_require_authenticated_user()
 	return mr.start_repair(repair_order)
 

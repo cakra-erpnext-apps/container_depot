@@ -58,29 +58,49 @@
 						<p class="truncate text-[11px] text-gray-400">{{ labels.createdOn }} {{ fmtDate(o.creation) }}</p>
 					</div>
 				</button>
-				<button
-					v-if="o.status !== 'In Progress'"
-					class="oak-btn oak-btn-secondary shrink-0 px-3 py-1.5 text-xs"
-					:disabled="startRes.loading"
-					@click.stop="startOrder(o)"
-				>
-					{{ labels.mrStart }}
-				</button>
-				<span v-else class="oak-chip shrink-0 bg-amber-50 text-amber-700">{{ labels.mrInProgress }}</span>
+				<div class="flex shrink-0 flex-col items-end gap-1">
+					<span class="oak-chip" :class="statusChipClass(o.status)">{{ repairStatusLabel(o.status) }}</span>
+					<span v-if="showCost(o.status) && o.total_cost" class="text-[11px] font-semibold text-gray-700">
+						{{ fmtMoney(o.total_cost) }}
+					</span>
+				</div>
 			</div>
 		</section>
 
 		<!-- FORM -->
 		<template v-if="order && !completed">
+			<!-- Status + revision / rejected banners -->
+			<section
+				v-if="order.status === 'Revision Requested'"
+				class="oak-card border-amber-200 bg-amber-50 p-3"
+			>
+				<p class="text-sm font-semibold text-amber-800">{{ labels.mrRevisionBanner }}</p>
+				<p v-if="order.owner_note" class="mt-1 text-sm text-amber-700">"{{ order.owner_note }}"</p>
+			</section>
+			<section
+				v-else-if="order.status === 'Rejected'"
+				class="oak-card border-red-200 bg-red-50 p-3"
+			>
+				<p class="text-sm font-semibold text-red-800">{{ labels.mrRejectedBanner }}</p>
+				<p v-if="order.owner_note" class="mt-1 text-sm text-red-700">"{{ order.owner_note }}"</p>
+			</section>
+			<section
+				v-else-if="order.status === 'Approved'"
+				class="oak-card border-leaf-200 bg-leaf-50 p-3"
+			>
+				<p class="text-sm font-semibold text-leaf-700">{{ labels.mrApprovedReadonly }}</p>
+			</section>
+
 			<!-- Source warehouse (top) -->
 			<section class="oak-card p-4 space-y-1">
 				<label class="oak-label">{{ labels.mrWarehouse }}</label>
-				<select v-model="warehouse" class="oak-input">
+				<select v-if="canEditWarehouse" v-model="warehouse" class="oak-input">
 					<option value="">— {{ labels.mrWarehousePick }} —</option>
 					<option v-for="w in order.warehouses" :key="w.name" :value="w.name">
 						{{ w.warehouse_name }}<span v-if="w.branch"> · {{ w.branch }}</span>
 					</option>
 				</select>
+				<p v-else class="text-sm font-medium text-gray-800">{{ warehouseName(warehouse) || "—" }}</p>
 			</section>
 
 			<!-- Tank header -->
@@ -122,91 +142,177 @@
 				</div>
 			</section>
 
-			<!-- SECTION 2: services & parts used (owner Item Price) -->
+			<!-- SECTION 2: services & parts used / owner approval -->
 			<section class="oak-card p-4 space-y-3">
 				<div class="flex items-center justify-between">
-					<p class="oak-section-title">{{ labels.mrUsedTitle }}</p>
-					<button class="oak-link text-sm" @click="addUsed">+ {{ labels.mrAddUsed }}</button>
+					<p class="oak-section-title">{{ isEditable ? labels.mrUsedTitle : labels.mrApprovalTitle }}</p>
+					<button v-if="isEditable" class="oak-link text-sm" @click="addUsed">+ {{ labels.mrAddUsed }}</button>
 				</div>
-				<p class="text-xs text-gray-400">{{ labels.mrUsedHint }}</p>
+				<p v-if="isEditable" class="text-xs text-gray-400">{{ labels.mrUsedHint }}</p>
+				<p v-else-if="isPending" class="text-xs text-gray-400">{{ labels.mrApprovalHint }}</p>
 
 				<p v-if="!used.length" class="py-2 text-center text-sm text-gray-400">{{ labels.mrNoUsed }}</p>
-				<div v-for="(u, i) in used" :key="i" class="rounded-xl border border-gray-100 p-3 space-y-2">
-					<div class="flex items-center gap-2">
-						<button class="oak-input flex flex-1 items-center justify-between text-left text-sm" @click="openPicker(i)">
-							<span :class="u.item ? 'text-gray-800' : 'text-gray-400'">
-								{{ u.item ? u.item_name || u.item : labels.mrPickItem }}
-							</span>
-							<span v-if="u.item && u.on_hand != null" class="shrink-0 text-xs text-gray-400">
-								{{ labels.mrOnHand }}: {{ u.on_hand }}
-							</span>
-						</button>
-						<button class="shrink-0 text-gray-400 hover:text-red-500" @click="used.splice(i, 1)">
-							<Icon name="trash-2" :size="16" />
-						</button>
-					</div>
 
-					<div class="flex items-end gap-2">
-						<div class="w-24">
-							<label class="oak-label">{{ labels.mrQty }}</label>
-							<input v-model="u.quantity" type="number" step="1" min="0" class="oak-input" inputmode="decimal" />
+				<!-- EDITABLE builder (Draft / Revision Requested) -->
+				<template v-if="isEditable">
+					<div v-for="(u, i) in used" :key="i" class="rounded-xl border border-gray-100 p-3 space-y-2">
+						<div class="flex items-center gap-2">
+							<button class="oak-input flex flex-1 items-center justify-between text-left text-sm" @click="openPicker(i)">
+								<span :class="u.item ? 'text-gray-800' : 'text-gray-400'">
+									{{ u.item ? u.item_name || u.item : labels.mrPickItem }}
+								</span>
+								<span v-if="u.item && u.on_hand != null" class="shrink-0 text-xs text-gray-400">
+									{{ labels.mrOnHand }}: {{ u.on_hand }}
+								</span>
+							</button>
+							<button class="shrink-0 text-gray-400 hover:text-red-500" @click="used.splice(i, 1)">
+								<Icon name="trash-2" :size="16" />
+							</button>
 						</div>
-						<input v-model="u.remark" class="oak-input flex-1 text-sm" :placeholder="labels.mrRemark" />
-					</div>
 
-					<!-- Multiple evidence photos (like EIR) -->
-					<div>
-						<div class="mb-1 flex items-center justify-between">
-							<span class="oak-label">{{ labels.mrPhotos }}</span>
-							<span v-if="u.uploading" class="text-xs text-gray-400">{{ labels.mrPhotoUploading }}</span>
+						<div class="flex items-end gap-2">
+							<div class="w-24">
+								<label class="oak-label">{{ labels.mrQty }}</label>
+								<input v-model="u.quantity" type="number" step="1" min="0" class="oak-input" inputmode="decimal" />
+							</div>
+							<input v-model="u.remark" class="oak-input flex-1 text-sm" :placeholder="labels.mrRemark" />
 						</div>
-						<div class="flex flex-wrap gap-2">
-							<div v-for="(ph, pi) in u.photos" :key="pi" class="relative">
-								<a :href="ph" target="_blank" rel="noopener">
-									<img :src="ph" class="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
-								</a>
+
+						<!-- Multiple evidence photos (like EIR) -->
+						<div>
+							<div class="mb-1 flex items-center justify-between">
+								<span class="oak-label">{{ labels.mrPhotos }}</span>
+								<span v-if="u.uploading" class="text-xs text-gray-400">{{ labels.mrPhotoUploading }}</span>
+							</div>
+							<div class="flex flex-wrap gap-2">
+								<div v-for="(ph, pi) in u.photos" :key="pi" class="relative">
+									<a :href="ph" target="_blank" rel="noopener">
+										<img :src="ph" class="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
+									</a>
+									<button
+										class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-gray-500 shadow"
+										@click="u.photos.splice(pi, 1)"
+									>
+										<Icon name="x" :size="12" />
+									</button>
+								</div>
+								<label class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-gray-300 text-gray-400 hover:bg-gray-50">
+									<Icon name="camera" :size="20" />
+									<input type="file" accept="image/*" capture="environment" class="hidden" @change="onPhotos($event, u)" />
+								</label>
+							</div>
+							<p v-if="u.photoErr" class="mt-1 text-xs text-red-600">{{ u.photoErr }}</p>
+						</div>
+					</div>
+				</template>
+
+				<!-- READ-ONLY / APPROVAL list (Pending Approval, Approved, In Progress) -->
+				<template v-else>
+					<div
+						v-for="(u, i) in used"
+						:key="i"
+						class="rounded-xl border p-3 space-y-2"
+						:class="u.decision === 'Rejected' ? 'border-red-100 bg-red-50/40' : 'border-gray-100'"
+					>
+						<div class="flex items-start justify-between gap-2">
+							<div class="min-w-0">
+								<p class="truncate font-semibold text-gray-900">{{ u.item_name || u.item }}</p>
+								<p class="text-xs text-gray-500">
+									{{ u.quantity }} × {{ fmtMoney(u.rate) }} =
+									<span class="font-medium text-gray-700">{{ fmtMoney(u.amount) }}</span>
+								</p>
+								<p v-if="u.remark" class="text-xs text-gray-400">{{ u.remark }}</p>
+							</div>
+							<div v-if="isPending" class="flex shrink-0 gap-1">
 								<button
-									class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-gray-500 shadow"
-									@click="u.photos.splice(pi, 1)"
+									class="oak-chip"
+									:class="u.decision === 'Approved' ? 'bg-leaf-100 text-leaf-700' : 'bg-gray-100 text-gray-500'"
+									@click="u.decision = 'Approved'"
 								>
-									<Icon name="x" :size="12" />
+									{{ labels.mrLineApprove }}
+								</button>
+								<button
+									class="oak-chip"
+									:class="u.decision === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'"
+									@click="u.decision = 'Rejected'"
+								>
+									{{ labels.mrLineReject }}
 								</button>
 							</div>
-							<label class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-dashed border-gray-300 text-gray-400 hover:bg-gray-50">
-								<Icon name="camera" :size="20" />
-								<input type="file" accept="image/*" capture="environment" class="hidden" @change="onPhotos($event, u)" />
-							</label>
+							<span v-else class="oak-chip shrink-0" :class="decChipClass(u.decision)">{{ repairStatusLabel(u.decision) }}</span>
 						</div>
-						<p v-if="u.photoErr" class="mt-1 text-xs text-red-600">{{ u.photoErr }}</p>
+						<input
+							v-if="isPending"
+							v-model="u.owner_remark"
+							class="oak-input text-sm"
+							:placeholder="labels.mrOwnerNotePlaceholder"
+						/>
+						<div v-if="u.photos && u.photos.length" class="flex flex-wrap gap-2">
+							<a v-for="(ph, pi) in u.photos" :key="pi" :href="ph" target="_blank" rel="noopener">
+								<img :src="ph" class="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
+							</a>
+						</div>
 					</div>
+				</template>
+
+				<!-- Total -->
+				<div v-if="used.length && !isEditable" class="flex items-center justify-between border-t border-gray-100 pt-2 text-sm">
+					<span class="font-semibold text-gray-700">{{ labels.mrTotal }}</span>
+					<span class="font-bold text-gray-900">{{ fmtMoney(displayTotal) }}</span>
 				</div>
 			</section>
 
-			<!-- General remarks -->
-			<section class="oak-card p-4 space-y-2">
+			<!-- Owner note (Pending Approval) -->
+			<section v-if="isPending" class="oak-card p-4 space-y-2">
+				<label class="oak-label">{{ labels.mrOwnerNote }}</label>
+				<textarea v-model="ownerNote" rows="2" class="oak-input" :placeholder="labels.mrOwnerNotePlaceholder"></textarea>
+			</section>
+
+			<!-- General remarks (editable while building) -->
+			<section v-if="isEditable" class="oak-card p-4 space-y-2">
 				<label class="oak-label">{{ labels.mrRemarks }}</label>
 				<textarea v-model="remarks" rows="2" class="oak-input"></textarea>
 			</section>
 
-			<!-- Actions -->
-			<p v-if="order.status !== 'In Progress'" class="text-center text-xs text-amber-600">{{ labels.mrStartFirst }}</p>
+			<!-- Actions by status -->
 			<div class="flex gap-2">
-				<button class="oak-btn oak-btn-secondary flex-1 py-3" :disabled="saveRes.loading" @click="save(false)">
-					{{ labels.mrSave }}
-				</button>
-				<button
-					v-if="order.status !== 'In Progress'"
-					class="oak-btn oak-btn-primary flex-1 py-3"
-					:disabled="startRes.loading"
-					@click="startCurrent"
-				>
-					<Icon v-if="startRes.loading" name="loader" :size="18" class="animate-spin" />
-					<span v-else>{{ labels.mrStartFull }}</span>
-				</button>
-				<button v-else class="oak-btn oak-btn-primary flex-1 py-3" :disabled="saveRes.loading" @click="save(true)">
-					<Icon v-if="saveRes.loading" name="loader" :size="18" class="animate-spin" />
-					<span v-else>{{ labels.mrComplete }}</span>
-				</button>
+				<template v-if="isEditable">
+					<button class="oak-btn oak-btn-secondary flex-1 py-3" :disabled="saveRes.loading" @click="saveDraft()">
+						{{ labels.mrSave }}
+					</button>
+					<button
+						class="oak-btn oak-btn-primary flex-1 py-3"
+						:disabled="submitRes.loading || saveRes.loading || !used.length"
+						@click="submitForApproval"
+					>
+						<Icon v-if="submitRes.loading" name="loader" :size="18" class="animate-spin" />
+						<span v-else>{{ labels.mrSubmitApproval }}</span>
+					</button>
+				</template>
+				<template v-else-if="isPending">
+					<button class="oak-btn oak-btn-secondary flex-1 py-2.5 text-sm" :disabled="decisionRes.loading" @click="decide('Rejected')">
+						{{ labels.mrReject }}
+					</button>
+					<button class="oak-btn oak-btn-secondary flex-1 py-2.5 text-sm" :disabled="decisionRes.loading" @click="decide('Revision Requested')">
+						{{ labels.mrRequestRevision }}
+					</button>
+					<button class="oak-btn oak-btn-primary flex-1 py-2.5 text-sm" :disabled="decisionRes.loading" @click="decide('Approved')">
+						<Icon v-if="decisionRes.loading" name="loader" :size="16" class="animate-spin" />
+						<span v-else>{{ labels.mrApprove }}</span>
+					</button>
+				</template>
+				<template v-else-if="isApproved">
+					<button class="oak-btn oak-btn-primary flex-1 py-3" :disabled="startRes.loading" @click="startCurrent">
+						<Icon v-if="startRes.loading" name="loader" :size="18" class="animate-spin" />
+						<span v-else>{{ labels.mrStartFull }}</span>
+					</button>
+				</template>
+				<template v-else-if="isInProgress">
+					<button class="oak-btn oak-btn-primary flex-1 py-3" :disabled="saveRes.loading" @click="complete">
+						<Icon v-if="saveRes.loading" name="loader" :size="18" class="animate-spin" />
+						<span v-else>{{ labels.mrComplete }}</span>
+					</button>
+				</template>
 			</div>
 		</template>
 
@@ -255,7 +361,7 @@
 import { computed, reactive, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { createResource } from "frappe-ui"
-import { labels } from "@/utils/labels"
+import { labels, repairStatusLabel } from "@/utils/labels"
 import { toast } from "@/utils/toast"
 import Icon from "@/components/Icon.vue"
 
@@ -263,6 +369,7 @@ const route = useRoute()
 const router = useRouter()
 
 const fmtDate = (v) => (v ? String(v).slice(0, 10) : "—")
+const fmtMoney = (v) => Number(v || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })
 
 const search = ref("")
 const orders = ref([])
@@ -272,6 +379,38 @@ const completed = ref(null)
 const warehouse = ref("")
 const used = ref([])
 const remarks = ref("")
+const ownerNote = ref("")
+
+// --- status-driven view flags ----------------------------------------------
+const isEditable = computed(() => ["Draft", "Revision Requested"].includes(order.value?.status))
+const isPending = computed(() => order.value?.status === "Pending Approval")
+const isApproved = computed(() => order.value?.status === "Approved")
+const isInProgress = computed(() => order.value?.status === "In Progress")
+const canEditWarehouse = computed(() => isEditable.value || isInProgress.value)
+const displayTotal = computed(() => {
+	if (isPending.value) {
+		return used.value.filter((u) => u.decision !== "Rejected").reduce((s, u) => s + Number(u.amount || 0), 0)
+	}
+	return Number(order.value?.total_cost || 0)
+})
+
+function warehouseName(name) {
+	const w = (order.value?.warehouses || []).find((x) => x.name === name)
+	return w ? w.warehouse_name : name
+}
+function decChipClass(d) {
+	if (d === "Approved") return "bg-leaf-100 text-leaf-700"
+	if (d === "Rejected") return "bg-red-100 text-red-700"
+	return "bg-gray-100 text-gray-500"
+}
+function statusChipClass(s) {
+	if (s === "Pending Approval" || s === "Revision Requested") return "bg-amber-50 text-amber-700"
+	if (s === "Approved") return "bg-leaf-50 text-leaf-700"
+	if (s === "In Progress") return "bg-indigo-50 text-indigo-700"
+	if (s === "Rejected") return "bg-red-50 text-red-700"
+	return "bg-gray-100 text-gray-600"
+}
+const showCost = (s) => ["Pending Approval", "Revision Requested", "Approved", "In Progress"].includes(s)
 
 const ordersRes = createResource({
 	url: "container_depot.ess.repairs.mr_orders",
@@ -304,8 +443,9 @@ const detailRes = createResource({
 		order.value = data
 		warehouse.value = data.warehouse || ""
 		remarks.value = data.remarks || ""
+		ownerNote.value = ""
 		used.value = (data.used_items || []).map((u) =>
-			reactive({ ...u, photos: [...(u.photos || [])], uploading: false, photoErr: "" })
+			reactive({ ...u, decision: u.decision || "Pending", photos: [...(u.photos || [])], uploading: false, photoErr: "" })
 		)
 	},
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
@@ -336,7 +476,7 @@ function addUsed() {
 	used.value.push(reactive({ item: null, item_name: "", quantity: 1, remark: "", on_hand: null, photos: [], uploading: false, photoErr: "" }))
 }
 
-// --- start ------------------------------------------------------------------
+// --- start (Approved -> In Progress) ----------------------------------------
 const startRes = createResource({
 	url: "container_depot.ess.repairs.mr_start",
 	method: "POST",
@@ -344,15 +484,53 @@ const startRes = createResource({
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
 })
 
-function startOrder(o) {
-	startRes.fetch({ repair_order: o.name }).then(reloadOrders)
-}
 function startCurrent() {
 	if (!order.value) return
 	startRes.fetch({ repair_order: order.value.name }).then(() => detailRes.fetch({ repair_order: order.value.name }))
 }
 
-// --- save / complete --------------------------------------------------------
+// --- submit for approval (Draft/Revision -> Pending Approval) ---------------
+const submitRes = createResource({
+	url: "container_depot.ess.repairs.mr_submit_approval",
+	method: "POST",
+	onSuccess() {
+		toast.success(labels.mrSubmittedToast)
+		detailRes.fetch({ repair_order: order.value.name })
+		reloadOrders()
+	},
+	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
+})
+
+function submitForApproval() {
+	if (!order.value || !used.value.length) return
+	// Persist the estimate first, then submit it to the owner.
+	saveDraft().then(() => submitRes.fetch({ repair_order: order.value.name }))
+}
+
+// --- owner decision (Pending Approval -> Approved/Rejected/Revision) ---------
+const decisionRes = createResource({
+	url: "container_depot.ess.repairs.mr_decision",
+	method: "POST",
+	onSuccess() {
+		toast.success(labels.mrDecisionToast)
+		detailRes.fetch({ repair_order: order.value.name })
+		reloadOrders()
+	},
+	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
+})
+
+function decide(decision) {
+	if (!order.value) return
+	const lineDecisions = used.value.map((u) => ({ decision: u.decision || "Pending", owner_remark: u.owner_remark || "" }))
+	decisionRes.fetch({
+		repair_order: order.value.name,
+		decision,
+		line_decisions: JSON.stringify(lineDecisions),
+		note: ownerNote.value || undefined,
+	})
+}
+
+// --- save draft / complete --------------------------------------------------
 const saveRes = createResource({
 	url: "container_depot.ess.repairs.mr_order_save",
 	method: "POST",
@@ -370,8 +548,8 @@ const saveRes = createResource({
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
 })
 
-function save(submit) {
-	if (!order.value) return
+function saveDraft() {
+	if (!order.value) return Promise.resolve()
 	const items = used.value
 		.filter((u) => u.item)
 		.map((u) => ({
@@ -380,13 +558,20 @@ function save(submit) {
 			remark: u.remark || undefined,
 			photos: u.photos || [],
 		}))
-	saveRes.fetch({
+	return saveRes.fetch({
 		repair_order: order.value.name,
 		used_items: JSON.stringify(items),
 		warehouse: warehouse.value || undefined,
 		remarks: remarks.value || undefined,
-		submit: submit ? 1 : 0,
+		submit: 0,
 	})
+}
+
+// Complete from In Progress — issues approved parts. Used items aren't editable here,
+// so only the source warehouse is sent alongside the submit flag.
+function complete() {
+	if (!order.value) return
+	saveRes.fetch({ repair_order: order.value.name, warehouse: warehouse.value || undefined, submit: 1 })
 }
 
 function backToList() {
@@ -394,6 +579,7 @@ function backToList() {
 	used.value = []
 	warehouse.value = ""
 	remarks.value = ""
+	ownerNote.value = ""
 	if (route.query.o) router.push({ query: {} })
 	else order.value = null
 	reloadOrders()

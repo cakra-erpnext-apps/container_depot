@@ -17,6 +17,7 @@ from container_depot.operations import eir, eir_followups, mr
 from container_depot.tests.test_eir import _make_container
 
 _ITEM = "MR-TEST-SEALKIT"
+_SERVICE = "MR-TEST-LABOR"
 _WH_NAME = "MR Test Store"
 
 
@@ -58,7 +59,7 @@ class TestMaintenanceRepairFlow(FrappeTestCase):
 		for ins in self._inspections:
 			self._safe(lambda ins=ins: frappe.db.delete("Inspection", {"name": ins}))
 		self._safe(lambda: frappe.db.delete("Bin", {"item_code": _ITEM}))
-		for dt, name in (("Item", _ITEM), ("Warehouse", self._wh_name())):
+		for dt, name in (("Item", _ITEM), ("Item", _SERVICE), ("Warehouse", self._wh_name())):
 			if name:
 				self._safe(lambda dt=dt, name=name: frappe.db.exists(dt, name) and frappe.delete_doc(dt, name, force=True, ignore_permissions=True))
 		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", self._neg_stock or 0)
@@ -114,6 +115,24 @@ class TestMaintenanceRepairFlow(FrappeTestCase):
 		self._stock_entries.append(se.name)
 		return se.name
 
+	def _ensure_service_item(self):
+		"""A non-stock service item — used to test completion that issues no stock."""
+		if not frappe.db.exists("Item", _SERVICE):
+			frappe.get_doc({
+				"doctype": "Item", "item_code": _SERVICE, "item_name": "M&R Test Labor",
+				"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name") or "All Item Groups",
+				"stock_uom": "Nos", "is_stock_item": 0, "is_sales_item": 1,
+			}).insert(ignore_permissions=True)
+		return _SERVICE
+
+	def _to_in_progress(self, ro, used_items, warehouse=None):
+		"""Drive a Draft M&R through the owner-approval gate into In Progress:
+		save the estimate -> submit -> owner Approves -> start."""
+		mr.save_mr_order(repair_order=ro, used_items=used_items, warehouse=warehouse, submit=False)
+		mr.submit_for_approval(ro)
+		mr.record_decision(ro, "Approved")
+		mr.start_repair(ro)
+
 	def _eir_with_damage(self, cno):
 		c = self._container(cno)
 		res = eir.create_eir(
@@ -150,12 +169,22 @@ class TestMaintenanceRepairFlow(FrappeTestCase):
 
 	# --- lifecycle ------------------------------------------------------------
 	def test_start_marks_in_progress(self):
+		self._ensure_service_item()
 		c, _ = self._eir_with_damage("MRSTART0001")
 		ro = frappe.db.get_value("Repair Order", {"container": c}, "name")
 		self._orders.append(ro)
-		mr.start_repair(ro)
+		# Approval is mandatory: the estimate must be submitted and approved before start.
+		self._to_in_progress(ro, [{"item": _SERVICE, "quantity": 1}])
 		self.assertEqual(frappe.db.get_value("Repair Order", ro, "status"), "In Progress")
 		self.assertEqual(frappe.db.get_value("Container", c, "status"), "Repair_In_Progress")
+
+	def test_start_requires_approval(self):
+		"""start_repair is rejected on a Draft M&R — approval is mandatory."""
+		c, _ = self._eir_with_damage("MRGATE00001")
+		ro = frappe.db.get_value("Repair Order", {"container": c}, "name")
+		self._orders.append(ro)
+		with self.assertRaises(frappe.ValidationError):
+			mr.start_repair(ro)
 
 	def test_complete_issues_stock_and_frees_tank(self):
 		warehouse = self._ensure_warehouse()
@@ -165,12 +194,13 @@ class TestMaintenanceRepairFlow(FrappeTestCase):
 		c, _ = self._eir_with_damage("MRSTOCK0001")
 		ro = frappe.db.get_value("Repair Order", {"container": c}, "name")
 		self._orders.append(ro)
-		mr.start_repair(ro)
-		res = mr.save_mr_order(
-			repair_order=ro, warehouse=warehouse,
-			used_items=[{"item": _ITEM, "quantity": 3, "remark": "Foot valve", "photos": ["/files/x.jpg"]}],
-			submit=True,
+		# Build the estimate, get owner approval, start — then complete (issues stock).
+		self._to_in_progress(
+			ro,
+			[{"item": _ITEM, "quantity": 3, "remark": "Foot valve", "photos": ["/files/x.jpg"]}],
+			warehouse=warehouse,
 		)
+		res = mr.save_mr_order(repair_order=ro, submit=True)
 		self.assertEqual(res["status"], "Completed")
 		self.assertTrue(res["stock_entry"])
 		self._stock_entries.append(res["stock_entry"])
@@ -185,12 +215,13 @@ class TestMaintenanceRepairFlow(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Container", c, "status"), "Available")
 
 	def test_complete_without_parts_skips_stock(self):
+		self._ensure_service_item()
 		c, _ = self._eir_with_damage("MRNOPART001")
 		ro = frappe.db.get_value("Repair Order", {"container": c}, "name")
 		self._orders.append(ro)
-		mr.start_repair(ro)
-		# No stockable item used — no Stock Entry, still completes.
-		res = mr.save_mr_order(repair_order=ro, used_items=[], submit=True)
+		# A non-stock service item: approved + completed but issues no stock.
+		self._to_in_progress(ro, [{"item": _SERVICE, "quantity": 1}])
+		res = mr.save_mr_order(repair_order=ro, submit=True)
 		self.assertEqual(res["status"], "Completed")
 		self.assertIsNone(res["stock_entry"])
 		self.assertEqual(frappe.db.get_value("Container", c, "status"), "Available")

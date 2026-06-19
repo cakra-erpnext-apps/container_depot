@@ -1,7 +1,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, getdate, today
+from frappe.utils import cint, flt, getdate, today
 
 # Status workflow — the only transitions the action buttons (set_status) allow.
 # Draft / Negotiation are editable; Active and the terminal states are locked.
@@ -332,3 +332,116 @@ def item_price_defaults(base_price_list: str, item: str) -> dict:
 	if not row:
 		return {}
 	return {"uom": row.uom, "rate": row.price_list_rate, "manhour_rate": row.manhour_rate}
+
+
+# --- bulk fill: add by menu / paste from Excel ----------------------------------
+
+@frappe.whitelist()
+def base_price_list_lines_for_menu(base_price_list: str, menu: str) -> list:
+	"""Tariff line dicts for the items of ``menu`` (a Depot Service Menu) that are
+	priced in the Base Price List. Powers the "Add from Menu" button — bulk-add only
+	the items that belong to a given menu (e.g. all Maintenance items)."""
+	if not base_price_list or not menu:
+		return []
+	from container_depot.operations.service_menu import filter_items_by_menu
+
+	lines = base_price_list_lines(base_price_list)
+	codes = set(filter_items_by_menu([ln["item"] for ln in lines], menu))
+	return [ln for ln in lines if ln["item"] in codes]
+
+
+def _parse_pasted_lines(text: str) -> list:
+	"""Parse spreadsheet paste into row dicts. One item per line; columns are tab- or
+	comma-separated: ``item [, rate [, manhour_rate [, uom]]]``. A header row whose
+	first cell is item/kode is skipped."""
+	rows = []
+	for line in (text or "").splitlines():
+		line = line.strip()
+		if not line:
+			continue
+		cells = [c.strip() for c in (line.split("\t") if "\t" in line else line.split(","))]
+		first = cells[0] if cells else ""
+		if not first:
+			continue
+		if first.lower() in ("item", "item code", "kode", "kode item"):
+			continue  # header
+		rows.append({
+			"item": first,
+			"rate": cells[1] if len(cells) > 1 else None,
+			"manhour_rate": cells[2] if len(cells) > 2 else None,
+			"uom": cells[3] if len(cells) > 3 else None,
+		})
+	return rows
+
+
+def _resolve_paste_item(token: str, base_price_list: str | None) -> str | None:
+	"""Resolve a pasted token to an Item code: exact Item name (code) first, else an
+	exact item_name match (preferring items priced in the Base Price List)."""
+	if not token:
+		return None
+	if frappe.db.exists("Item", token):
+		return token
+	if base_price_list:
+		priced = frappe.get_all(
+			"Item Price", filters={"price_list": base_price_list, "selling": 1}, pluck="item_code", distinct=True
+		)
+		if priced:
+			match = frappe.db.get_value("Item", {"item_name": token, "name": ["in", priced]}, "name")
+			if match:
+				return match
+	return frappe.db.get_value("Item", {"item_name": token}, "name")
+
+
+def _to_rate(value, fallback) -> float:
+	return flt(value) if value not in (None, "") else flt(fallback)
+
+
+@frappe.whitelist()
+def import_tariff_lines(contract: str, text: str, replace=0) -> dict:
+	"""Bulk-fill a Draft/Negotiation contract's Price List lines from pasted Excel
+	text. Each line: ``item [, rate [, manhour_rate [, uom]]]`` (tab- or comma-sep).
+	Blank rate/uom/manhour default from the Base Price List. Unknown items are
+	collected (not fatal). Returns ``{added, skipped, errors, total_lines}``."""
+	doc = frappe.get_doc("Depot Contract", contract)
+	if doc.status not in EDITABLE_STATUSES:
+		frappe.throw(_("Price List lines can only be imported while the contract is Draft or Negotiation."))
+
+	rows = _parse_pasted_lines(text)
+	if not rows:
+		frappe.throw(_("No rows found in the pasted text."))
+
+	if cint(replace):
+		doc.set("tariff_lines", [])
+
+	seen = {(r.item, r.uom or None) for r in (doc.tariff_lines or [])}
+	base_pl = doc.base_price_list
+	added = skipped = 0
+	errors = []
+	for raw in rows:
+		item = _resolve_paste_item(raw["item"], base_pl)
+		if not item:
+			errors.append(_("Unknown item: {0}").format(raw["item"]))
+			continue
+		defaults = item_price_defaults(base_pl, item) if base_pl else {}
+		uom = raw["uom"] or defaults.get("uom")
+		key = (item, uom or None)
+		if key in seen:
+			skipped += 1
+			continue
+		seen.add(key)
+		doc.append("tariff_lines", {
+			"item": item,
+			"uom": uom,
+			"rate": _to_rate(raw["rate"], defaults.get("rate")),
+			"manhour_rate": _to_rate(raw["manhour_rate"], defaults.get("manhour_rate")),
+			"currency": doc.currency,
+		})
+		added += 1
+
+	doc.save()
+	return {
+		"added": added,
+		"skipped": skipped,
+		"errors": errors,
+		"total_lines": len(doc.tariff_lines or []),
+	}

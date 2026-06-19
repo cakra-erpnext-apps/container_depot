@@ -18,6 +18,13 @@
     "technician",
     "start_date",
     "completion_date",
+    "approval_section",
+    "requested_on",
+    "owner_note",
+    "revision_no",
+    "approval_col",
+    "decided_on",
+    "decided_by",
     "damages_section",
     "damages",
     "used_section",
@@ -70,7 +77,7 @@
       "fieldname": "status",
       "fieldtype": "Select",
       "label": "Status",
-      "options": "Draft\nPending Approval\nApproved\nIn Progress\nCompleted\nCancelled",
+      "options": "Draft\nPending Approval\nApproved\nRejected\nRevision Requested\nIn Progress\nCompleted\nCancelled",
       "reqd": 1,
       "in_list_view": 1
     },
@@ -113,6 +120,51 @@
       "fieldname": "completion_date",
       "fieldtype": "Datetime",
       "label": "Completion Date"
+    },
+    {
+      "collapsible": 1,
+      "fieldname": "approval_section",
+      "fieldtype": "Section Break",
+      "label": "Owner Approval"
+    },
+    {
+      "description": "When the estimate was submitted to the container owner for approval.",
+      "fieldname": "requested_on",
+      "fieldtype": "Datetime",
+      "label": "Requested On",
+      "read_only": 1
+    },
+    {
+      "description": "Owner's note on the decision (e.g. reason for revision / rejection).",
+      "fieldname": "owner_note",
+      "fieldtype": "Small Text",
+      "label": "Owner Note",
+      "read_only": 1
+    },
+    {
+      "default": "0",
+      "description": "How many times the owner asked for a revision.",
+      "fieldname": "revision_no",
+      "fieldtype": "Int",
+      "label": "Revision No",
+      "read_only": 1
+    },
+    {
+      "fieldname": "approval_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "decided_on",
+      "fieldtype": "Datetime",
+      "label": "Decided On",
+      "read_only": 1
+    },
+    {
+      "description": "Who recorded the owner's decision (depot staff now; the owner user once self-service is live).",
+      "fieldname": "decided_by",
+      "fieldtype": "Data",
+      "label": "Decided By",
+      "read_only": 1
     },
     {
       "fieldname": "damages_section",

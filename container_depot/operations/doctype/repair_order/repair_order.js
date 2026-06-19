@@ -1,25 +1,113 @@
 // Copyright (c) 2026, Oak Depot Team and contributors
 // For license information, please see license.txt
 
+// Owner-approval workflow transitions (Desk). All go through the same whitelisted ESS
+// endpoints the PWA uses (operations/mr.py is the single source of truth).
+function mr_line_decisions(frm) {
+	return (frm.doc.used_items || []).map((r) => ({
+		decision: r.decision || 'Pending',
+		owner_remark: r.owner_remark || '',
+	}));
+}
+
+function mr_call(frm, method, args, confirmMsg) {
+	const go = () =>
+		frappe.call({
+			method,
+			args: { repair_order: frm.doc.name, ...args },
+			freeze: true,
+			freeze_message: __('Memproses…'),
+			callback: () => frm.reload_doc(),
+		});
+	const run = () => {
+		if (frm.is_dirty()) frm.save().then(go);
+		else go();
+	};
+	if (confirmMsg) frappe.confirm(confirmMsg, run);
+	else run();
+}
+
+function mr_approve(frm) {
+	mr_call(frm, 'container_depot.ess.repairs.mr_decision', {
+		decision: 'Approved',
+		line_decisions: JSON.stringify(mr_line_decisions(frm)),
+	});
+}
+
+function mr_decision_with_note(frm, decision, title) {
+	frappe.prompt(
+		[{ fieldname: 'note', fieldtype: 'Small Text', label: __('Owner Note') }],
+		(v) =>
+			mr_call(frm, 'container_depot.ess.repairs.mr_decision', {
+				decision,
+				line_decisions: JSON.stringify(mr_line_decisions(frm)),
+				note: v.note,
+			}),
+		__(title),
+		__('Submit')
+	);
+}
+
 frappe.ui.form.on('Repair Order', {
 	setup(frm) {
 		// Set queries or pre-filters if needed
 	},
 	refresh(frm) {
-		// Add indicators or status alerts based on status
-		if (frm.doc.status === 'Draft') {
-			frm.set_intro(__('Draft Repair Order. Please add estimation items and save.'), 'blue');
-		} else if (frm.doc.status === 'Pending Approval') {
-			frm.set_intro(__('Awaiting approval from the Principal.'), 'orange');
-		} else if (frm.doc.status === 'Approved') {
-			frm.set_intro(__('Approved. Ready to start repair work.'), 'green');
-		} else if (frm.doc.status === 'In Progress') {
-			frm.set_intro(__('Repair work is currently in progress in the workshop.'), 'yellow');
-		} else if (frm.doc.status === 'Completed') {
-			frm.set_intro(__('Repair completed. Container is ready for service.'), 'green');
-		} else if (frm.doc.status === 'Cancelled') {
-			frm.set_intro(__('This Repair Order has been cancelled.'), 'red');
+		// Status intro banner.
+		const intros = {
+			Draft: [__('Draft. Add the used items (estimate), then Submit for Approval.'), 'blue'],
+			'Pending Approval': [__('Awaiting the owner\'s decision. Set each line\'s decision, then Approve / Reject / Request Revision.'), 'orange'],
+			'Revision Requested': [__('Owner asked for a revision. Adjust the items and Submit for Approval again.'), 'orange'],
+			Approved: [__('Approved by the owner. Ready to start repair work.'), 'green'],
+			Rejected: [__('Rejected by the owner.'), 'red'],
+			'In Progress': [__('Repair work is in progress in the workshop.'), 'yellow'],
+			Completed: [__('Repair completed. Container is ready for service.'), 'green'],
+			Cancelled: [__('This Repair Order has been cancelled.'), 'red'],
+		};
+		if (intros[frm.doc.status]) frm.set_intro(intros[frm.doc.status][0], intros[frm.doc.status][1]);
+
+		frm.trigger('_mr_buttons');
+		frm.trigger('_lock_estimate_grid');
+	},
+	_mr_buttons(frm) {
+		if (frm.is_new()) return;
+		const s = frm.doc.status;
+		if (s === 'Draft' || s === 'Revision Requested') {
+			frm.add_custom_button(__('Submit for Approval'), () =>
+				mr_call(frm, 'container_depot.ess.repairs.mr_submit_approval', {})
+			).addClass('btn-primary');
+		} else if (s === 'Pending Approval') {
+			frm.add_custom_button(__('Approve'), () => mr_approve(frm)).addClass('btn-primary');
+			frm.add_custom_button(__('Request Revision'), () =>
+				mr_decision_with_note(frm, 'Revision Requested', 'Request Revision')
+			);
+			frm.add_custom_button(__('Reject'), () => mr_decision_with_note(frm, 'Rejected', 'Reject M&R'));
+		} else if (s === 'Approved') {
+			frm.add_custom_button(__('Start Repair'), () =>
+				mr_call(frm, 'container_depot.ess.repairs.mr_start', {})
+			).addClass('btn-primary');
+		} else if (s === 'In Progress') {
+			frm.add_custom_button(__('Complete'), () =>
+				mr_call(frm, 'container_depot.ess.repairs.mr_order_save', { submit: 1 }, __('Selesaikan M&R dan keluarkan part yang disetujui dari stok?'))
+			).addClass('btn-primary');
 		}
+		if (['Draft', 'Revision Requested', 'Pending Approval', 'Approved', 'In Progress'].includes(s)) {
+			frm.add_custom_button(__('Cancel M&R'), () =>
+				mr_call(frm, 'container_depot.ess.repairs.set_repair_status', { status: 'Cancelled' }, __('Batalkan M&R ini?'))
+			);
+		}
+	},
+	_lock_estimate_grid(frm) {
+		const grid = frm.fields_dict.used_items && frm.fields_dict.used_items.grid;
+		if (!grid) return;
+		// Estimate editable only while Draft / Revision Requested. The per-line owner
+		// decision + remark are editable only while Pending Approval.
+		const editable = ['Draft', 'Revision Requested'].includes(frm.doc.status);
+		const pending = frm.doc.status === 'Pending Approval';
+		grid.cannot_add_rows = !editable;
+		grid.cannot_delete_rows = !editable;
+		['decision', 'owner_remark'].forEach((f) => grid.update_docfield_property(f, 'read_only', pending ? 0 : 1));
+		grid.refresh();
 	},
 	container(frm) {
 		if (frm.doc.container) {

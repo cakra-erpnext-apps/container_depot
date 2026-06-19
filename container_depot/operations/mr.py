@@ -22,8 +22,30 @@ from frappe import _
 from frappe.utils import cint, flt, now_datetime
 
 from container_depot.operations.eir_followups import MR_OPEN_STATUSES
+from container_depot.operations.service_menu import filter_items_by_menu, is_real_menu
 from container_depot.operations.user_branch import assert_in_user_branch, get_user_depots, get_user_warehouses
 from container_depot.pricing_model import price_list_for_customer, resolve_price
+
+# The Depot Service Menu the M&R item picker is scoped to. When this menu is
+# missing / inactive / empty, the picker falls back to all owner-priced items.
+MR_MENU = "Maintenance"
+
+# Owner-approval status machine (single source of truth — shared by the controller,
+# the ESS/PWA endpoints, and the Desk workflow buttons). The owner must approve the
+# estimate (Pending Approval) before any work starts; they may reject, or ask for a
+# revision, and may approve only some lines (partial approval, per Repair Used Item).
+MR_TRANSITIONS = {
+	"Draft": ["Pending Approval", "Cancelled"],
+	"Revision Requested": ["Pending Approval", "Cancelled"],  # editable like Draft
+	"Pending Approval": ["Approved", "Rejected", "Revision Requested", "Cancelled"],
+	"Approved": ["In Progress", "Cancelled"],
+	"In Progress": ["Completed", "Cancelled"],
+	"Completed": [],
+	"Rejected": [],
+	"Cancelled": [],
+}
+# Statuses where the depot may still edit the estimate (used items).
+MR_EDITABLE_STATUSES = ("Draft", "Revision Requested")
 
 # Tank-spec fields read from the Container master for the form header.
 _CONTAINER_FIELDS = [
@@ -121,10 +143,20 @@ def mr_item_search(search=None, repair_order=None, start=0, page_length=20) -> d
 		pl = _owner_price_list(principal)
 		warehouse = ro.warehouse or _default_warehouse(_resolve_company(), frappe.db.get_value("Container", ro.container, "depot") if ro.container else None)
 
+	priced = (
+		frappe.get_all("Item Price", filters={"price_list": pl, "selling": 1}, pluck="item_code", distinct=True)
+		if pl
+		else None
+	)
 	filters = {"disabled": 0}
-	if pl:
-		priced = frappe.get_all("Item Price", filters={"price_list": pl, "selling": 1}, pluck="item_code", distinct=True)
-		filters["name"] = ["in", priced or [""]]
+	# Scope to the Maintenance menu (group-derived) when it's configured, intersecting
+	# with the owner-priced set; otherwise keep the owner-priced filter (or none).
+	names = priced
+	if is_real_menu(MR_MENU):
+		base = priced if priced is not None else frappe.get_all("Item", filters={"disabled": 0}, pluck="name")
+		names = filter_items_by_menu(base, MR_MENU)
+	if names is not None:
+		filters["name"] = ["in", names or [""]]
 	or_filters = None
 	search = (search or "").strip()
 	if search and search.lower() != "undefined":
@@ -186,6 +218,10 @@ def get_mr_order_detail(repair_order) -> dict:
 	used_items = [{
 		"item": r.item, "item_name": r.item_name, "is_stock_item": r.is_stock_item,
 		"quantity": r.quantity, "remark": r.remark,
+		# Owner-approval: prices + per-line decision are exposed (the owner approves by cost).
+		"decision": r.decision or "Pending",
+		"owner_remark": r.owner_remark,
+		"rate": r.rate, "amount": r.amount,
 		"photos": _photos_list(r.photos),
 		"on_hand": _on_hand(r.item, warehouse) if r.item and r.is_stock_item else None,
 	} for r in ro.used_items]
@@ -195,6 +231,7 @@ def get_mr_order_detail(repair_order) -> dict:
 		"name": ro.name,
 		"repair_order_id": ro.repair_order_id,
 		"status": ro.status,
+		"actions": MR_TRANSITIONS.get(ro.status, []),
 		"container": ro.container,
 		"container_no": ro.container_no or c.container_no,
 		"inspection": ro.inspection,
@@ -204,6 +241,12 @@ def get_mr_order_detail(repair_order) -> dict:
 		"branch": wh["branch"],
 		"remarks": ro.remarks,
 		"stock_entry": ro.stock_entry,
+		# Owner-approval surface.
+		"total_cost": ro.total_cost,
+		"owner_note": ro.owner_note,
+		"requested_on": str(ro.requested_on) if ro.requested_on else None,
+		"decided_on": str(ro.decided_on) if ro.decided_on else None,
+		"revision_no": ro.revision_no,
 		# Tank spec (read-only).
 		"tank_type": c.container_type,
 		"client": c.principal,
@@ -218,14 +261,114 @@ def get_mr_order_detail(repair_order) -> dict:
 	}
 
 
+# --- owner approval ----------------------------------------------------------
+def submit_for_approval(repair_order):
+	"""Submit the estimate to the container owner: Draft / Revision Requested ->
+	Pending Approval. Requires at least one used item; resets per-line decisions to
+	Pending so a re-submitted revision starts a fresh decision round."""
+	ro = frappe.get_doc("Repair Order", repair_order)
+	_guard_container_branch(ro.container)
+	if ro.status not in MR_EDITABLE_STATUSES:
+		frappe.throw(_("M&R hanya bisa diajukan dari Draft / Revision Requested (status: {0}).").format(ro.status))
+	if not (ro.used_items and len(ro.used_items) > 0):
+		frappe.throw(_("Tambahkan minimal satu item sebelum mengajukan ke owner."))
+	for r in ro.used_items:
+		r.decision = "Pending"
+		r.owner_remark = None
+	ro.status = "Pending Approval"
+	ro.requested_on = now_datetime()
+	ro.save()
+	from container_depot.operations.notify import notify_repair_order_pending_approval
+	notify_repair_order_pending_approval(ro.name)
+	return {"success": True, "name": ro.name, "status": ro.status}
+
+
+def _apply_line_decisions(ro, line_decisions) -> None:
+	"""Write per-line owner decisions onto the used-item rows. Accepts a JSON string or:
+	- a list aligned to ``used_items`` order — each item a decision string or
+	  ``{"decision": ..., "owner_remark": ...}``;
+	- a dict keyed by item code — value a decision string or ``{decision, owner_remark}``."""
+	if line_decisions is None:
+		return
+	data = json.loads(line_decisions) if isinstance(line_decisions, str) else line_decisions
+	if not data:
+		return
+
+	def _set(row, value):
+		if isinstance(value, dict):
+			d = value.get("decision")
+			if "owner_remark" in value:
+				row.owner_remark = _clean(value.get("owner_remark"))
+		else:
+			d = value
+		if d in ("Approved", "Rejected", "Pending"):
+			row.decision = d
+
+	if isinstance(data, dict):
+		for r in ro.used_items:
+			if r.item in data:
+				_set(r, data[r.item])
+	elif isinstance(data, list):
+		for r, value in zip(ro.used_items, data):
+			_set(r, value)
+
+
+def record_decision(repair_order, decision, line_decisions=None, note=None):
+	"""Record the owner's decision on a Pending-Approval M&R (Fase B: depot records it).
+
+	``decision`` ∈ {Approved, Rejected, Revision Requested}. ``line_decisions`` optionally
+	sets each line's Approved/Rejected before an Approved is validated (partial approval).
+	On Approved, any still-Pending line defaults to Approved; ≥1 Approved line is required.
+	Only Approved lines drive the total and the stock issue on completion."""
+	ro = frappe.get_doc("Repair Order", repair_order)
+	_guard_container_branch(ro.container)
+	if ro.status != "Pending Approval":
+		frappe.throw(_("Keputusan hanya bisa direkam saat Pending Approval (status: {0}).").format(ro.status))
+	if decision not in ("Approved", "Rejected", "Revision Requested"):
+		frappe.throw(_("Keputusan tidak valid: {0}.").format(decision))
+
+	_apply_line_decisions(ro, line_decisions)
+	note = _clean(note)
+
+	if decision == "Revision Requested":
+		ro.status = "Revision Requested"
+		ro.owner_note = note
+		ro.revision_no = cint(ro.revision_no) + 1
+	elif decision == "Rejected":
+		for r in ro.used_items:
+			r.decision = "Rejected"
+		ro.status = "Rejected"
+		ro.owner_note = note
+		ro.decided_on = now_datetime()
+		ro.decided_by = frappe.session.user
+	else:  # Approved (possibly partial)
+		approved = 0
+		for r in ro.used_items:
+			if r.decision not in ("Approved", "Rejected"):
+				r.decision = "Approved"
+			if r.decision == "Approved":
+				approved += 1
+		if approved == 0:
+			frappe.throw(_("Minimal satu item harus disetujui untuk meng-approve M&R."))
+		ro.status = "Approved"
+		ro.owner_note = note
+		ro.decided_on = now_datetime()
+		ro.decided_by = frappe.session.user
+
+	ro.save()
+	from container_depot.operations.notify import notify_repair_order_decided
+	notify_repair_order_decided(ro.name)
+	return {"success": True, "name": ro.name, "status": ro.status, "total_cost": ro.total_cost}
+
+
 # --- lifecycle ---------------------------------------------------------------
 def start_repair(repair_order):
-	"""Move an M&R into work (In Progress). The Repair Order controller mirrors this onto
-	the container (-> Repair_In_Progress)."""
+	"""Move an Approved M&R into work (In Progress). The controller mirrors this onto the
+	container (-> Repair_In_Progress). Approval is mandatory, so only Approved may start."""
 	ro = frappe.get_doc("Repair Order", repair_order)
-	if ro.status in ("Completed", "Cancelled"):
-		frappe.throw(_("M&R sudah {0}.").format(ro.status))
 	_guard_container_branch(ro.container)
+	if ro.status != "Approved":
+		frappe.throw(_("M&R harus Approved oleh owner sebelum dimulai (status: {0}).").format(ro.status))
 	ro.status = "In Progress"
 	if not ro.start_date:
 		ro.start_date = now_datetime()
@@ -272,6 +415,8 @@ def _issue_parts_stock(ro) -> str | None:
 	(rolling back the request) if stock is insufficient."""
 	lines = []
 	for r in ro.used_items:
+		if (r.get("decision") or "Pending") == "Rejected":
+			continue  # owner rejected this line — not repaired, not issued
 		if not r.item or flt(r.quantity) <= 0:
 			continue
 		item = frappe.db.get_value("Item", r.item, ["is_stock_item", "stock_uom"], as_dict=True)
@@ -312,15 +457,22 @@ def save_mr_order(
 	submit=False,
 ) -> dict:
 	"""Save the M&R's Used Items (+ source warehouse / remarks) and, when ``submit`` is
-	true, complete it — which issues the stockable parts and returns the tank to the ready
-	pool. The copied ``damages`` are a read-only snapshot and are never edited here. Rates
-	follow the owner's Item Price (computed by the controller). Permissions NOT bypassed."""
+	true, complete it — which issues the stockable **approved** parts and returns the tank
+	to the ready pool. Used items may only be edited while Draft / Revision Requested;
+	completion is only allowed from In Progress (approval is mandatory). The copied
+	``damages`` are read-only. Rates follow the owner's Item Price (controller-computed)."""
 	if not repair_order:
 		frappe.throw(_("repair_order is required."))
 	ro = frappe.get_doc("Repair Order", repair_order)
-	if ro.status in ("Completed", "Cancelled"):
+	if ro.status in ("Completed", "Cancelled", "Rejected"):
 		frappe.throw(_("M&R sudah {0}.").format(ro.status))
 	_guard_container_branch(ro.container)
+
+	submitting = _as_bool(submit)
+	if submitting and ro.status != "In Progress":
+		frappe.throw(_("M&R harus In Progress untuk diselesaikan (status: {0}).").format(ro.status))
+	if used_items is not None and ro.status not in MR_EDITABLE_STATUSES:
+		frappe.throw(_("Item hanya bisa diubah saat Draft / Revision Requested."))
 
 	if warehouse is not None:
 		warehouse = _clean(warehouse)
@@ -334,7 +486,7 @@ def save_mr_order(
 	if remarks is not None:
 		ro.remarks = remarks
 
-	if _as_bool(submit):
+	if submitting:
 		stock_entry = _issue_parts_stock(ro)
 		if stock_entry:
 			ro.stock_entry = stock_entry
