@@ -18,6 +18,8 @@
     "pricing_section",
     "lift_item",
     "lift_rate",
+    "lift_qty",
+    "lift_amount",
     "price_list",
     "currency",
     "contract",
@@ -151,6 +153,21 @@
       "read_only": 1
     },
     {
+      "description": "Number of containers added to this booking — the lift charge is billed per container.",
+      "fieldname": "lift_qty",
+      "fieldtype": "Int",
+      "label": "Qty (Container)",
+      "read_only": 1
+    },
+    {
+      "description": "Lift Rate × Qty (Container) — the lift amount billed on the Sales Invoice.",
+      "fieldname": "lift_amount",
+      "fieldtype": "Currency",
+      "label": "Lift Amount",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
       "description": "Currency of the customer's price list (drives Lift Rate formatting).",
       "fieldname": "currency",
       "fieldtype": "Link",
@@ -255,7 +272,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-18",
+  "modified": "2026-06-22",
   "module": "Operations",
   "name": "Container Booking",
   "search_fields": "customer, branch, booking_status",

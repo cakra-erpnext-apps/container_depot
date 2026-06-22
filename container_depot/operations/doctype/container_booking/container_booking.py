@@ -58,6 +58,7 @@ class ContainerBooking(Document):
 		self._sync_lift_type()
 		self._resolve_pricing_context()
 		self._resolve_containers()
+		self._compute_lift_amount()
 		self._sync_payment_type_from_contract()
 		if self.direction == "Tank Out":
 			self._validate_tank_out_gating()
@@ -249,6 +250,13 @@ class ContainerBooking(Document):
 			) or 0
 		else:
 			self.lift_rate = 0
+
+	def _compute_lift_amount(self):
+		"""Qty = number of containers on the booking. The lift charge is billed *per
+		container*, so the booking's lift amount = Lift Rate × Qty — the same quantity
+		the Sales Invoice carries (see ``_booking_amount`` / ``_ensure_cash_invoice``)."""
+		self.lift_qty = len(self.items or [])
+		self.lift_amount = (self.lift_rate or 0) * (self.lift_qty or 0)
 
 	def _require_contract(self):
 		"""Block confirmation until the customer has an agreed price list. The lift

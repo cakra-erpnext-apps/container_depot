@@ -119,8 +119,32 @@ frappe.ui.form.on('Container Booking', {
 				// Set currency first so Lift Rate formats in the price-list currency (USD/IDR).
 				if (d.currency) frm.set_value('currency', d.currency);
 				frm.set_value('lift_rate', d.rate || 0);
+				frm.trigger('_recompute_lift_amount');
 			},
 		});
+	},
+	// Qty = number of containers on the booking; the lift charge is billed per
+	// container, so Lift Amount = Lift Rate × Qty (mirrors the Sales Invoice). Shown
+	// live so the operator sees the total update as containers are added/removed.
+	_recompute_lift_amount(frm) {
+		const qty = (frm.doc.items || []).length;
+		frm.set_value('lift_qty', qty);
+		frm.set_value('lift_amount', (frm.doc.lift_rate || 0) * qty);
+	},
+	// Grid row add / remove events fire on the PARENT form — recompute Qty / Lift
+	// Amount as container lines are added or removed.
+	items_add(frm) {
+		frm.trigger('_recompute_lift_amount');
+	},
+	items_remove(frm) {
+		frm.trigger('_recompute_lift_amount');
+	},
+});
+
+// A container line's own field change fires on the child-doctype handler.
+frappe.ui.form.on('Container Booking Item', {
+	container(frm) {
+		frm.trigger('_recompute_lift_amount');
 	},
 });
 
