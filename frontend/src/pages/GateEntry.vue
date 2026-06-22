@@ -169,7 +169,11 @@
 					<p class="text-xs text-gray-500">{{ labels.gateVehicleHint }}</p>
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div v-for="f in vehicleFields" :key="f.key" :class="f.type === 'textarea' ? 'sm:col-span-2' : ''">
-							<label class="oak-label">{{ f.label }}</label>
+							<label class="oak-label">
+								{{ f.label }}
+								<span v-if="f.required" class="text-red-500">*</span>
+								<span v-else class="font-normal normal-case text-gray-400">({{ labels.optional }})</span>
+							</label>
 							<select v-if="f.type === 'select'" v-model="vehicle[f.key]" class="oak-input">
 								<option value="">—</option>
 								<option v-for="o in f.options" :key="o" :value="o">{{ o }}</option>
@@ -268,11 +272,11 @@ const vehicleFields = computed(() => {
 	if (!detail.value) return []
 	if (detail.value.direction === "Tank In")
 		return [
-			{ key: "truck_plate", label: labels.truckNo, inputType: "text" },
-			{ key: "driver", label: labels.driverName, inputType: "text" },
-			{ key: "driver_phone", label: labels.driverPhone, inputType: "tel" },
+			{ key: "truck_plate", label: labels.truckNo, inputType: "text", required: true },
+			{ key: "driver", label: labels.driverName, inputType: "text", required: true },
+			{ key: "driver_phone", label: labels.driverPhone, inputType: "tel", required: true },
 			{ key: "ro", label: labels.vRo, inputType: "text" },
-			{ key: "condition", label: labels.vCondition, type: "select", options: ["EMPTY CLEAN", "EMPTY DIRTY", "LADEN"] },
+			{ key: "condition", label: labels.vCondition, type: "select", options: ["EMPTY CLEAN", "EMPTY DIRTY", "LADEN"], required: true },
 			{ key: "cargo", label: labels.cargo, type: "datalist", options: cargoOptions.value },
 			{ key: "tanggal_bongkar_actual", label: labels.vDateBongkar, inputType: "date" },
 			{ key: "shipper", label: labels.shipper, inputType: "text" },
@@ -280,9 +284,9 @@ const vehicleFields = computed(() => {
 			{ key: "remarks", label: labels.eirRemarks, type: "textarea" },
 		]
 	return [
-		{ key: "truck_plate", label: labels.truckNo, inputType: "text" },
-		{ key: "driver_name", label: labels.driverName, inputType: "text" },
-		{ key: "driver_phone", label: labels.driverPhone, inputType: "tel" },
+		{ key: "truck_plate", label: labels.truckNo, inputType: "text", required: true },
+		{ key: "driver_name", label: labels.driverName, inputType: "text", required: true },
+		{ key: "driver_phone", label: labels.driverPhone, inputType: "tel", required: true },
 		{ key: "ro", label: labels.vRo, inputType: "text" },
 		{ key: "angkutan", label: labels.vAngkutan, inputType: "text" },
 		{ key: "destination", label: labels.vDestination, inputType: "text" },
@@ -378,9 +382,16 @@ function closeVehicleForm() {
 function doGenerate() {
 	if (!selected.value.length || detail.value.block_reason) return
 	const vd = {}
+	const missing = []
 	for (const f of vehicleFields.value) {
 		const v = vehicle.value[f.key]
-		if (v != null && String(v).trim() !== "") vd[f.key] = v
+		const filled = v != null && String(v).trim() !== ""
+		if (filled) vd[f.key] = v
+		else if (f.required) missing.push(f.label)
+	}
+	if (missing.length) {
+		toast.error(`${labels.gateRequiredMissing}: ${missing.join(", ")}`)
+		return
 	}
 	generateRes
 		.submit({

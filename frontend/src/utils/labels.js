@@ -82,6 +82,8 @@ export const labels = {
 	// Gate — vehicle / driver form before generating a bon (mirrors the Desk dialog)
 	gateVehicleTitle: "Data Kendaraan & Sopir", // Vehicle & driver data
 	gateVehicleHint: "Auto-isi dari container pertama — lengkapi bila perlu.",
+	optional: "opsional", // optional-field tag on the vehicle/driver form
+	gateRequiredMissing: "Lengkapi field wajib", // required field(s) still empty
 	vCondition: "Kondisi", // Condition
 	vRo: "R/O",
 	vAngkutan: "Angkutan", // Transporter
@@ -135,7 +137,7 @@ export const labels = {
 	truckNo: "No. Truk", // Truck no
 	emkl: "EMKL",
 	driverPhone: "Nomor Driver", // Driver phone (from voucher)
-	shipper: "Shipper", // Shipper (from voucher)
+	shipper: "EMKL", // EMKL (formerly "Shipper" — from voucher)
 	referredVoucher: "Voucher Referensi", // Referred voucher (bon)
 	voucherHintIn: "EIR-In: data diambil dari Order Bongkar.",
 	voucherHintOut: "EIR-Out: data diambil dari Order Muat.",
