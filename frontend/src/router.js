@@ -23,9 +23,19 @@ const routes = [
 		component: () => import("@/pages/EirHistory.vue"),
 	},
 	{
+		path: "/gate/history",
+		name: "GateHistory",
+		component: () => import("@/pages/GateHistory.vue"),
+	},
+	{
 		path: "/cleaning",
 		name: "CleaningOrder",
 		component: () => import("@/pages/CleaningOrder.vue"),
+	},
+	{
+		path: "/cleaning/history",
+		name: "CleaningHistory",
+		component: () => import("@/pages/CleaningHistory.vue"),
 	},
 	{
 		path: "/mr",
@@ -33,14 +43,29 @@ const routes = [
 		component: () => import("@/pages/MaintenanceRepair.vue"),
 	},
 	{
+		path: "/mr/history",
+		name: "MrHistory",
+		component: () => import("@/pages/MrHistory.vue"),
+	},
+	{
 		path: "/storage",
 		name: "DepotStorage",
 		component: () => import("@/pages/DepotStorage.vue"),
 	},
 	{
+		path: "/storage/history",
+		name: "StorageHistory",
+		component: () => import("@/pages/StorageHistory.vue"),
+	},
+	{
 		path: "/monitor",
 		name: "MonitorContainer",
 		component: () => import("@/pages/MonitorContainer.vue"),
+	},
+	{
+		path: "/monitor/history",
+		name: "MonitorHistory",
+		component: () => import("@/pages/MonitorHistory.vue"),
 	},
 ]
 

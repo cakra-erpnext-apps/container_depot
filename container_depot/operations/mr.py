@@ -194,6 +194,26 @@ def list_open_mr_orders(start=0, page_length=20, search=None) -> dict:
 	return {"items": items, "total": frappe.db.count("Repair Order", filters)}
 
 
+def list_mr_history(start=0, page_length=10, search=None) -> dict:
+	"""Finished M&R orders (Completed / Rejected / Cancelled) — the PWA M&R "Riwayat" feed,
+	newest first, paginated + searchable, depot-scoped. Detail reuses ``get_mr_order_detail``."""
+	filters = {"status": ["in", ["Completed", "Rejected", "Cancelled"]]}
+	depots = get_user_depots()
+	if depots is not None:
+		filters["depot"] = ["in", depots or [""]]
+	or_filters = None
+	search = (search or "").strip()
+	if search and search.lower() != "undefined":
+		or_filters = {"container_no": ["like", f"%{search}%"], "repair_order_id": ["like", f"%{search}%"]}
+	items = frappe.get_all(
+		"Repair Order", filters=filters, or_filters=or_filters,
+		fields=["name", "repair_order_id", "container", "container_no", "status",
+			"principal", "depot", "total_cost", "completion_date", "creation"],
+		order_by="creation desc", limit_start=cint(start), limit_page_length=cint(page_length),
+	)
+	return {"items": items, "total": frappe.db.count("Repair Order", filters)}
+
+
 # --- detail ------------------------------------------------------------------
 def get_mr_order_detail(repair_order) -> dict:
 	"""Everything the PWA form needs: the copied EIR Damages (Section 1, read-only, with

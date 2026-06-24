@@ -157,6 +157,80 @@ export const labels = {
 	eirHistoryTitle: "Riwayat EIR", // EIR history
 	eirHistoryDesc: "Daftar EIR yang Anda buat", // EIRs you created
 	eirHistorySearch: "Cari no. container / EIR…", // Search container no / EIR id
+
+	// --- Riwayat (history) menus — shared ---
+	historySection: "Riwayat", // Home section heading for all history menus
+	depotLabel: "Depot", // generic depot field label (detail grids)
+
+	// Gate history
+	gateHistoryTitle: "Riwayat Gate",
+	gateHistoryDesc: "Voucher gate-in/out yang sudah dibuat",
+	gateHistorySearch: "Cari container / truk / booking…",
+	gateHistoryCount: "gate entry",
+	gateTruck: "No. Truk",
+	gateDriver: "Sopir",
+	gateBooking: "Booking",
+	gateInTime: "Gate In",
+	gateOutTime: "Gate Out",
+	gateOrder: "Order",
+	gateEir: "EIR",
+	gateStatus: {
+		Active: "Aktif",
+		Gate_In_Completed: "Gate-In Selesai",
+		EIR_Completed: "EIR Selesai",
+		Gate_Out_Completed: "Gate-Out Selesai",
+		Cancelled: "Batal",
+	},
+
+	// Cleaning history
+	cleaningHistoryTitle: "Riwayat Cleaning",
+	cleaningHistoryDesc: "Cleaning order selesai / batal",
+	cleaningHistoryCount: "cleaning order",
+	cleaningStatusCompleted: "Selesai",
+	cleaningStatusCancelled: "Batal",
+	cleaningCertPrint: "Cetak Sertifikat",
+	cleaningDateIssue: "Tgl. Terbit",
+
+	// M&R history
+	mrHistoryTitle: "Riwayat M&R",
+	mrHistoryDesc: "Repair order selesai / ditolak / batal",
+	mrHistorySearch: "Cari no. container / repair…",
+	mrHistoryCount: "repair order",
+	mrDamages: "Kerusakan",
+	mrUsedItems: "Item Dipakai",
+	mrTechnician: "Teknisi",
+
+	// Storage (yard movement) history
+	storageHistoryTitle: "Riwayat Storage",
+	storageHistoryDesc: "Pergerakan & penempatan container di yard",
+	storageHistorySearch: "Cari no. container…",
+	storageHistoryCount: "pergerakan",
+	storageZoneMove: "Perpindahan Zona",
+	storageStatusMove: "Perubahan Status",
+	storageMovedBy: "Oleh",
+	storageEvent: { Yard: "Yard", Status: "Status", Combined: "Yard + Status" },
+
+	// Monitor (container activity) history
+	monitorHistoryTitle: "Riwayat Monitor",
+	monitorHistoryDesc: "Linimasa aktivitas container",
+	monitorHistorySearch: "Cari no. container / aktivitas…",
+	monitorHistoryCount: "aktivitas",
+	monitorRefDoc: "Dokumen",
+	monitorPerformedBy: "Oleh",
+
+	// EIR history detail
+	eirHistoryCount: "EIR",
+	eirTankStatus: "Status Tank",
+	eirDate: "Tanggal",
+	eirVoucher: "Voucher",
+	eirTruck: "No. Truk",
+	eirDriver: "Sopir",
+	eirEmkl: "EMKL",
+	eirDamages: "Kerusakan",
+	eirNoDamage: "Tidak ada kerusakan dicatat.",
+	eirDamageCode: "D",
+	eirRepairCode: "R",
+
 	prev: "Sebelumnya", // Previous
 	next: "Berikutnya", // Next
 	eirStatusDraft: "Draf", // Draft
@@ -169,6 +243,19 @@ export const labels = {
 	eirDraftEmpty: "Belum ada draf EIR.", // No drafts yet
 	eirCompleteEmpty: "Belum ada EIR selesai.", // No completed EIRs yet
 	eirResume: "Lanjutkan", // Resume (open a draft)
+	// Pending EIR worklist (auto-created per container when an Order Bongkar is submitted)
+	eirPendingList: "EIR Menunggu Pemeriksaan", // EIRs awaiting inspection
+	eirPendingEmpty: "Belum ada EIR menunggu. EIR otomatis dibuat saat Order Bongkar di-submit.", // none pending
+	eirPendingSearch: "Cari no. container / voucher…", // search container no / voucher
+	eirOpenBtn: "Buka", // Open (a pending EIR)
+	eirBackToList: "Daftar EIR", // Back to the EIR worklist
+	eirVoucherLocked: "Otomatis dari Order Bongkar saat bon dibuat.", // voucher fixed at creation
+	// Follow-up order opt-outs on the EIR (create Cleaning Order / M&R on submit)
+	eirFollowupTitle: "Tindak Lanjut (Order Otomatis)", // follow-up orders section
+	eirCreateCleaning: "Buat Cleaning Order", // create cleaning order toggle
+	eirCreateCleaningHint: "Tank Empty Dirty — buat Cleaning Order saat submit.", // hint
+	eirCreateRepair: "Buat M&R (Repair Order)", // create repair order toggle
+	eirCreateRepairHint: "Ada kerusakan — buat draft M&R saat submit.", // hint
 	// Virtual signature (EIR creator)
 	signature: "Tanda Tangan Pembuat EIR", // EIR creator signature
 	signedBy: "Ditandatangani oleh", // Signed by
@@ -192,8 +279,13 @@ export const labels = {
 	cleaningOrdersEmpty: "Tidak ada cleaning order terbuka.",
 	createdOn: "Dibuat", // worklist row: created-on date prefix
 	cleaningOrder: "Cleaning Order",
-	cleaningType: "Metode Cleaning", // cleaning method
+	cleaningType: "Metode Cleaning", // cleaning method (now one or more billable service items)
 	cleaningTypeUnset: "Belum diset", // not set
+	cleaningSelectServices: "Pilih layanan cleaning (bisa lebih dari satu)", // multi-select hint
+	cleaningServicesCount: "layanan", // worklist + count chip: "<n> layanan" (count, NOT price)
+	cleaningSearchServices: "Cari layanan…", // catalogue search placeholder
+	cleaningNoMatch: "Tidak ada layanan cocok.", // no catalogue match for the search
+	cleaningNoPricedItems: "Owner belum punya layanan cleaning di price list.", // no priced items
 	cleaningPending: "Pending",
 	cleaningInProgress: "Dikerjakan", // In Progress
 	cleaningStart: "Mulai", // start cleaning button

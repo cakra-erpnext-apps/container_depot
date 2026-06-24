@@ -37,6 +37,27 @@
 				<Icon name="chevron-right" :size="20" class="text-gray-300" />
 			</router-link>
 		</div>
+
+		<!-- Riwayat (history) — one entry per main menu -->
+		<div>
+			<p class="oak-eyebrow mb-2 px-1 flex items-center gap-1.5">
+				<Icon name="clock" :size="14" /> {{ labels.historySection }}
+			</p>
+			<div class="grid gap-2 sm:grid-cols-2">
+				<router-link
+					v-for="h in history"
+					:key="h.to"
+					:to="h.to"
+					class="oak-card oak-press flex items-center gap-3 p-3"
+				>
+					<span class="oak-icon-tile h-9 w-9 bg-gray-100 text-gray-500">
+						<Icon :name="h.icon" :size="18" />
+					</span>
+					<p class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-700">{{ h.title }}</p>
+					<Icon name="chevron-right" :size="18" class="text-gray-300" />
+				</router-link>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -98,13 +119,15 @@ const menu = [
 		desc: labels.monitorDesc,
 		tile: "bg-brand-50 text-brand-600",
 	},
-	{
-		to: "/eir/history",
-		icon: "clock",
-		title: labels.eirHistoryTitle,
-		desc: labels.eirHistoryDesc,
-		tile: "bg-gray-100 text-gray-500",
-		wide: true,
-	},
+]
+
+// "Riwayat" — a history menu per main menu (list + tap-to-detail).
+const history = [
+	{ to: "/gate/history", icon: "log-in", title: labels.gateHistoryTitle },
+	{ to: "/eir/history", icon: "clipboard", title: labels.eirHistoryTitle },
+	{ to: "/cleaning/history", icon: "droplet", title: labels.cleaningHistoryTitle },
+	{ to: "/mr/history", icon: "tool", title: labels.mrHistoryTitle },
+	{ to: "/storage/history", icon: "layers", title: labels.storageHistoryTitle },
+	{ to: "/monitor/history", icon: "activity", title: labels.monitorHistoryTitle },
 ]
 </script>

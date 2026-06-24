@@ -137,6 +137,13 @@ def mr_orders(start=0, page_length=20, search=None):
 
 
 @frappe.whitelist(methods=["GET"])
+def mr_history(start=0, page_length=10, search=None):
+	"""GET /api/v1/ess/mr-history — finished (Completed/Rejected/Cancelled) M&R orders."""
+	_require_authenticated_user()
+	return mr.list_mr_history(start=start, page_length=page_length, search=search)
+
+
+@frappe.whitelist(methods=["GET"])
 def mr_order_detail(repair_order=None):
 	"""GET /api/v1/ess/mr-order-detail — one M&R's damages (EIR copy) + used items + warehouses."""
 	_require_authenticated_user()

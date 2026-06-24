@@ -1,161 +1,77 @@
 <template>
-	<div class="mx-auto w-full max-w-lg space-y-4 md:max-w-2xl">
-		<div class="flex items-center justify-between gap-2">
-			<div class="flex items-center gap-2">
-				<span class="oak-icon-tile h-9 w-9 bg-gray-100 text-gray-500"><Icon name="clock" :size="20" /></span>
-				<h1 class="text-lg font-extrabold tracking-tight">{{ labels.eirHistoryTitle }}</h1>
-			</div>
-			<router-link to="/eir" class="oak-btn oak-btn-secondary shrink-0 px-3 py-2">
-				<Icon name="clipboard" :size="16" /> {{ labels.eirTitle }}
-			</router-link>
-		</div>
-
-		<div class="relative">
-			<Icon
-				name="search"
-				:size="18"
-				class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-			/>
-			<input
-				v-model="search"
-				type="search"
-				:placeholder="labels.eirHistorySearch"
-				class="oak-input pl-10 uppercase"
-				@input="onSearchInput"
-			/>
-		</div>
-
-		<!-- Loading skeleton -->
-		<ul v-if="history.loading && !items.length" class="oak-card divide-y divide-gray-100 overflow-hidden">
-			<li v-for="n in 6" :key="n" class="flex items-center gap-3 px-4 py-3.5">
-				<div class="oak-skeleton h-9 w-9 rounded-xl"></div>
-				<div class="flex-1 space-y-2">
-					<div class="oak-skeleton h-3.5 w-1/2"></div>
-					<div class="oak-skeleton h-3 w-3/4"></div>
+	<HistoryPage
+		:title="labels.eirHistoryTitle"
+		icon="clipboard"
+		back-to="/eir"
+		:back-label="labels.eirTitle"
+		list-url="container_depot.ess.inspections.eir_history"
+		detail-url="container_depot.ess.inspections.eir_view"
+		detail-param="inspection"
+		:search-placeholder="labels.eirHistorySearch"
+		:count-label="labels.eirHistoryCount"
+	>
+		<template #row="{ item }">
+			<span class="oak-icon-tile h-9 w-9 shrink-0 bg-leaf-50 text-leaf-600"><Icon name="clipboard" :size="16" /></span>
+			<div class="min-w-0 flex-1">
+				<div class="flex items-center justify-between gap-2">
+					<p class="truncate font-semibold text-gray-900">{{ item.container_no || item.container }}</p>
+					<span class="oak-chip shrink-0" :class="statusClass(item)">{{ statusText(item) }}</span>
 				</div>
-			</li>
-		</ul>
-
-		<p v-else-if="history.error" class="flex items-center gap-2 text-sm text-red-600">
-			<Icon name="alert-circle" :size="16" /> {{ labels.error }}
-			<button class="oak-link" @click="history.reload()">{{ labels.retry }}</button>
-		</p>
-
-		<div v-else-if="!items.length" class="oak-card flex flex-col items-center gap-2 p-8 text-center">
-			<span class="oak-icon-tile h-12 w-12 bg-gray-100 text-gray-300"><Icon name="inbox" :size="24" /></span>
-			<p class="text-sm text-gray-400">{{ labels.empty }}</p>
-		</div>
-
-		<ul v-else class="oak-card divide-y divide-gray-100 overflow-hidden">
-			<li v-for="r in items" :key="r.name" class="flex items-start gap-3 px-4 py-3">
-				<span class="oak-icon-tile mt-0.5 h-9 w-9 bg-gray-100 text-gray-500"><Icon name="clipboard" :size="16" /></span>
-				<div class="min-w-0 flex-1">
-					<div class="flex items-center justify-between gap-2">
-						<p class="truncate font-semibold text-gray-900">{{ r.container_no || r.container }}</p>
-						<span class="oak-chip shrink-0" :class="statusClass(r)">{{ statusText(r) }}</span>
-					</div>
-					<div class="mt-0.5 flex items-center justify-between gap-2 text-xs text-gray-500">
-						<span class="truncate">{{ r.inspection_type }}<span v-if="r.tank_status"> · {{ r.tank_status }}</span></span>
-						<span class="shrink-0">{{ fmtDate(r.eir_date || r.creation) }}</span>
-					</div>
-					<p class="truncate text-[11px] text-gray-400">{{ r.inspection_id || r.name }}</p>
+				<div class="mt-0.5 flex items-center justify-between gap-2 text-xs text-gray-500">
+					<span class="truncate">{{ item.inspection_type }}<span v-if="item.tank_status"> · {{ item.tank_status }}</span></span>
+					<span class="shrink-0">{{ fmtDate(item.eir_date || item.creation) }}</span>
 				</div>
-			</li>
-		</ul>
-
-		<div v-if="total > 0" class="space-y-1.5">
-			<div class="flex flex-wrap items-center justify-center gap-1.5">
-				<button
-					class="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-40"
-					:disabled="page <= 1 || history.loading"
-					@click="goTo(page - 1)"
-				>
-					<Icon name="chevron-left" :size="16" /> {{ labels.prev }}
-				</button>
-				<button
-					v-for="p in pageWindow"
-					:key="p"
-					class="min-w-[2.5rem] rounded-lg border px-3 py-1.5 text-sm font-semibold transition"
-					:class="p === page ? 'border-brand-600 bg-brand-600 text-white shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
-					:disabled="history.loading"
-					@click="goTo(p)"
-				>
-					{{ p }}
-				</button>
-				<button
-					class="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-40"
-					:disabled="page >= totalPages || history.loading"
-					@click="goTo(page + 1)"
-				>
-					{{ labels.next }} <Icon name="chevron-right" :size="16" />
-				</button>
+				<p class="truncate text-[11px] text-gray-400">{{ item.inspection_id || item.name }}</p>
 			</div>
-			<p class="text-center text-xs text-gray-400">{{ page }} / {{ totalPages }} · {{ total }} EIR</p>
-		</div>
-	</div>
+		</template>
+
+		<template #detail="{ data }">
+			<section class="oak-card space-y-3 p-4">
+				<div class="flex items-start justify-between gap-2">
+					<div class="min-w-0">
+						<p class="font-mono text-xs text-gray-400">{{ data.inspection_id || data.name }}</p>
+						<h2 class="truncate text-lg font-extrabold text-gray-900">{{ data.container_no }}</h2>
+					</div>
+					<span class="oak-chip shrink-0" :class="statusClass(data)">{{ statusText(data) }}</span>
+				</div>
+				<dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+					<div v-for="c in cells(data)" :key="c.label" class="min-w-0">
+						<dt class="text-xs text-gray-400">{{ c.label }}</dt>
+						<dd class="truncate font-medium text-gray-800">{{ c.value || "—" }}</dd>
+					</div>
+				</dl>
+				<p v-if="data.remarks" class="rounded-lg bg-gray-50 p-2 text-xs text-gray-600">{{ data.remarks }}</p>
+			</section>
+
+			<section class="oak-card space-y-2 p-4">
+				<p class="oak-section-title">{{ labels.eirDamages }} ({{ data.damage_count || 0 }})</p>
+				<p v-if="!(data.damages || []).length" class="text-sm text-gray-400">{{ labels.eirNoDamage }}</p>
+				<ul v-else class="space-y-1.5 text-sm">
+					<li v-for="(d, i) in data.damages" :key="i" class="flex items-start gap-2 text-gray-800">
+						<Icon name="alert-triangle" :size="14" class="mt-0.5 shrink-0 text-amber-500" />
+						<span class="min-w-0">
+							<span class="font-medium">{{ d.item_name || d.item }}</span>
+							<span v-if="d.damage_type" class="text-gray-500"> · {{ labels.eirDamageCode }} {{ d.damage_type }}</span>
+							<span v-if="d.repair_code" class="text-gray-500"> / {{ labels.eirRepairCode }} {{ d.repair_code }}</span>
+							<span v-if="d.damage_description" class="block text-xs text-gray-400">{{ d.damage_description }}</span>
+						</span>
+					</li>
+				</ul>
+			</section>
+
+			<a :href="printUrl(data)" target="_blank" rel="noopener" class="oak-btn oak-btn-secondary inline-flex px-3 py-2">
+				<Icon name="printer" :size="16" /> {{ labels.cleaningPrint }}
+			</a>
+		</template>
+	</HistoryPage>
 </template>
 
 <script setup>
-import { computed, ref } from "vue"
-import { createResource } from "frappe-ui"
 import { labels } from "@/utils/labels"
 import Icon from "@/components/Icon.vue"
+import HistoryPage from "@/components/HistoryPage.vue"
 
-const PAGE = 10
-const search = ref("")
-const page = ref(1)
-const items = ref([])
-const total = ref(0)
-
-// frappe-ui serializes GET params via URLSearchParams, turning `undefined` into the
-// string "undefined" — only include keys that actually have a value.
-function cleanParams(obj) {
-	const out = {}
-	for (const k in obj) {
-		const v = obj[k]
-		if (v !== undefined && v !== null && v !== "") out[k] = v
-	}
-	return out
-}
-
-const history = createResource({
-	url: "container_depot.ess.inspections.eir_history",
-	method: "GET",
-	makeParams: () => cleanParams({ search: search.value, start: (page.value - 1) * PAGE, page_length: PAGE }),
-	auto: true,
-	onSuccess(data) {
-		items.value = data.items || []
-		total.value = data.total || 0
-	},
-})
-
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE)))
-
-// A window of up to 5 page numbers centred on the current page.
-const pageWindow = computed(() => {
-	const tp = totalPages.value
-	const max = 5
-	let startP = Math.max(1, page.value - Math.floor(max / 2))
-	const endP = Math.min(tp, startP + max - 1)
-	startP = Math.max(1, endP - max + 1)
-	const out = []
-	for (let p = startP; p <= endP; p++) out.push(p)
-	return out
-})
-
-function goTo(p) {
-	page.value = Math.min(Math.max(1, p), totalPages.value)
-	history.reload()
-}
-
-let searchTimer = null
-function onSearchInput() {
-	clearTimeout(searchTimer)
-	searchTimer = setTimeout(() => {
-		page.value = 1
-		history.reload()
-	}, 300)
-}
+const fmtDate = (v) => (v ? String(v).slice(0, 10) : "—")
 
 function statusText(r) {
 	if (r.docstatus === 1) return labels.eirStatusSubmitted
@@ -167,7 +83,21 @@ function statusClass(r) {
 	if (r.docstatus === 2) return "bg-gray-200 text-gray-600"
 	return "bg-amber-100 text-amber-800"
 }
-function fmtDate(v) {
-	return v ? String(v).slice(0, 10) : "—"
+function cells(d) {
+	return [
+		{ label: labels.eirType, value: d.inspection_type },
+		{ label: labels.eirTankStatus, value: d.tank_status },
+		{ label: labels.eirDate, value: fmtDate(d.eir_date) },
+		{ label: labels.depotLabel, value: d.depot },
+		{ label: labels.eirVoucher, value: d.referred_voucher },
+		{ label: labels.eirTruck, value: d.truck_no },
+		{ label: labels.eirDriver, value: d.driver },
+		{ label: labels.eirEmkl, value: d.emkl },
+	]
+}
+function printUrl(d) {
+	return `/api/method/frappe.utils.print_format.download_pdf?doctype=Inspection&name=${encodeURIComponent(
+		d.name
+	)}&format=EIR%20Format&no_letterhead=1`
 }
 </script>

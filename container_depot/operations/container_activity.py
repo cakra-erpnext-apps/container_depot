@@ -58,3 +58,56 @@ def log_container_activity(
 		# Audit logging must never break the action it records.
 		frappe.log_error(frappe.get_traceback(), "container_depot Container Activity log failed")
 		return None
+
+
+# ---------------------------------------------------------------------------
+# Riwayat (history): read the Container Activity timeline.
+# ---------------------------------------------------------------------------
+def list_activity_history(start=0, page_length=10, search=None) -> dict:
+	"""Container Activity timeline (Gate / EIR / Cleaning / Repair / Status… events) — the
+	PWA Monitor "Riwayat" feed, newest first, paginated + searchable, depot-scoped to the
+	caller's branch. (``Container.name == container_no``, so search matches the number.)"""
+	from frappe.utils import cint
+	from container_depot.operations.user_branch import get_user_depots
+
+	filters = {}
+	depots = get_user_depots()
+	if depots is not None:
+		filters["depot"] = ["in", depots or [""]]
+	or_filters = None
+	search = (search or "").strip()
+	if search and search.lower() not in ("undefined", "null", "none"):
+		or_filters = {"container": ["like", f"%{search}%"], "summary": ["like", f"%{search}%"]}
+	items = frappe.get_all(
+		"Container Activity", filters=filters, or_filters=or_filters,
+		fields=["name", "container", "activity_type", "from_status", "to_status",
+			"reference_doctype", "reference_name", "performed_by", "summary",
+			"activity_time", "depot", "principal"],
+		order_by="activity_time desc",
+		limit_start=cint(start), limit_page_length=cint(page_length),
+	)
+	return {"items": items, "total": frappe.db.count("Container Activity", filters)}
+
+
+def get_activity_detail(name) -> dict:
+	"""One Container Activity record (the action + its source-doc link), branch-guarded."""
+	from container_depot.operations.user_branch import assert_in_user_branch
+
+	if not name:
+		frappe.throw("name is required.")
+	a = frappe.get_doc("Container Activity", name)
+	assert_in_user_branch(depot=a.depot)
+	return {
+		"name": a.name,
+		"container": a.container,
+		"activity_type": a.activity_type,
+		"from_status": a.from_status,
+		"to_status": a.to_status,
+		"reference_doctype": a.reference_doctype,
+		"reference_name": a.reference_name,
+		"performed_by": a.performed_by,
+		"summary": a.summary,
+		"activity_time": str(a.activity_time) if a.activity_time else None,
+		"depot": a.depot,
+		"principal": a.principal,
+	}

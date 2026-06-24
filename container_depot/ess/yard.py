@@ -90,6 +90,20 @@ def yard_zone_tanks(zone, search=None, start=0, page_length=50):
 
 
 @frappe.whitelist(methods=["GET"])
+def yard_history(start=0, page_length=10, search=None):
+	"""GET /api/v1/ess/yard-history — Container Movement (yard) history, depot-scoped."""
+	_require_authenticated_user()
+	return yard.list_yard_history(start=start, page_length=page_length, search=search)
+
+
+@frappe.whitelist(methods=["GET"])
+def movement_detail(name=None):
+	"""GET /api/v1/ess/movement-detail — one Container Movement record's full detail."""
+	_require_authenticated_user()
+	return yard.get_movement_detail(name)
+
+
+@frappe.whitelist(methods=["GET"])
 def yard_recommend(container_no):
 	"""GET /api/v1/ess/yard-recommend — ranked zone suggestions for a container."""
 	_require_authenticated_user()
