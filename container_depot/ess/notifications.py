@@ -42,6 +42,13 @@ def _in_allowed_branch(log, allowed):
 	return b is None or b in allowed
 
 
+def _sees_all_notifications(user=None):
+	"""Administrator / System Manager oversee the whole depot, so the bell shows EVERY
+	user's notifications (not just their own per-user feed)."""
+	user = user or frappe.session.user
+	return user == "Administrator" or "System Manager" in frappe.get_roles(user)
+
+
 @frappe.whitelist(methods=["GET"])
 def list_notifications(limit=20):
 	"""GET /api/method/…list_notifications — the caller's notifications (newest
@@ -49,10 +56,23 @@ def list_notifications(limit=20):
 
 	Branch-scoped: a notification whose source document belongs to another branch
 	is hidden, and the unread badge counts only in-branch unread logs. Users with no
-	Branch restriction (HQ/admin) see everything."""
+	Branch restriction (HQ/admin) see everything.
+
+	Administrator / System Manager see ALL users' notifications (depot-wide oversight),
+	not just their own per-user feed."""
 	_require_authenticated_user()
 	user = frappe.session.user
 	limit = min(max(int(limit or 20), 1), 50)
+
+	if _sees_all_notifications(user):
+		items = frappe.get_all(
+			"Notification Log",
+			fields=["name", "subject", "document_type", "document_name", "read", "type", "creation"],
+			order_by="creation desc",
+			limit=limit,
+		)
+		return {"items": items, "unread": frappe.db.count("Notification Log", {"read": 0})}
+
 	items = frappe.get_all(
 		"Notification Log",
 		filters={"for_user": user},
@@ -80,9 +100,9 @@ def list_notifications(limit=20):
 
 @frappe.whitelist(methods=["POST"])
 def mark_read(name):
-	"""POST — mark one of the caller's own notifications as read."""
+	"""POST — mark a notification as read (own; or any, for Administrator/System Manager)."""
 	_require_authenticated_user()
-	if frappe.db.get_value("Notification Log", name, "for_user") != frappe.session.user:
+	if not _sees_all_notifications() and frappe.db.get_value("Notification Log", name, "for_user") != frappe.session.user:
 		frappe.throw(_("Not your notification."), frappe.PermissionError)
 	frappe.db.set_value("Notification Log", name, "read", 1, update_modified=False)
 	return {"name": name, "read": 1}
@@ -90,13 +110,9 @@ def mark_read(name):
 
 @frappe.whitelist(methods=["POST"])
 def mark_all_read():
-	"""POST — mark all of the caller's unread notifications as read."""
+	"""POST — mark all unread notifications as read (the caller's; or everyone's, for
+	Administrator/System Manager)."""
 	_require_authenticated_user()
-	frappe.db.set_value(
-		"Notification Log",
-		{"for_user": frappe.session.user, "read": 0},
-		"read",
-		1,
-		update_modified=False,
-	)
+	filters = {"read": 0} if _sees_all_notifications() else {"for_user": frappe.session.user, "read": 0}
+	frappe.db.set_value("Notification Log", filters, "read", 1, update_modified=False)
 	return {"unread": 0}
