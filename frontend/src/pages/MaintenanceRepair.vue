@@ -60,9 +60,6 @@
 				</button>
 				<div class="flex shrink-0 flex-col items-end gap-1">
 					<span class="oak-chip" :class="statusChipClass(o.status)">{{ repairStatusLabel(o.status) }}</span>
-					<span v-if="showCost(o.status) && o.total_cost" class="text-[11px] font-semibold text-gray-700">
-						{{ fmtMoney(o.total_cost) }}
-					</span>
 				</div>
 			</div>
 		</section>
@@ -135,9 +132,9 @@
 					</div>
 					<p v-if="d.damage_description" class="text-sm text-gray-600">{{ d.damage_description }}</p>
 					<div v-if="d.photos && d.photos.length" class="flex flex-wrap gap-2">
-						<a v-for="(ph, pi) in d.photos" :key="pi" :href="ph" target="_blank" rel="noopener">
+						<button v-for="(ph, pi) in d.photos" :key="pi" type="button" class="oak-press" @click="openLightbox(d.photos, pi)">
 							<img :src="ph" class="h-20 w-20 rounded-lg border border-gray-200 object-cover" />
-						</a>
+						</button>
 					</div>
 				</div>
 			</section>
@@ -186,9 +183,9 @@
 							</div>
 							<div class="flex flex-wrap gap-2">
 								<div v-for="(ph, pi) in u.photos" :key="pi" class="relative">
-									<a :href="ph" target="_blank" rel="noopener">
+									<button type="button" class="oak-press block" @click="openLightbox(u.photos, pi)">
 										<img :src="ph" class="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
-									</a>
+									</button>
 									<button
 										class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-gray-500 shadow"
 										@click="u.photos.splice(pi, 1)"
@@ -217,10 +214,7 @@
 						<div class="flex items-start justify-between gap-2">
 							<div class="min-w-0">
 								<p class="truncate font-semibold text-gray-900">{{ u.item_name || u.item }}</p>
-								<p class="text-xs text-gray-500">
-									{{ u.quantity }} × {{ fmtMoney(u.rate) }} =
-									<span class="font-medium text-gray-700">{{ fmtMoney(u.amount) }}</span>
-								</p>
+								<p class="text-xs text-gray-500">{{ labels.mrQty }} {{ u.quantity }}</p>
 								<p v-if="u.remark" class="text-xs text-gray-400">{{ u.remark }}</p>
 							</div>
 							<div v-if="isPending" class="flex shrink-0 gap-1">
@@ -248,18 +242,12 @@
 							:placeholder="labels.mrOwnerNotePlaceholder"
 						/>
 						<div v-if="u.photos && u.photos.length" class="flex flex-wrap gap-2">
-							<a v-for="(ph, pi) in u.photos" :key="pi" :href="ph" target="_blank" rel="noopener">
+							<button v-for="(ph, pi) in u.photos" :key="pi" type="button" class="oak-press" @click="openLightbox(u.photos, pi)">
 								<img :src="ph" class="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
-							</a>
+							</button>
 						</div>
 					</div>
 				</template>
-
-				<!-- Total -->
-				<div v-if="used.length && !isEditable" class="flex items-center justify-between border-t border-gray-100 pt-2 text-sm">
-					<span class="font-semibold text-gray-700">{{ labels.mrTotal }}</span>
-					<span class="font-bold text-gray-900">{{ fmtMoney(displayTotal) }}</span>
-				</div>
 			</section>
 
 			<!-- Owner note (Pending Approval) -->
@@ -274,16 +262,22 @@
 				<textarea v-model="remarks" rows="2" class="oak-input"></textarea>
 			</section>
 
+			<!-- Auto-save status (while building the estimate) -->
+			<p v-if="isEditable" class="flex items-center gap-1.5 text-xs">
+				<span v-if="saveRes.loading" class="text-gray-400">{{ labels.savingDraft }}</span>
+				<span v-else-if="savedOk" class="inline-flex items-center gap-1 text-leaf-600">
+					<Icon name="check" :size="13" /> {{ labels.draftSaved }}
+				</span>
+				<span v-else class="text-gray-400">{{ labels.autosaveHint }}</span>
+			</p>
+
 			<!-- Actions by status -->
 			<div class="flex gap-2">
 				<template v-if="isEditable">
-					<button class="oak-btn oak-btn-secondary flex-1 py-3" :disabled="saveRes.loading" @click="saveDraft()">
-						{{ labels.mrSave }}
-					</button>
 					<button
 						class="oak-btn oak-btn-primary flex-1 py-3"
 						:disabled="submitRes.loading || saveRes.loading || !used.length"
-						@click="submitForApproval"
+						@click="confirmSubmitApproval"
 					>
 						<Icon v-if="submitRes.loading" name="loader" :size="18" class="animate-spin" />
 						<span v-else>{{ labels.mrSubmitApproval }}</span>
@@ -308,7 +302,7 @@
 					</button>
 				</template>
 				<template v-else-if="isInProgress">
-					<button class="oak-btn oak-btn-primary flex-1 py-3" :disabled="saveRes.loading" @click="complete">
+					<button class="oak-btn oak-btn-primary flex-1 py-3" :disabled="saveRes.loading" @click="confirmComplete">
 						<Icon v-if="saveRes.loading" name="loader" :size="18" class="animate-spin" />
 						<span v-else>{{ labels.mrComplete }}</span>
 					</button>
@@ -358,18 +352,19 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from "vue"
+import { computed, nextTick, reactive, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { createResource } from "frappe-ui"
 import { labels, repairStatusLabel } from "@/utils/labels"
 import { toast } from "@/utils/toast"
+import { openLightbox } from "@/utils/lightbox"
+import { confirm } from "@/utils/confirm"
 import Icon from "@/components/Icon.vue"
 
 const route = useRoute()
 const router = useRouter()
 
 const fmtDate = (v) => (v ? String(v).slice(0, 10) : "—")
-const fmtMoney = (v) => Number(v || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })
 
 const search = ref("")
 const orders = ref([])
@@ -381,18 +376,17 @@ const used = ref([])
 const remarks = ref("")
 const ownerNote = ref("")
 
+// Auto-save (mirrors the EIR flow): debounced draft save while building the estimate.
+let saveTimer = null
+const savedOk = ref(false) // last auto-save succeeded
+const suppressSave = ref(false) // mute auto-save while a draft is being loaded
+
 // --- status-driven view flags ----------------------------------------------
 const isEditable = computed(() => ["Draft", "Revision Requested"].includes(order.value?.status))
 const isPending = computed(() => order.value?.status === "Pending Approval")
 const isApproved = computed(() => order.value?.status === "Approved")
 const isInProgress = computed(() => order.value?.status === "In Progress")
 const canEditWarehouse = computed(() => isEditable.value || isInProgress.value)
-const displayTotal = computed(() => {
-	if (isPending.value) {
-		return used.value.filter((u) => u.decision !== "Rejected").reduce((s, u) => s + Number(u.amount || 0), 0)
-	}
-	return Number(order.value?.total_cost || 0)
-})
 
 function warehouseName(name) {
 	const w = (order.value?.warehouses || []).find((x) => x.name === name)
@@ -410,7 +404,6 @@ function statusChipClass(s) {
 	if (s === "Rejected") return "bg-red-50 text-red-700"
 	return "bg-gray-100 text-gray-600"
 }
-const showCost = (s) => ["Pending Approval", "Revision Requested", "Approved", "In Progress"].includes(s)
 
 const ordersRes = createResource({
 	url: "container_depot.ess.repairs.mr_orders",
@@ -440,6 +433,9 @@ const detailRes = createResource({
 	url: "container_depot.ess.repairs.mr_order_detail",
 	method: "GET",
 	onSuccess(data) {
+		// Mute auto-save while we populate the form from the loaded order.
+		suppressSave.value = true
+		savedOk.value = false
 		order.value = data
 		warehouse.value = data.warehouse || ""
 		remarks.value = data.remarks || ""
@@ -447,6 +443,9 @@ const detailRes = createResource({
 		used.value = (data.used_items || []).map((u) =>
 			reactive({ ...u, decision: u.decision || "Pending", photos: [...(u.photos || [])], uploading: false, photoErr: "" })
 		)
+		nextTick(() => {
+			suppressSave.value = false
+		})
 	},
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
 })
@@ -494,8 +493,10 @@ const submitRes = createResource({
 	url: "container_depot.ess.repairs.mr_submit_approval",
 	method: "POST",
 	onSuccess() {
+		// Submitted to the owner → drop back to the worklist with a toast.
 		toast.success(labels.mrSubmittedToast)
-		detailRes.fetch({ repair_order: order.value.name })
+		if (route.query.o) router.replace({ query: {} })
+		order.value = null
 		reloadOrders()
 	},
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
@@ -505,6 +506,27 @@ function submitForApproval() {
 	if (!order.value || !used.value.length) return
 	// Persist the estimate first, then submit it to the owner.
 	saveDraft().then(() => submitRes.fetch({ repair_order: order.value.name }))
+}
+
+// Both irreversible submits ask for an explicit confirmation first.
+async function confirmSubmitApproval() {
+	if (!order.value || !used.value.length) return
+	const ok = await confirm({
+		title: labels.confirmSubmitTitle,
+		message: labels.confirmSubmitMessage,
+		confirmLabel: labels.confirmSubmitYes,
+		cancelLabel: labels.confirmCancel,
+	})
+	if (ok) submitForApproval()
+}
+async function confirmComplete() {
+	const ok = await confirm({
+		title: labels.confirmSubmitTitle,
+		message: labels.confirmSubmitMessage,
+		confirmLabel: labels.confirmSubmitYes,
+		cancelLabel: labels.confirmCancel,
+	})
+	if (ok) complete()
 }
 
 // --- owner decision (Pending Approval -> Approved/Rejected/Revision) ---------
@@ -536,20 +558,33 @@ const saveRes = createResource({
 	method: "POST",
 	onSuccess(data) {
 		if (data.status === "Completed") {
-			completed.value = data
+			// Finalized → drop back to the worklist with a toast.
+			completed.value = null
 			order.value = null
 			if (route.query.o) router.replace({ query: {} })
 			toast.success(labels.mrCompleted, { title: data.repair_order_id || data.name })
 			reloadOrders()
 		} else {
-			toast.success(labels.mrSaved)
+			savedOk.value = true // auto-save / manual save succeeded (no toast)
 		}
 	},
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
 })
 
+// Debounced auto-save while building the estimate (Draft / Revision Requested only).
+function scheduleSave() {
+	if (!order.value || !isEditable.value || suppressSave.value) return
+	savedOk.value = false
+	if (saveTimer) clearTimeout(saveTimer)
+	saveTimer = setTimeout(() => saveDraft(), 700)
+}
+
 function saveDraft() {
 	if (!order.value) return Promise.resolve()
+	if (saveTimer) {
+		clearTimeout(saveTimer)
+		saveTimer = null
+	}
 	const items = used.value
 		.filter((u) => u.item)
 		.map((u) => ({
@@ -574,7 +609,19 @@ function complete() {
 	saveRes.fetch({ repair_order: order.value.name, warehouse: warehouse.value || undefined, submit: 1 })
 }
 
+// Auto-save while building: the used items (qty / remark / photos), the source warehouse
+// and the general remarks each trigger a debounced draft save.
+watch([warehouse, remarks], scheduleSave)
+watch(used, scheduleSave, { deep: true })
+
 function backToList() {
+	// Clearing the form must never trigger an auto-save of the emptied fields.
+	if (saveTimer) {
+		clearTimeout(saveTimer)
+		saveTimer = null
+	}
+	suppressSave.value = true
+	savedOk.value = false
 	completed.value = null
 	used.value = []
 	warehouse.value = ""

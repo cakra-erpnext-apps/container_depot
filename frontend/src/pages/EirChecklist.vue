@@ -316,7 +316,7 @@
 				<button
 					class="oak-btn oak-btn-primary w-full py-3"
 					:disabled="saveRes.loading"
-					@click="doSave(true)"
+					@click="confirmSubmit"
 				>
 					<Icon v-if="!saveRes.loading" name="check-circle" :size="18" />
 					{{ saveRes.loading ? "…" : labels.submitEir }}
@@ -342,6 +342,7 @@ import { computed, nextTick, reactive, ref, watch } from "vue"
 import { createResource } from "frappe-ui"
 import { labels } from "@/utils/labels"
 import { toast } from "@/utils/toast"
+import { confirm } from "@/utils/confirm"
 import { session } from "@/data/session"
 import Icon from "@/components/Icon.vue"
 
@@ -739,6 +740,17 @@ function doSave(submit = false) {
 		photos: JSON.stringify(buildPhotos()),
 		submit: submit ? 1 : 0,
 	})
+}
+
+// Finalize (Submit) requires an explicit confirmation — submitted EIRs can't be edited in the PWA.
+async function confirmSubmit() {
+	const ok = await confirm({
+		title: labels.confirmSubmitTitle,
+		message: labels.confirmSubmitMessage,
+		confirmLabel: labels.confirmSubmitYes,
+		cancelLabel: labels.confirmCancel,
+	})
+	if (ok) doSave(true)
 }
 
 // Auto-save on every action: debounce so rapid edits collapse into one request.

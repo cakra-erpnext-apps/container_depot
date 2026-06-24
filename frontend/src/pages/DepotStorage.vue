@@ -113,16 +113,15 @@
 										{{ openDamagePhotos.has(i) ? labels.storageHidePhotos : `${labels.storageShowPhotos} (${d.photos.length})` }}
 									</button>
 									<div v-if="openDamagePhotos.has(i)" class="mt-1.5 grid grid-cols-3 gap-1.5">
-										<a
+										<button
 											v-for="(ph, pi) in d.photos"
 											:key="pi"
-											:href="ph"
-											target="_blank"
-											rel="noopener"
-											class="block overflow-hidden rounded-lg border border-gray-200"
+											type="button"
+											class="oak-press block overflow-hidden rounded-lg border border-gray-200"
+											@click="openLightbox(d.photos, pi)"
 										>
 											<img :src="ph" loading="lazy" class="h-20 w-full object-cover" />
-										</a>
+										</button>
 									</div>
 								</template>
 							</li>
@@ -391,6 +390,7 @@ import {
 	statusColors,
 } from "@/utils/labels"
 import { toast } from "@/utils/toast"
+import { openLightbox } from "@/utils/lightbox"
 import { userContext, branchLabel } from "@/data/context"
 import Icon from "@/components/Icon.vue"
 

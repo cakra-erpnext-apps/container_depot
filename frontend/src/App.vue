@@ -33,6 +33,8 @@
 
 		<BottomNav v-if="session.isLoggedIn" />
 		<ToastHost />
+		<LightboxHost />
+		<ConfirmHost />
 	</div>
 </template>
 
@@ -43,5 +45,7 @@ import Icon from "@/components/Icon.vue"
 import BottomNav from "@/components/BottomNav.vue"
 import NotificationBell from "@/components/NotificationBell.vue"
 import ToastHost from "@/components/ToastHost.vue"
+import LightboxHost from "@/components/LightboxHost.vue"
+import ConfirmHost from "@/components/ConfirmHost.vue"
 import emblem from "@/assets/oak-emblem.png"
 </script>

@@ -148,6 +148,12 @@ export const labels = {
 	eirCreated: "EIR berhasil dibuat", // EIR created
 	eirDraftHint: "Draf EIR otomatis dibuat/ dibuka saat ambil data.", // auto draft hint
 	eirAutosaveHint: "Perubahan tersimpan otomatis.", // changes auto-saved
+	autosaveHint: "Perubahan tersimpan otomatis.", // generic auto-save hint (cleaning + M&R)
+	// Confirm-before-submit dialog (2-step "Anda yakin?")
+	confirmSubmitTitle: "Submit order?",
+	confirmSubmitMessage: "Anda yakin untuk submit order ini? Tindakan ini tidak bisa dibatalkan.",
+	confirmSubmitYes: "Ya, Submit",
+	confirmCancel: "Batal",
 	savingDraft: "Menyimpan…", // Saving…
 	draftSaved: "Tersimpan", // Saved
 	eirSubmitted: "EIR berhasil disubmit", // EIR submitted

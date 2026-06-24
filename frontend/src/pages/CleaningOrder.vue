@@ -268,6 +268,15 @@
 				</div>
 			</section>
 
+			<!-- Auto-save status (changes persist on every edit) -->
+			<p class="flex items-center gap-1.5 text-xs">
+				<span v-if="saveRes.loading" class="text-gray-400">{{ labels.savingDraft }}</span>
+				<span v-else-if="savedOk" class="inline-flex items-center gap-1 text-leaf-600">
+					<Icon name="check" :size="13" /> {{ labels.draftSaved }}
+				</span>
+				<span v-else class="text-gray-400">{{ labels.autosaveHint }}</span>
+			</p>
+
 			<!-- Actions: must start before completing -->
 			<div v-if="order.status !== 'In_Progress'" class="space-y-2">
 				<p class="text-center text-xs text-amber-600">{{ labels.cleaningStartFirst }}</p>
@@ -280,15 +289,10 @@
 					<span v-else>{{ labels.cleaningStartFull }}</span>
 				</button>
 			</div>
-			<div v-else class="flex gap-2">
-				<button class="oak-btn oak-btn-secondary flex-1 py-3" :disabled="saveRes.loading" @click="save(false)">
-					{{ labels.cleaningSave }}
-				</button>
-				<button class="oak-btn oak-btn-primary flex-1 py-3" :disabled="saveRes.loading" @click="save(true)">
-					<Icon v-if="saveRes.loading" name="loader" :size="18" class="animate-spin" />
-					<span v-else>{{ labels.cleaningComplete }}</span>
-				</button>
-			</div>
+			<button v-else class="oak-btn oak-btn-primary w-full py-3" :disabled="saveRes.loading" @click="confirmComplete">
+				<Icon v-if="saveRes.loading" name="loader" :size="18" class="animate-spin" />
+				<span v-else>{{ labels.cleaningComplete }}</span>
+			</button>
 		</template>
 	</div>
 </template>
@@ -299,6 +303,7 @@ import { useRoute, useRouter } from "vue-router"
 import { createResource } from "frappe-ui"
 import { labels } from "@/utils/labels"
 import { toast } from "@/utils/toast"
+import { confirm } from "@/utils/confirm"
 import Icon from "@/components/Icon.vue"
 
 const route = useRoute()
@@ -311,8 +316,14 @@ const orders = ref([])
 const order = ref(null)
 const submitted = ref(null)
 
+// Auto-save (mirrors the EIR flow): debounced draft save on every edit.
+let saveTimer = null
+const savedOk = ref(false) // last auto-save succeeded
+const suppressSave = ref(false) // mute auto-save while a draft is being loaded
+
 const checklist = ref([])
 const rows = ref([])
+const savedChecklist = ref([]) // the loaded order's saved checklist results (survives a late masters load)
 
 // "Metode Cleaning" = one OR MORE billable Services from the Cleaning menu, priced off the
 // container owner's price list. cleaningItems is the pickable catalogue (with rates);
@@ -364,7 +375,9 @@ createResource({
 	onSuccess(data) {
 		checklist.value = data.checklist || []
 		if (!remarks.value) remarks.value = data.default_remarks || ""
-		buildRows()
+		// Rebuild from the loaded order's saved results (if any) so a late masters load never
+		// clobbers a saved checklist (which auto-save would then persist).
+		buildRows(savedChecklist.value)
 	},
 })
 
@@ -423,6 +436,9 @@ const detailRes = createResource({
 	url: "container_depot.ess.cleaning.cleaning_order_detail",
 	method: "GET",
 	onSuccess(data) {
+		// Mute auto-save while we populate the form from the loaded order.
+		suppressSave.value = true
+		savedOk.value = false
 		order.value = data
 		cleaningItems.value = data.cleaning_items || []
 		selectedItems.value = (data.cleaning_services || []).map((s) => s.item_code).filter(Boolean)
@@ -434,7 +450,11 @@ const detailRes = createResource({
 		sealAirline.value = data.seal_airline || ""
 		sealBottom.value = data.seal_bottom_outlet || ""
 		remarks.value = data.remarks || data.default_remarks || ""
-		buildRows(data.saved_checklist)
+		savedChecklist.value = data.saved_checklist || []
+		buildRows(savedChecklist.value)
+		nextTick(() => {
+			suppressSave.value = false
+		})
 	},
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
 })
@@ -483,20 +503,44 @@ const saveRes = createResource({
 	method: "POST",
 	onSuccess(data) {
 		if (data.docstatus === 1) {
-			submitted.value = data
+			// Finalized → drop back to the worklist with a toast (print stays in Riwayat).
+			submitted.value = null
 			order.value = null
 			if (route.query.o) router.replace({ query: {} })
 			toast.success(labels.cleaningSubmitted, { title: data.order_id || data.name })
 			reloadOrders()
 		} else {
-			toast.success(labels.cleaningSaved)
+			savedOk.value = true // auto-save / manual save succeeded (no toast)
 		}
 	},
 	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
 })
 
+// Debounced auto-save on every edit (mirrors EIR): only while an unfinished order is open.
+function scheduleSave() {
+	if (!order.value || order.value.docstatus === 1 || suppressSave.value) return
+	savedOk.value = false
+	if (saveTimer) clearTimeout(saveTimer)
+	saveTimer = setTimeout(() => save(false), 700)
+}
+
+// Finalize (Selesaikan) asks for an explicit confirmation first.
+async function confirmComplete() {
+	const ok = await confirm({
+		title: labels.confirmSubmitTitle,
+		message: labels.confirmSubmitMessage,
+		confirmLabel: labels.confirmSubmitYes,
+		cancelLabel: labels.confirmCancel,
+	})
+	if (ok) save(true)
+}
+
 function save(submit) {
 	if (!order.value) return
+	if (saveTimer) {
+		clearTimeout(saveTimer)
+		saveTimer = null
+	}
 	const results = rows.value.map((r) => ({ item_code: r.item_code, result: r.result, note: r.note || undefined }))
 	saveRes.fetch({
 		cleaning_order: order.value.name,
@@ -523,6 +567,13 @@ function backToList() {
 }
 
 function resetForm() {
+	// Clearing the form must never trigger an auto-save of the emptied fields.
+	if (saveTimer) {
+		clearTimeout(saveTimer)
+		saveTimer = null
+	}
+	suppressSave.value = true
+	savedOk.value = false
 	selectedItems.value = []
 	cleaningItems.value = []
 	serviceSearch.value = ""
@@ -535,6 +586,7 @@ function resetForm() {
 	remarks.value = ""
 	signatureUrl.value = ""
 	signing.value = false
+	savedChecklist.value = []
 	buildRows()
 }
 
@@ -643,4 +695,10 @@ function startResign() {
 	sigCtx = null
 	nextTick(sigCtxInit)
 }
+
+// Auto-save on every edit: services, cleanliness checklist, gas free, seals, remarks and
+// the signature all trigger a debounced draft save.
+watch([gasFree, o2, lel, sealManhole, sealAirline, sealBottom, remarks, signatureUrl], scheduleSave)
+watch(selectedItems, scheduleSave, { deep: true })
+watch(rows, scheduleSave, { deep: true })
 </script>
