@@ -23,7 +23,30 @@ from container_depot.tests.test_container_booking import (
 	_cleanup_customer_world,
 	_make_active_contract,
 )
-from container_depot.tests.test_phase9_booking_refine import _ensure_test_depot
+
+
+def _ensure_test_depot() -> str:
+	"""Return a usable depot WITHOUT creating master data on a normal site: reuse any
+	seeded Depot. Only on a truly bare test site is a minimal depot created (Depot.branch
+	is mandatory, so a Branch is reused/created too)."""
+	existing = frappe.db.get_value("Depot", {"is_active": 1}, "name") or frappe.db.get_value(
+		"Depot", {}, "name"
+	)
+	if existing:
+		return existing
+	branch = frappe.db.get_value("Branch", {}, "name") or frappe.get_doc(
+		{"doctype": "Branch", "branch": "Test Branch"}
+	).insert(ignore_permissions=True).name
+	doc = frappe.get_doc({
+		"doctype": "Depot",
+		"depot_code": "SUB",
+		"depot_name": "Surabaya",
+		"city": "Surabaya",
+		"branch": branch,
+		"is_active": 1,
+	}).insert(ignore_permissions=True)
+	frappe.db.commit()
+	return doc.name
 
 
 class TestCashAutoApproveAndGate(FrappeTestCase):

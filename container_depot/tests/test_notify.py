@@ -13,7 +13,7 @@ from container_depot.operations.notify import (
 	notify,
 	notify_booking_created,
 )
-from container_depot.tests.test_api import ensure_test_branch
+from container_depot.tests.test_api import ensure_test_branch, ensure_test_customer
 
 BR_A = "Notify Branch A"
 BR_B = "Notify Branch B"
@@ -128,6 +128,7 @@ class TestDepotNotify(FrappeTestCase):
 			"container_type": "ISO Tank",
 			"status": "Gate_In",
 			"depot": DEPOT_A,
+			"principal": ensure_test_customer("Notify Test Principal"),
 		}).insert(ignore_permissions=True)
 		try:
 			# Empty Dirty, no damage -> target category "Empty Dirty Queue" (Antrean Cuci).

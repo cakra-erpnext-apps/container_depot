@@ -11,6 +11,7 @@ from container_depot.tests.test_api import ensure_test_customer
 
 
 def _make_container(cno, *, status="Gate_In", **kw):
+	kw.setdefault("principal", ensure_test_customer("EIR Test Principal"))
 	return frappe.get_doc({
 		"doctype": "Container",
 		"container_no": cno,

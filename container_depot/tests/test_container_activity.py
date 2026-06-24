@@ -19,7 +19,7 @@ def _make_container(cno, *, status="Available", principal=None, depot=None):
 		"container_no": cno,
 		"container_type": "ISO Tank",
 		"status": status,
-		"principal": principal,
+		"principal": principal or ensure_test_customer("Activity Test Principal"),
 		"depot": depot,
 	}).insert(ignore_permissions=True).name
 

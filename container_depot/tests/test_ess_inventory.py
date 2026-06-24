@@ -22,7 +22,7 @@ from container_depot.ess.inventory import (
 )
 from container_depot.ess.documents import get_tank_documents, _pdf_url
 from container_depot.ess.repairs import get_tank_repairs, set_repair_status
-from container_depot.tests.test_api import ensure_test_branch
+from container_depot.tests.test_api import ensure_test_branch, ensure_test_customer
 
 ESS_DEPOT = "ESST"
 # Raw status seeded per container -> expected derived bucket.
@@ -59,6 +59,7 @@ def _build():
 				"container_type": "ISO Tank",
 				"status": status,
 				"depot": ESS_DEPOT,
+				"principal": ensure_test_customer("ESS Inventory Test Principal"),
 			}
 		).insert(ignore_permissions=True)
 	frappe.get_doc(
@@ -207,6 +208,7 @@ class TestEssInventory(FrappeTestCase):
 				"container_type": "ISO Tank",
 				"status": "Awaiting_MR_Approval",
 				"depot": ESS_DEPOT,
+				"principal": ensure_test_customer("ESS Inventory Test Principal"),
 			}
 		).insert(ignore_permissions=True)
 		ro = frappe.get_doc(

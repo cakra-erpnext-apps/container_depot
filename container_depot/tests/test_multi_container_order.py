@@ -306,6 +306,7 @@ class TestGenerateOrderFromBookingAPI(FrappeTestCase):
 		container = frappe.get_doc({
 			"doctype": "Container", "container_no": "MCMAN000099",
 			"container_type": "ISO Tank", "status": "Available",
+			"principal": ensure_test_customer(MC_CUSTOMER),
 		}).insert(ignore_permissions=True).name
 		booking, codes = _booking_with_codes(
 			code_direction="Tank In", count=1, prefix="MCMAN0", containers=[container],
@@ -327,11 +328,13 @@ class TestGenerateOrderFromBookingAPI(FrappeTestCase):
 		c1 = frappe.get_doc({
 			"doctype": "Container", "container_no": "MCPQ0000001",
 			"container_type": "ISO Tank", "status": "Available",
+			"principal": ensure_test_customer(MC_CUSTOMER),
 		}).insert(ignore_permissions=True).name
 		b1, _ = _booking_with_codes(code_direction="Tank In", count=1, prefix="MCPQA0", containers=[c1])
 		c2 = frappe.get_doc({
 			"doctype": "Container", "container_no": "MCPQ0000002",
 			"container_type": "ISO Tank", "status": "Available",
+			"principal": ensure_test_customer(MC_CUSTOMER),
 		}).insert(ignore_permissions=True).name
 		_booking_with_codes(code_direction="Tank In", count=1, prefix="MCPQB0", containers=[c2])
 		names = [r[0] for r in pending_container_query(

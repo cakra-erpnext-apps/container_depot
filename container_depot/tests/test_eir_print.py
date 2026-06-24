@@ -11,6 +11,8 @@ from __future__ import annotations
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from container_depot.tests.test_api import ensure_test_customer
+
 
 def _make_container(cno):
 	return frappe.get_doc({
@@ -18,6 +20,7 @@ def _make_container(cno):
 		"container_no": cno,
 		"container_type": "ISO Tank",
 		"status": "Gate_In",
+		"principal": ensure_test_customer("EIR Print Test Principal"),
 	}).insert(ignore_permissions=True).name
 
 

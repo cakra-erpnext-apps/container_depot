@@ -33,7 +33,7 @@ def _make_container(cno, status="Available", principal=None):
 		"container_no": cno,
 		"container_type": "ISO Tank",
 		"status": status,
-		"principal": principal,
+		"principal": principal or ensure_test_customer("InvStage Test Principal"),
 	}).insert(ignore_permissions=True)
 
 

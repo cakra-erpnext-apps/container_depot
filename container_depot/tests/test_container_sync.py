@@ -7,6 +7,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from container_depot.operations.order_generation import make_order
+from container_depot.tests.test_api import ensure_test_customer
 from container_depot.tests.test_multi_container_order import _booking_with_codes
 
 
@@ -22,6 +23,7 @@ def _container(cno, status):
 				"container_no": cno,
 				"container_type": "ISO Tank",
 				"status": status,
+				"principal": ensure_test_customer("Bongkar Sync Test Principal"),
 			}
 		)
 		.insert(ignore_permissions=True)

@@ -21,7 +21,7 @@ from container_depot.operations.yard import (
 	zone_occupancy,
 )
 from container_depot.ess.yard import yard_overview, yard_place, yard_recommend, yard_zone_tanks
-from container_depot.tests.test_api import ensure_test_branch
+from container_depot.tests.test_api import ensure_test_branch, ensure_test_customer
 
 DEPOT = "YZTD"
 DEPOT2 = "YZTD2"  # sibling depot in the SAME branch, with NO zones of its own
@@ -59,6 +59,7 @@ def _container(no, status, yard_zone=None, depot=DEPOT):
 		"status": status,
 		"depot": depot,
 		"yard_zone": yard_zone,
+		"principal": ensure_test_customer("Yard Test Principal"),
 	}).insert(ignore_permissions=True)
 
 
