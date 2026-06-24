@@ -13,69 +13,53 @@
 					<Icon name="clock" :size="16" /> {{ labels.eirHistory }}
 				</router-link>
 				<button v-if="header" class="oak-btn oak-btn-secondary px-3 py-2" @click="reset">
-					<Icon name="rotate-ccw" :size="16" /> {{ labels.newEir }}
+					<Icon name="list" :size="16" /> {{ labels.eirBackToList }}
 				</button>
 			</div>
 		</div>
 
-		<!-- Step 1 — source: container number (EIR is always EIR-In; EIR-Out is handled
-		     by the 3rd-party Survey flow, not this checklist) -->
-		<section class="oak-section space-y-4">
-			<div>
-				<label class="oak-label">{{ labels.containerNumber }}</label>
+		<!-- Landing: the EIR worklist. EIRs are auto-created (one per container) when an
+		     Order Bongkar is submitted — the operator picks one to inspect instead of
+		     typing a container number. -->
+		<template v-if="!header">
+			<!-- Pending EIR worklist (branch-scoped) -->
+			<section class="oak-section space-y-3">
+				<div class="flex items-center gap-2">
+					<Icon name="clipboard" :size="16" class="text-leaf-600" />
+					<p class="oak-section-title">{{ labels.eirPendingList }}</p>
+				</div>
 				<div class="flex gap-2">
 					<input
-						v-model.trim="containerNo"
+						v-model.trim="pendingSearch"
 						type="text"
-						autocapitalize="characters"
-						:placeholder="labels.containerNumberPlaceholder"
-						class="oak-input uppercase"
-						@keyup.enter="doFetch"
+						:placeholder="labels.eirPendingSearch"
+						class="oak-input"
+						@keyup.enter="reloadPending"
 					/>
-					<button
-						class="oak-btn oak-btn-primary shrink-0 px-4"
-						:disabled="!containerNo || openRes.loading"
-						@click="doFetch"
-					>
-						<Icon v-if="!openRes.loading" name="search" :size="16" />
-						{{ openRes.loading ? "…" : labels.eirFetch }}
+					<button class="oak-btn oak-btn-secondary shrink-0 px-4" :disabled="pendingRes.loading" @click="reloadPending">
+						<Icon name="search" :size="16" />
 					</button>
 				</div>
-				<p v-if="fetchError" class="mt-1.5 flex items-center gap-1.5 text-sm text-red-600">
-					<Icon name="alert-circle" :size="15" /> {{ fetchError }}
-				</p>
-				<p class="mt-1.5 text-xs text-gray-400">{{ labels.eirDraftHint }}</p>
-			</div>
-		</section>
-
-		<!-- Quick lists (landing only): latest drafts to resume + latest completed -->
-		<template v-if="!header">
-			<!-- Draft EIRs -->
-			<section class="oak-section space-y-3">
-				<div class="flex items-center justify-between gap-2">
-					<div class="flex items-center gap-2">
-						<Icon name="edit-3" :size="16" class="text-amber-500" />
-						<p class="oak-section-title">{{ labels.eirDraftList }}</p>
-					</div>
-					<router-link to="/eir/history" class="oak-link text-sm">{{ labels.eirListMore }}</router-link>
-				</div>
-				<ul v-if="draftRes.loading && !draftItems.length" class="space-y-2">
-					<li v-for="n in 3" :key="n" class="oak-skeleton h-12 rounded-xl"></li>
+				<ul v-if="pendingRes.loading && !pendingItems.length" class="space-y-2">
+					<li v-for="n in 4" :key="n" class="oak-skeleton h-14 rounded-xl"></li>
 				</ul>
-				<p v-else-if="!draftItems.length" class="py-2 text-center text-sm text-gray-400">{{ labels.eirDraftEmpty }}</p>
+				<p v-else-if="!pendingItems.length" class="py-4 text-center text-sm text-gray-400">{{ labels.eirPendingEmpty }}</p>
 				<ul v-else class="divide-y divide-gray-100">
-					<li v-for="r in draftItems" :key="r.name">
-						<button class="flex w-full items-center gap-3 py-2.5 text-left" @click="resumeDraft(r)">
-							<span class="oak-icon-tile h-9 w-9 shrink-0 bg-amber-50 text-amber-600"><Icon name="clipboard" :size="16" /></span>
+					<li v-for="r in pendingItems" :key="r.name">
+						<button class="flex w-full items-center gap-3 py-2.5 text-left" :disabled="openRes.loading" @click="resumeDraft(r)">
+							<span class="oak-icon-tile h-9 w-9 shrink-0 bg-leaf-50 text-leaf-600"><Icon name="clipboard" :size="16" /></span>
 							<div class="min-w-0 flex-1">
 								<p class="truncate font-semibold text-gray-900">{{ r.container_no || r.container }}</p>
-								<p class="truncate text-xs text-gray-500">{{ r.inspection_type }}</p>
-								<p class="truncate text-[11px] text-gray-400">{{ r.inspection_id || r.name }}</p>
+								<p v-if="r.referred_voucher" class="truncate font-mono text-[11px] text-gray-500">{{ r.referred_voucher }}</p>
+								<p class="truncate text-xs text-gray-400">{{ r.tank_status || r.inspection_type }}</p>
 							</div>
-							<span class="oak-chip shrink-0 bg-amber-100 text-amber-800">{{ labels.eirResume }}</span>
+							<span class="oak-chip shrink-0 bg-leaf-100 text-leaf-800">{{ labels.eirOpenBtn }}</span>
 						</button>
 					</li>
 				</ul>
+				<p v-if="fetchError" class="flex items-center gap-1.5 text-sm text-red-600">
+					<Icon name="alert-circle" :size="15" /> {{ fetchError }}
+				</p>
 			</section>
 
 			<!-- Completed (submitted) EIRs -->
@@ -113,28 +97,10 @@
 					<Icon name="file-text" :size="16" class="text-gray-400" />
 					<p class="oak-section-title">{{ labels.referredVoucher }}</p>
 				</div>
-				<div>
-					<div class="flex gap-2">
-						<input
-							v-model.trim="referredVoucher"
-							type="text"
-							:placeholder="voucherPlaceholder"
-							class="oak-input"
-							@keyup.enter="doVoucherFetch"
-						/>
-						<button
-							class="oak-btn oak-btn-primary shrink-0 px-4"
-							:disabled="voucherRes.loading"
-							@click="doVoucherFetch"
-						>
-							<Icon v-if="!voucherRes.loading" name="search" :size="16" />
-							{{ voucherRes.loading ? "…" : labels.eirFetch }}
-						</button>
-					</div>
-					<p class="mt-1.5 text-xs text-gray-400">{{ voucherHint }}</p>
-					<p v-if="voucherError" class="mt-1.5 flex items-center gap-1.5 text-sm text-red-600">
-						<Icon name="alert-circle" :size="15" /> {{ voucherError }}
-					</p>
+				<div class="rounded-xl bg-gray-50 p-3">
+					<p class="text-xs text-gray-500">{{ labels.referredVoucher }}</p>
+					<p class="font-mono font-semibold text-gray-800">{{ referredVoucher || "—" }}</p>
+					<p class="mt-1 text-[11px] text-gray-400">{{ labels.eirVoucherLocked }}</p>
 				</div>
 				<dl class="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-xl bg-gray-50 p-3 text-sm">
 					<div>
@@ -268,6 +234,29 @@
 				</div>
 			</section>
 
+			<!-- Step 4b — follow-up orders (opt-out): create Cleaning Order (dirty tank)
+			     and/or M&R (damaged) on submit. Shown only when relevant. -->
+			<section v-if="showCleaningToggle || showRepairToggle" class="oak-section space-y-3">
+				<div class="flex items-center gap-2">
+					<Icon name="clipboard" :size="16" class="text-gray-400" />
+					<p class="oak-section-title">{{ labels.eirFollowupTitle }}</p>
+				</div>
+				<label v-if="showCleaningToggle" class="flex items-start gap-3 rounded-xl border border-gray-200 p-3">
+					<input v-model="createCleaning" type="checkbox" class="mt-0.5 h-5 w-5 shrink-0 rounded accent-leaf-600" />
+					<span class="min-w-0 flex-1">
+						<span class="block font-semibold text-gray-800">{{ labels.eirCreateCleaning }}</span>
+						<span class="block text-xs text-gray-400">{{ labels.eirCreateCleaningHint }}</span>
+					</span>
+				</label>
+				<label v-if="showRepairToggle" class="flex items-start gap-3 rounded-xl border border-gray-200 p-3">
+					<input v-model="createRepair" type="checkbox" class="mt-0.5 h-5 w-5 shrink-0 rounded accent-leaf-600" />
+					<span class="min-w-0 flex-1">
+						<span class="block font-semibold text-gray-800">{{ labels.eirCreateRepair }}</span>
+						<span class="block text-xs text-gray-400">{{ labels.eirCreateRepairHint }}</span>
+					</span>
+				</label>
+			</section>
+
 			<!-- Step 5 — sign-off -->
 			<section class="oak-section space-y-3">
 				<div class="flex items-center gap-2">
@@ -342,7 +331,7 @@
 			</p>
 			<p class="mt-1 pl-7 text-sm text-gray-700">{{ submitted }}</p>
 			<button class="oak-link mt-2 inline-flex items-center gap-1 pl-7 text-sm" @click="submitted = null">
-				<Icon name="plus" :size="14" /> {{ labels.newEir }}
+				<Icon name="list" :size="14" /> {{ labels.eirBackToList }}
 			</button>
 		</section>
 	</div>
@@ -356,7 +345,6 @@ import { toast } from "@/utils/toast"
 import { session } from "@/data/session"
 import Icon from "@/components/Icon.vue"
 
-const containerNo = ref("")
 // EIR is always EIR-In here. EIR-Out is done via the 3rd-party Survey flow, not this
 // checklist, so there is no In/Out picker.
 const eirType = ref("EIR-In")
@@ -367,6 +355,10 @@ const eirCode = computed(() => header.value?.inspection_id || inspection.value |
 const tanggal = ref(new Date().toISOString().slice(0, 10))
 const tankStatus = ref("")
 const remarks = ref("")
+// Follow-up order opt-outs (default ON): create a Cleaning Order (when Empty Dirty) and/or
+// a draft M&R (when damaged) on submit. Unchecked = the order is not created.
+const createCleaning = ref(true)
+const createRepair = ref(true)
 // Referred-voucher reference + its read-only shipment snapshot (from the bon).
 const referredVoucher = ref("")
 const truckNo = ref("")
@@ -396,6 +388,12 @@ function rowHasFinding(r) {
 	const rep = r.repair_code && r.repair_code !== NO_ACTION_REPAIR
 	return Boolean(dmg || rep || (r.remarks && r.remarks.trim()))
 }
+
+// Any real damage finding on the checklist → the M&R follow-up toggle is relevant.
+const hasDamage = computed(() => rows.value.some(rowHasFinding))
+// Cleaning only applies to a dirty tank; M&R only when damage was found.
+const showCleaningToggle = computed(() => tankStatus.value === "Empty Dirty")
+const showRepairToggle = computed(() => hasDamage.value)
 
 // Checklist taxonomy + code lists (loaded once).
 const mastersRes = createResource({
@@ -446,11 +444,12 @@ const headerCells = computed(() => {
 	]
 })
 
-// Fetch = get-or-create the container's draft EIR (so nothing is lost before save,
-// and re-fetching the same container reopens the same draft — no duplicates).
+// Open an existing (auto-created) draft EIR by name — picked from the pending worklist.
+// EIRs are provisioned per container when an Order Bongkar is submitted; the PWA never
+// creates one by typing a container number.
 const openRes = createResource({
-	url: "container_depot.ess.inspections.eir_open_draft",
-	method: "POST",
+	url: "container_depot.ess.inspections.eir_open",
+	method: "GET",
 	onSuccess(data) {
 		// Mute auto-save while we populate the form from the loaded draft.
 		suppressSave.value = true
@@ -467,6 +466,9 @@ const openRes = createResource({
 		driverPhone.value = data.driver_phone || ""
 		shipper.value = data.shipper || ""
 		cargo.value = data.cargo || data.last_cargo || ""
+		// Follow-up toggles default ON (server default 1); only an explicit 0 unchecks.
+		createCleaning.value = data.create_cleaning_order !== 0
+		createRepair.value = data.create_repair_order !== 0
 		signatureUrl.value = data.inspector_signature || ""
 		signing.value = false
 		applyDraftToRows(data)
@@ -476,17 +478,23 @@ const openRes = createResource({
 	},
 })
 
-// Landing quick lists: the user's 3 latest drafts (resumable) + 3 latest submitted.
-const LANDING_LIMIT = 3
-const draftItems = ref([])
-const doneItems = ref([])
-const draftRes = createResource({
-	url: "container_depot.ess.inspections.eir_history",
+// Pending worklist: all open (draft) EIRs in the user's branch — auto-created per
+// container when an Order Bongkar is submitted. Searchable by container no / voucher.
+const pendingItems = ref([])
+const pendingSearch = ref("")
+const pendingRes = createResource({
+	url: "container_depot.ess.inspections.eir_pending",
 	method: "GET",
-	makeParams: () => ({ docstatus: 0, page_length: LANDING_LIMIT }),
+	makeParams: () => ({ search: pendingSearch.value || undefined, page_length: 50 }),
 	auto: true,
-	onSuccess: (data) => (draftItems.value = data.items || []),
+	onSuccess: (data) => (pendingItems.value = data.items || []),
 })
+function reloadPending() {
+	pendingRes.reload()
+}
+// Landing's "recently submitted" list: the operator's own latest completed EIRs.
+const LANDING_LIMIT = 3
+const doneItems = ref([])
 const doneRes = createResource({
 	url: "container_depot.ess.inspections.eir_history",
 	method: "GET",
@@ -495,12 +503,14 @@ const doneRes = createResource({
 	onSuccess: (data) => (doneItems.value = data.items || []),
 })
 function reloadLandingLists() {
-	draftRes.reload()
+	pendingRes.reload()
 	doneRes.reload()
 }
+// Open the picked pending EIR (by name) — loads its header + saved checklist state.
 function resumeDraft(r) {
-	containerNo.value = r.container_no || r.container
-	doFetch()
+	result.value = null
+	submitted.value = null
+	openRes.submit({ inspection: r.name })
 }
 
 const saveRes = createResource({
@@ -531,42 +541,8 @@ const saveError = computed(() => {
 	return null
 })
 
-// Referred voucher — fetch the read-only shipment snapshot from the Order Bongkar
-// (EIR is always EIR-In). On success, persist the validated reference via auto-save.
-const voucherRes = createResource({
-	url: "container_depot.ess.inspections.eir_voucher",
-	method: "GET",
-	onSuccess(data) {
-		truckNo.value = data.truck_no || ""
-		driver.value = data.driver || ""
-		driverPhone.value = data.driver_phone || ""
-		shipper.value = data.shipper || ""
-		// Tank status + cargo are pulled from the voucher (Container Booking Item) as
-		// editable defaults — the user can still change them before submit.
-		if (data.tank_status) tankStatus.value = data.tank_status
-		if (data.cargo) cargo.value = data.cargo
-		// Depot follows the bon's booking (Container Booking.depot) — refresh the header.
-		if (data.depot && header.value) header.value.depot = data.depot
-		// Persist immediately (no debounce): the voucher reference and its snapshot
-		// (truck / driver / driver phone / shipper) are saved onto the draft the moment
-		// they are fetched. The server re-resolves the read-only snapshot from the ref.
-		doSave(false)
-	},
-})
-const voucherError = computed(() => {
-	if (voucherRes.error) return voucherRes.error.messages?.[0] || voucherRes.error.message
-	return null
-})
-// EIR is always EIR-In, so the referred voucher is always an Order Bongkar.
-const voucherPlaceholder = computed(() => "ORD-BKR-…")
-const voucherHint = computed(() => labels.voucherHintIn)
-function doVoucherFetch() {
-	voucherRes.submit({
-		voucher: referredVoucher.value || "",
-		inspection_type: eirType.value,
-		container: header.value?.container || containerNo.value || "",
-	})
-}
+// The referred voucher (Order Bongkar) is fixed at creation — its read-only shipment
+// snapshot (shipper / truck / driver / phone) is loaded with the draft, not re-fetched.
 
 // Restore the draft's saved checklist lines + photos onto the (master) rows.
 function applyDraftToRows(data) {
@@ -587,13 +563,6 @@ function applyDraftToRows(data) {
 		r.photos = photoMap[r.item_code] ? [...photoMap[r.item_code]] : []
 		r.photoErr = ""
 	})
-}
-
-function doFetch() {
-	if (!containerNo.value) return
-	result.value = null
-	submitted.value = null
-	openRes.submit({ container_no: containerNo.value, inspection_type: eirType.value })
 }
 
 function buildLines() {
@@ -764,6 +733,8 @@ function doSave(submit = false) {
 		cargo: cargo.value || undefined,
 		remarks: remarks.value || undefined,
 		signature: signatureUrl.value || undefined,
+		create_cleaning_order: createCleaning.value ? 1 : 0,
+		create_repair_order: createRepair.value ? 1 : 0,
 		lines: JSON.stringify(buildLines()),
 		photos: JSON.stringify(buildPhotos()),
 		submit: submit ? 1 : 0,
@@ -779,17 +750,18 @@ function scheduleSave() {
 }
 
 // Header fields + the whole checklist (codes, remarks, photos) trigger an auto-save.
-// The voucher reference is persisted via doVoucherFetch (only after it validates), so
-// it is intentionally not watched here.
-watch([tanggal, tankStatus, cargo, remarks, signatureUrl], scheduleSave)
+// The referred voucher is fixed at creation (read-only), so it is not watched here; it
+// is re-sent unchanged on every save so the server keeps its snapshot in sync.
+watch([tanggal, tankStatus, cargo, remarks, signatureUrl, createCleaning, createRepair], scheduleSave)
 watch(rows, scheduleSave, { deep: true })
 
 function reset() {
-	containerNo.value = ""
 	header.value = null
 	inspection.value = null
 	tankStatus.value = ""
 	remarks.value = ""
+	createCleaning.value = true
+	createRepair.value = true
 	referredVoucher.value = ""
 	truckNo.value = ""
 	driver.value = ""

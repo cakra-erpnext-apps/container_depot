@@ -37,6 +37,9 @@
     "damage_section",
     "has_damage",
     "damage_log",
+    "followup_section",
+    "create_cleaning_order",
+    "create_repair_order",
     "voucher_section",
     "referred_voucher",
     "voucher_doctype",
@@ -276,6 +279,25 @@
       "options": "Inspection Damage Entry"
     },
     {
+      "fieldname": "followup_section",
+      "fieldtype": "Section Break",
+      "label": "Tindak Lanjut (Order Otomatis)"
+    },
+    {
+      "default": "1",
+      "description": "Saat EIR disubmit, otomatis buat Cleaning Order bila tank Empty Dirty. Hilangkan centang agar tidak dibuatkan.",
+      "fieldname": "create_cleaning_order",
+      "fieldtype": "Check",
+      "label": "Buat Cleaning Order"
+    },
+    {
+      "default": "1",
+      "description": "Saat EIR disubmit, otomatis buat draft M&R (Repair Order) bila ada kerusakan. Hilangkan centang agar tidak dibuatkan.",
+      "fieldname": "create_repair_order",
+      "fieldtype": "Check",
+      "label": "Buat M&R (Repair Order)"
+    },
+    {
       "fieldname": "voucher_section",
       "fieldtype": "Section Break",
       "label": "Voucher & Pengiriman"
@@ -490,7 +512,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-11 16:30:00.000000",
+  "modified": "2026-06-23 10:00:00.000000",
   "module": "Operations",
   "name": "Inspection",
   "search_fields": "inspection_id, container_no, inspection_type, status",

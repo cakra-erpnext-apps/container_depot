@@ -358,6 +358,7 @@
 								<div class="min-w-0 flex-1">
 									<p class="truncate font-semibold text-gray-900">{{ t.container_no }}</p>
 									<p v-if="t.principal" class="truncate text-xs text-gray-500">{{ t.principal }}</p>
+									<p v-if="t.order_bongkar" class="truncate font-mono text-[11px] text-gray-400">{{ t.order_bongkar }}</p>
 								</div>
 								<span class="oak-chip shrink-0" :class="statusColors[t.status]">{{ statusLabel(t.status) }}</span>
 							</li>

@@ -24,6 +24,7 @@
     "inspection_info",
     "eir_in_date",
     "eir_out_date",
+    "last_order_bongkar",
     "storage_billed_until",
     "column_break_2",
     "last_cargo",
@@ -170,6 +171,15 @@
       "label": "EIR-Out Date"
     },
     {
+      "description": "Latest Order Bongkar (unloading voucher) this container was placed on — stamped automatically when the bon is submitted.",
+      "fieldname": "last_order_bongkar",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Order Bongkar",
+      "options": "Order Bongkar",
+      "read_only": 1
+    },
+    {
       "description": "Watermark: storage already billed up to this date. Advanced by consolidated billing so re-runs never double-charge storage days.",
       "fieldname": "storage_billed_until",
       "fieldtype": "Date",
@@ -300,7 +310,7 @@
     }
   ],
   "links": [],
-  "modified": "2026-06-22",
+  "modified": "2026-06-23",
   "module": "Operations",
   "name": "Container",
   "search_fields": "container_no, container_type, status, principal",

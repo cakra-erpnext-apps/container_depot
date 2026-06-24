@@ -93,6 +93,9 @@
 							<span v-else> · {{ labels.monitorNoZone }}</span>
 							<span v-if="c.pt_due" class="text-red-500"> · {{ labels.monitorPtDue }}</span>
 						</p>
+						<p v-if="c.order_bongkar" class="mt-0.5 flex items-center gap-1 truncate font-mono text-[11px] text-gray-400">
+							<Icon name="file-text" :size="11" class="shrink-0" /> {{ c.order_bongkar }}
+						</p>
 						<p v-if="c.needs_move" class="mt-0.5 truncate text-xs font-semibold text-amber-600">
 							<Icon name="arrow-right" :size="11" class="inline" /> {{ labels.monitorMoveTo }}: {{ c.target_category }}
 						</p>

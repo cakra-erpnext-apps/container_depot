@@ -18,7 +18,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
-from container_depot.operations.user_branch import assert_in_user_branch
+from container_depot.operations.user_branch import assert_in_user_branch, get_user_depots
 
 # Damage code "v" = Acceptable — it is recorded as a condition but does not mean
 # the tank "has damage". Repair code "X" = No Action. A part left at Acceptable +
@@ -237,6 +237,61 @@ def latest_voucher_for_container(container: str | None, inspection_type: str) ->
 	return rows[0] if rows else None
 
 
+def provision_eirs_for_order_bongkar(order_name: str) -> list:
+	"""Submit-time hook for an Order Bongkar: create one DRAFT EIR-In per container and
+	stamp the bon as each container's latest Order Bongkar voucher (surfaced in the depot
+	/ Container lists).
+
+	Each draft references this bon and pre-fills tank_status / cargo / truck / driver /
+	shipper from its booking line, so the surveyor only fills the checklist. This is the
+	ONLY way an EIR is born in the PWA flow — the operator no longer types a container to
+	create one.
+
+	Idempotent: a container that already has an open (draft) EIR is left untouched, so
+	re-submitting the bon never duplicates. Best-effort per container — one failure is
+	logged and never blocks the others (or the bon submit).
+	"""
+	containers = frappe.get_all(
+		"Container Booking Item",
+		filters={"parent": order_name, "parenttype": "Order Bongkar"},
+		pluck="container",
+	)
+	created = []
+	for container in containers:
+		if not container:
+			continue
+		# Stamp the latest voucher on the container for the list views (cheap, idempotent).
+		frappe.db.set_value(
+			"Container", container, "last_order_bongkar", order_name, update_modified=False
+		)
+		# Dedup: never open a second draft for a container.
+		if frappe.db.exists(
+			"Inspection",
+			{"container": container, "docstatus": 0, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]},
+		):
+			continue
+		try:
+			doc = frappe.new_doc("Inspection")
+			doc.inspection_type = "EIR-In"
+			doc.container = container
+			doc.inspector = frappe.session.user
+			cdepot, ccargo = frappe.db.get_value(
+				"Container", container, ["depot", "last_cargo"]
+			) or (None, None)
+			doc.depot = cdepot
+			doc.cargo = ccargo
+			# Reference THIS bon: truck / driver / driver phone / shipper / booking depot.
+			_apply_voucher(doc, order_name)
+			snap = fetch_voucher(order_name, "EIR-In", container=container)
+			doc.tank_status = snap.get("tank_status") or doc.tank_status
+			doc.cargo = snap.get("cargo") or doc.cargo
+			doc.insert(ignore_permissions=True)  # system automation on bon submit
+			created.append(doc.name)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"auto EIR for {container} on {order_name}")
+	return created
+
+
 def iso6346_parts(container_no: str | None) -> dict:
 	"""Display-only ISO 6346 split of a container number — NOT stored anywhere.
 
@@ -453,6 +508,8 @@ def create_eir(
 	referred_voucher: str | None = None,
 	cargo: str | None = None,
 	eir_date: str | None = None,
+	create_cleaning_order=None,
+	create_repair_order=None,
 	lines=None,
 	photos=None,
 	submit=False,
@@ -498,6 +555,11 @@ def create_eir(
 	doc.inspector_signature = signature
 	doc.eir_date = eir_date
 	doc.cargo = cargo
+	# Follow-up opt-outs (default checked via the doctype) — only overridden when supplied.
+	if create_cleaning_order is not None:
+		doc.create_cleaning_order = 1 if _as_bool(create_cleaning_order) else 0
+	if create_repair_order is not None:
+		doc.create_repair_order = 1 if _as_bool(create_repair_order) else 0
 	if referred_voucher:
 		_apply_voucher(doc, referred_voucher)  # overrides truck_no; sets driver / driver_phone / shipper
 	doc.has_damage = 1 if has_damage else 0
@@ -534,6 +596,9 @@ def _draft_payload(doc, header: dict) -> dict:
 	header["eir_date"] = doc.eir_date
 	header["tank_status"] = doc.tank_status
 	header["cargo"] = doc.cargo  # draft's chosen cargo (defaults to the master's last_cargo)
+	# Follow-up opt-outs (default checked) so the PWA can pre-fill the toggles.
+	header["create_cleaning_order"] = int(bool(doc.get("create_cleaning_order")))
+	header["create_repair_order"] = int(bool(doc.get("create_repair_order")))
 	# The draft's depot wins over the master's: it starts from the Container depot but is
 	# overridden by the referred bon's booking depot (see _apply_voucher).
 	header["depot"] = doc.depot or header.get("depot")
@@ -622,6 +687,8 @@ def save_draft(
 	referred_voucher: str | None = None,
 	cargo: str | None = None,
 	eir_date: str | None = None,
+	create_cleaning_order=None,
+	create_repair_order=None,
 	lines=None,
 	photos=None,
 	submit=False,
@@ -654,6 +721,12 @@ def save_draft(
 	doc.eir_date = eir_date
 	doc.cargo = cargo  # written to Container.last_cargo only on submit (drafts never touch the master)
 	doc.inspector_signature = signature
+	# Follow-up opt-outs: only set when the caller sends a value (the PWA always does), so a
+	# Desk-set choice is never silently overwritten by an omitted param.
+	if create_cleaning_order is not None:
+		doc.create_cleaning_order = 1 if _as_bool(create_cleaning_order) else 0
+	if create_repair_order is not None:
+		doc.create_repair_order = 1 if _as_bool(create_repair_order) else 0
 	# The voucher owns truck_no / driver / driver_phone / shipper (read-only snapshot);
 	# the legacy ``truck_no`` arg is ignored. No voucher -> these are cleared.
 	_apply_voucher(doc, referred_voucher)
@@ -713,6 +786,128 @@ def list_my_eirs(user=None, search=None, start=0, page_length=10, docstatus=None
 		limit_page_length=page_length,
 	)
 	return {"items": items, "total": total, "start": start, "page_length": page_length}
+
+
+def list_pending_eirs(search=None, start=0, page_length=20) -> dict:
+	"""Open (draft) EIR inspections in the user's branch scope — the PWA EIR worklist.
+
+	EIRs are auto-provisioned (one per container) when an Order Bongkar is submitted, so
+	the surveyor works from this list instead of creating an EIR by hand. Branch-scoped by
+	the Inspection's depot (empty user-branch = all depots). Newest first; searchable by
+	container number / EIR id / referred voucher; paginated. ``frappe.get_all`` is used so
+	a surveyor sees every pending EIR in their branch (not only the ones they own — the bon
+	that created them is owned by whoever submitted it).
+	"""
+	start = max(0, cint(start))
+	page_length = min(max(1, cint(page_length or 20)), 50)
+
+	filters = {"docstatus": 0, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]}
+	allowed = get_user_depots()
+	if allowed is not None:
+		if not allowed:
+			return {"items": [], "total": 0, "start": start, "page_length": page_length}
+		filters["depot"] = ["in", allowed]
+
+	# Tolerate client quirks: an absent filter can arrive as the literal "undefined" /
+	# "null" string (frappe-ui serialising an undefined param), which must NOT become a
+	# LIKE "%undefined%" that hides every pending EIR. Mirrors yard.zone_tank_list.
+	term = str(search).strip() if search is not None else ""
+	if term.lower() in ("undefined", "null", "none"):
+		term = ""
+	or_filters = None
+	if term:
+		s = f"%{term}%"
+		or_filters = [
+			["container_no", "like", s],
+			["inspection_id", "like", s],
+			["referred_voucher", "like", s],
+		]
+
+	total = len(frappe.get_all(
+		"Inspection", filters=filters, or_filters=or_filters, pluck="name", limit_page_length=0
+	))
+	items = frappe.get_all(
+		"Inspection",
+		filters=filters,
+		or_filters=or_filters,
+		fields=[
+			"name", "inspection_id", "container", "container_no", "inspection_type",
+			"tank_status", "referred_voucher", "voucher_doctype", "depot", "eir_date", "creation",
+		],
+		order_by="creation desc",
+		limit_start=start,
+		limit_page_length=page_length,
+	)
+	return {"items": items, "total": total, "start": start, "page_length": page_length}
+
+
+def open_draft_by_name(inspection: str) -> dict:
+	"""Open an existing draft EIR by name and return it with the master-derived header.
+
+	The PWA worklist picks a pending (auto-created) EIR from ``list_pending_eirs`` and this
+	loads its header + saved checklist state for editing. It NEVER creates — EIRs are
+	provisioned from Order Bongkar, never typed by hand in the PWA.
+	"""
+	if not inspection:
+		frappe.throw(_("inspection is required."))
+	doc = frappe.get_doc("Inspection", inspection)
+	if doc.inspection_type not in ("EIR-In", "EIR-Out"):
+		frappe.throw(_("{0} is not an EIR.").format(inspection))
+	if doc.docstatus != 0:
+		frappe.throw(_("EIR {0} is no longer a draft.").format(inspection))
+	_guard_container_branch(doc.container)
+	header = prefill(container=doc.container)
+	return _draft_payload(doc, header)
+
+
+def view_eir(inspection: str) -> dict:
+	"""Read-only view of ANY EIR (draft or submitted) for the PWA "Riwayat" detail.
+
+	Unlike :func:`open_draft_by_name` (drafts only, for editing) this never throws on a
+	submitted EIR — it returns a compact header + recorded damages for display + print.
+	"""
+	if not inspection:
+		frappe.throw(_("inspection is required."))
+	doc = frappe.get_doc("Inspection", inspection)
+	if doc.inspection_type not in ("EIR-In", "EIR-Out"):
+		frappe.throw(_("{0} is not an EIR.").format(inspection))
+	_guard_container_branch(doc.container)
+	names = {
+		r.item_code: r.item_name
+		for r in frappe.get_all("Inspection Checklist Item", fields=["item_code", "item_name"])
+	}
+	damages = [
+		{
+			"item": d.checklist_item,
+			"item_name": names.get(d.checklist_item) or d.checklist_item,
+			"damage_type": d.damage_type,
+			"repair_code": d.repair_code,
+			"damage_description": d.damage_description,
+		}
+		for d in doc.damage_log
+		if (d.get("damage_type") or d.get("repair_code") or d.get("damage_description"))
+	]
+	return {
+		"name": doc.name,
+		"inspection_id": doc.inspection_id,
+		"inspection_type": doc.inspection_type,
+		"container": doc.container,
+		"container_no": doc.container_no,
+		"tank_status": doc.tank_status,
+		"status": doc.status,
+		"docstatus": doc.docstatus,
+		"eir_date": str(doc.eir_date) if doc.eir_date else None,
+		"depot": doc.depot,
+		"referred_voucher": doc.get("referred_voucher"),
+		"truck_no": doc.get("truck_no"),
+		"driver": doc.get("driver"),
+		"driver_phone": doc.get("driver_phone"),
+		"emkl": doc.get("emkl"),
+		"shipper": doc.get("shipper"),
+		"remarks": doc.get("remarks"),
+		"damages": damages,
+		"damage_count": len(damages),
+	}
 
 
 @frappe.whitelist()

@@ -412,6 +412,7 @@ def zone_tank_list(zone, search=None, start=0, page_length=50):
 			"status": derive_status(
 				r.status, r.name in cleaning, r.name in repair, r.name in inspection
 			),
+			"order_bongkar": r.last_order_bongkar,
 			"pt_due": r.name in pt_due,
 		}
 		for r in rows
@@ -584,4 +585,57 @@ def place_container(container_no, zone, row=None, tier=None, bay=None, moved_by=
 		"row": row,
 		"bay": movement.to_bay,
 		"tier": tier,
+	}
+
+
+# ---------------------------------------------------------------------------
+# Riwayat (history): the Container Movement audit log.
+# ---------------------------------------------------------------------------
+def list_yard_history(start=0, page_length=10, search=None) -> dict:
+	"""Container Movement log (yard placements + status moves) — the PWA Storage "Riwayat"
+	feed, newest first, paginated + searchable, depot-scoped to the caller's branch.
+	(``Container.name == container_no``, so the search matches the container number.)"""
+	from container_depot.operations.user_branch import get_user_depots
+
+	search = (search or "").strip()
+	do_search = bool(search) and search.lower() not in ("undefined", "null", "none")
+	filters = {}
+	depots = get_user_depots()
+	if depots is not None:
+		conts = frappe.get_all("Container", filters={"depot": ["in", depots or [""]]}, pluck="name")
+		if do_search:
+			conts = [c for c in conts if search.upper() in (c or "").upper()]
+		filters["container"] = ["in", conts or [""]]
+	elif do_search:
+		filters["container"] = ["like", f"%{search}%"]
+	items = frappe.get_all(
+		"Container Movement", filters=filters,
+		fields=["name", "container", "event_type", "from_status", "to_status",
+			"from_zone", "to_zone", "movement_timestamp", "moved_by"],
+		order_by="movement_timestamp desc",
+		limit_start=cint(start), limit_page_length=cint(page_length),
+	)
+	return {"items": items, "total": frappe.db.count("Container Movement", filters)}
+
+
+def get_movement_detail(name) -> dict:
+	"""One Container Movement record's full from/to detail, branch-guarded via its container."""
+	from container_depot.operations.user_branch import assert_in_user_branch
+
+	if not name:
+		frappe.throw(_("name is required."))
+	m = frappe.get_doc("Container Movement", name)
+	depot = frappe.db.get_value("Container", m.container, "depot")
+	assert_in_user_branch(depot=depot)
+	return {
+		"name": m.name,
+		"container": m.container,
+		"event_type": m.event_type,
+		"from_status": m.from_status,
+		"to_status": m.to_status,
+		"from_zone": m.from_zone, "from_row": m.from_row, "from_bay": m.from_bay, "from_tier": m.from_tier,
+		"to_zone": m.to_zone, "to_row": m.to_row, "to_bay": m.to_bay, "to_tier": m.to_tier,
+		"movement_timestamp": str(m.movement_timestamp) if m.movement_timestamp else None,
+		"moved_by": m.moved_by,
+		"depot": depot,
 	}

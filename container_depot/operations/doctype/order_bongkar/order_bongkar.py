@@ -21,6 +21,8 @@ class OrderBongkar(Document):
 		_log_order_activity(self, "Order Bongkar")
 		_update_container_ex_vessel(self)
 		_ensure_order_qr(self)
+		# Auto-create the per-container draft EIRs + stamp each container's latest voucher.
+		_provision_eirs(self)
 		from container_depot.operations.notify import notify_order_gate
 		notify_order_gate(self, "in")
 
@@ -33,6 +35,17 @@ class OrderBongkar(Document):
 		# actions are stripped in the form script; raw maintenance
 		# (frappe.db.delete) bypasses this guard.
 		frappe.throw(_("An Order Bongkar cannot be deleted — use Cancel to void it instead."))
+
+
+def _provision_eirs(order: Document):
+	"""Auto-create the per-container draft EIRs and stamp each container's latest Order
+	Bongkar voucher (see ``operations.eir.provision_eirs_for_order_bongkar``). Best-effort:
+	an EIR hiccup is logged and never blocks the bon submit."""
+	try:
+		from container_depot.operations.eir import provision_eirs_for_order_bongkar
+		provision_eirs_for_order_bongkar(order.name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), f"provision EIRs for {order.name}")
 
 
 def _order_rows(doc: Document):

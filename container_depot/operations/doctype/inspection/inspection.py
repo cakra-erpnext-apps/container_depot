@@ -50,10 +50,10 @@ class Inspection(Document):
 
 		if self.inspection_type == "EIR-In":
 			container.eir_in_date = datetime.datetime.now()
-			# A clean-but-dirty tank (no damage) is queued straight for cleaning (a
-			# Cleaning Order is auto-created below). A damaged tank needs M&R first, so it
-			# stays in inspecting (repair routing is handled separately).
-			if self.get("tank_status") == "Empty Dirty" and not self.has_damage:
+			# A dirty tank (no damage) for which the surveyor opted to create a Cleaning
+			# Order is queued straight for cleaning. A damaged tank — or one where cleaning
+			# was unchecked — stays in inspecting (repair routing handled separately).
+			if self.get("create_cleaning_order") and self.get("tank_status") == "Empty Dirty" and not self.has_damage:
 				container.status = "Pending_Cleaning"
 				container.cleaning_status = "Pending"
 			else:
@@ -91,15 +91,18 @@ class Inspection(Document):
 			notify_eir_submitted(self, container, category)
 
 		# Empty-Dirty (undamaged) EIR-In → auto-create a Cleaning Order so the cleaning
-		# team knows a tank is waiting, and notify them. (After cleaning, a Cleaning
-		# Statement issues the Cleaning Certificate — see operations/cleaning.py.)
-		if self.inspection_type == "EIR-In" and self.get("tank_status") == "Empty Dirty" and not self.has_damage:
+		# team knows a tank is waiting, and notify them — but ONLY when the surveyor left
+		# "Buat Cleaning Order" checked. (create_cleaning_order_from_eir itself no-ops for a
+		# non-dirty tank, so the checkbox is the operator's opt-out.) After cleaning, a
+		# Cleaning Statement issues the Cleaning Certificate — see operations/cleaning.py.
+		if self.inspection_type == "EIR-In" and self.get("create_cleaning_order"):
 			self._ensure_cleaning_order(container)
 
-		# Damaged EIR-In → auto-create a Draft M&R (Repair Order) so the M&R team can
-		# pick the inventory parts to repair/replace, and notify them. The create call is
-		# a no-op when the EIR carries no real damage finding.
-		if self.inspection_type == "EIR-In":
+		# Damaged EIR-In → auto-create a Draft M&R (Repair Order) so the M&R team can pick
+		# the inventory parts to repair/replace, and notify them — but ONLY when the surveyor
+		# left "Buat M&R" checked. The create call is a no-op when the EIR carries no real
+		# damage finding, so the checkbox is the operator's opt-out.
+		if self.inspection_type == "EIR-In" and self.get("create_repair_order"):
 			self._ensure_repair_order_draft(container)
 
 	def _ensure_cleaning_order(self, container):

@@ -52,6 +52,36 @@ def eir_history(search=None, start=0, page_length=10, docstatus=None):
 
 
 @frappe.whitelist(methods=["GET"])
+def eir_pending(search=None, start=0, page_length=20):
+	"""GET /api/v1/ess/eir-pending — open (draft) EIRs in the user's branch (worklist).
+
+	EIRs are auto-created per container when an Order Bongkar is submitted; the PWA works
+	from this list — the operator no longer types a container to create one. Branch-scoped,
+	searchable (container no / EIR id / voucher), paginated. See ``eir.list_pending_eirs``.
+	"""
+	_require_authenticated_user()
+	return eir.list_pending_eirs(search=search, start=start, page_length=page_length)
+
+
+@frappe.whitelist(methods=["GET"])
+def eir_open(inspection=None):
+	"""GET /api/v1/ess/eir-open — open an existing draft EIR by name (read-only, no create).
+
+	The worklist picks a pending EIR and this loads its header + saved checklist state.
+	"""
+	_require_authenticated_user()
+	return eir.open_draft_by_name(inspection=inspection)
+
+
+@frappe.whitelist(methods=["GET"])
+def eir_view(inspection=None):
+	"""GET /api/v1/ess/eir-view — read-only view of any EIR (draft OR submitted), for the
+	Riwayat detail. Returns a compact header + recorded damages (+ supports PDF print)."""
+	_require_authenticated_user()
+	return eir.view_eir(inspection=inspection)
+
+
+@frappe.whitelist(methods=["GET"])
 def eir_voucher(voucher=None, inspection_type="EIR-In", container=None):
 	"""GET /api/v1/ess/eir-voucher — read-only shipment snapshot from a referred voucher.
 
@@ -86,6 +116,8 @@ def eir_save_draft(
 	referred_voucher=None,
 	cargo=None,
 	eir_date=None,
+	create_cleaning_order=None,
+	create_repair_order=None,
 	lines=None,
 	photos=None,
 	submit=False,
@@ -104,6 +136,8 @@ def eir_save_draft(
 		referred_voucher=referred_voucher,
 		cargo=cargo,
 		eir_date=eir_date,
+		create_cleaning_order=create_cleaning_order,
+		create_repair_order=create_repair_order,
 		lines=lines,
 		photos=photos,
 		submit=submit,
@@ -127,6 +161,8 @@ def eir_create(
 	referred_voucher=None,
 	cargo=None,
 	eir_date=None,
+	create_cleaning_order=None,
+	create_repair_order=None,
 	lines=None,
 	photos=None,
 	submit=False,
@@ -149,6 +185,8 @@ def eir_create(
 		referred_voucher=referred_voucher,
 		cargo=cargo,
 		eir_date=eir_date,
+		create_cleaning_order=create_cleaning_order,
+		create_repair_order=create_repair_order,
 		lines=lines,
 		photos=photos,
 		submit=submit,

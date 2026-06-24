@@ -21,6 +21,7 @@ import frappe
 from frappe.utils import add_to_date, cint, getdate, today
 
 from container_depot.api import _require_authenticated_user
+from container_depot.operations import container_activity
 from container_depot.operations.user_branch import get_user_depots
 from container_depot.tasks import PT_REMINDER_DAYS
 
@@ -67,6 +68,7 @@ _LIST_FIELDS = [
 	"depot",
 	"yard_zone",
 	"status",
+	"last_order_bongkar",
 ]
 
 
@@ -296,6 +298,7 @@ def get_tank_list(
 				"depot": r.depot,
 				"yard_zone": r.yard_zone,
 				"status": bucket,
+				"order_bongkar": r.last_order_bongkar,
 				"pt_due": r.name in pt_due,
 				"needs_move": nm,
 				"target_category": allowed[0] if allowed else None,
@@ -374,3 +377,17 @@ def get_tank_detail(container):
 		"status": bucket,
 		"pt_due": bool(pt_due),
 	}
+
+
+@frappe.whitelist(methods=["GET"])
+def activity_history(start=0, page_length=10, search=None):
+	"""GET /api/v1/ess/activity-history — Container Activity timeline (Monitor "Riwayat")."""
+	_require_authenticated_user()
+	return container_activity.list_activity_history(start=start, page_length=page_length, search=search)
+
+
+@frappe.whitelist(methods=["GET"])
+def activity_detail(name=None):
+	"""GET /api/v1/ess/activity-detail — one Container Activity record's full detail."""
+	_require_authenticated_user()
+	return container_activity.get_activity_detail(name)
