@@ -16,7 +16,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, getdate, today
 
 from container_depot.operations.user_branch import assert_in_user_branch, get_user_depots
 
@@ -237,6 +237,144 @@ def latest_voucher_for_container(container: str | None, inspection_type: str) ->
 	return rows[0] if rows else None
 
 
+def latest_eir_in(container: str | None) -> str | None:
+	"""The newest *submitted* EIR-In for a container — the baseline an EIR-Out compares to."""
+	if not container:
+		return None
+	return frappe.db.get_value(
+		"Inspection",
+		{"container": container, "docstatus": 1, "inspection_type": "EIR-In"},
+		"name",
+		order_by="creation desc",
+	)
+
+
+def provision_eir_out_for_order_muat(order_name: str) -> list:
+	"""Submit-time hook for an Order Muat: create one DRAFT EIR-Out per container, each
+	referencing the container's latest submitted EIR-In (the load-out baseline) and the
+	row's Cleaning Certificate.
+
+	Mirrors :func:`provision_eirs_for_order_bongkar` (EIR-In): the surveyor never types a
+	container — the EIR-Out is born from the loading bon. The surveyor opens the draft from
+	the EIR-Out worklist, verifies exterior / seals / cleaning-cert vs the referenced
+	EIR-In, then submits. Idempotent per container (skips when an open EIR-Out draft already
+	exists); best-effort per row — one failure is logged and never blocks the bon submit.
+	"""
+	from container_depot.operations.cleaning import get_latest_valid_cleaning_cert
+
+	rows = frappe.get_all(
+		"Order Container Item",
+		filters={"parent": order_name, "parenttype": "Order Muat"},
+		fields=["container", "cleaning_certificate"],
+	)
+	created = []
+	for row in rows:
+		container = row.get("container")
+		if not container:
+			continue
+		# Dedup: never open a second EIR-Out draft for a container (scoped to EIR-Out so an
+		# unrelated EIR-In draft never blocks it).
+		if frappe.db.exists(
+			"Inspection",
+			{"container": container, "docstatus": 0, "inspection_type": "EIR-Out"},
+		):
+			continue
+		try:
+			doc = frappe.new_doc("Inspection")
+			doc.inspection_type = "EIR-Out"
+			doc.container = container
+			doc.inspector = frappe.session.user
+			cdepot, ccargo = frappe.db.get_value("Container", container, ["depot", "last_cargo"]) or (None, None)
+			doc.depot = cdepot
+			doc.cargo = ccargo
+			# Reference THIS Order Muat: truck / driver / driver phone / shipper / booking depot.
+			_apply_voucher(doc, order_name)
+			snap = fetch_voucher(order_name, "EIR-Out", container=container)
+			doc.tank_status = snap.get("tank_status") or doc.tank_status
+			doc.cargo = snap.get("cargo") or doc.cargo
+			# Baseline EIR-In for the comparison panel.
+			doc.reference_eir_in = latest_eir_in(container)
+			# Cleaning Certificate: the Order Muat row's cert (the load is gated on it), else
+			# the container's latest valid cert.
+			cert_name = row.get("cleaning_certificate")
+			if cert_name:
+				vu = frappe.db.get_value("Cleaning Certificate", cert_name, "valid_until")
+				doc.cleaning_cert = cert_name
+				doc.cleaning_cert_valid_until = vu
+			else:
+				cert = get_latest_valid_cleaning_cert(container)
+				if cert:
+					doc.cleaning_cert = cert["name"]
+					doc.cleaning_cert_valid_until = cert["valid_until"]
+			doc.insert(ignore_permissions=True)  # system automation on bon submit
+			created.append(doc.name)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"auto EIR-Out for {container} on {order_name}")
+	return created
+
+
+def get_eir_out_reference(inspection) -> dict:
+	"""Comparison payload for an EIR-Out: the referenced EIR-In's summary (date, tank
+	status, remarks, damage findings + photos) and the cleaning certificate's current
+	validity. Best-effort — sections come back ``None`` when there is no baseline EIR-In.
+	"""
+	doc = inspection if hasattr(inspection, "doctype") else frappe.get_doc("Inspection", inspection)
+	out = {"reference_eir_in": doc.get("reference_eir_in"), "eir_in": None, "cleaning_cert": None}
+
+	cert_name = doc.get("cleaning_cert")
+	if cert_name:
+		vu = frappe.db.get_value("Cleaning Certificate", cert_name, "valid_until")
+		valid = (not vu) or getdate(vu) >= getdate(today())
+		out["cleaning_cert"] = {"name": cert_name, "valid_until": str(vu) if vu else None, "valid": bool(valid)}
+
+	ref = doc.get("reference_eir_in")
+	if ref:
+		ein = frappe.db.get_value(
+			"Inspection", ref,
+			["name", "inspection_id", "eir_date", "tank_status", "remarks", "has_damage"],
+			as_dict=True,
+		)
+		if ein:
+			names = {
+				r.item_code: r.item_name
+				for r in frappe.get_all("Inspection Checklist Item", fields=["item_code", "item_name"])
+			}
+			photos_by_item: dict = {}
+			for p in frappe.get_all(
+				"Inspection Item Photo", filters={"parent": ref, "parenttype": "Inspection"},
+				fields=["checklist_item", "photo"],
+			):
+				if p.photo:
+					photos_by_item.setdefault(p.checklist_item, []).append(p.photo)
+			damages = []
+			for d in frappe.get_all(
+				"Inspection Damage Entry", filters={"parent": ref, "parenttype": "Inspection"},
+				fields=["checklist_item", "area", "component", "damage_type", "repair_code", "damage_description"],
+				order_by="idx asc",
+			):
+				damages.append({
+					"item": d.checklist_item,
+					"item_name": names.get(d.checklist_item) or d.checklist_item,
+					"area": d.area,
+					"component": d.component,
+					"damage_type": d.damage_type,
+					"repair_code": d.repair_code,
+					"damage_description": d.damage_description,
+					"photos": list(photos_by_item.get(d.checklist_item, [])),
+				})
+			out["eir_in"] = {
+				"name": ein.name,
+				"inspection_id": ein.inspection_id,
+				"eir_date": str(ein.eir_date) if ein.eir_date else None,
+				"tank_status": ein.tank_status,
+				"remarks": ein.remarks,
+				"has_damage": ein.has_damage,
+				"damages": damages,
+				"photos": [u for lst in photos_by_item.values() for u in lst],
+			}
+	return out
+
+
 def provision_eirs_for_order_bongkar(order_name: str) -> list:
 	"""Submit-time hook for an Order Bongkar: create one DRAFT EIR-In per container and
 	stamp the bon as each container's latest Order Bongkar voucher (surfaced in the depot
@@ -264,10 +402,11 @@ def provision_eirs_for_order_bongkar(order_name: str) -> list:
 		frappe.db.set_value(
 			"Container", container, "last_order_bongkar", order_name, update_modified=False
 		)
-		# Dedup: never open a second draft for a container.
+		# Dedup: never open a second EIR-In draft for a container (scoped to EIR-In so an
+		# EIR-Out draft from the load-out flow never blocks it).
 		if frappe.db.exists(
 			"Inspection",
-			{"container": container, "docstatus": 0, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]},
+			{"container": container, "docstatus": 0, "inspection_type": "EIR-In"},
 		):
 			continue
 		try:
@@ -313,6 +452,7 @@ def prefill(
 	container_no: str | None = None,
 	booking_code: str | None = None,
 	order_bongkar: str | None = None,
+	order_muat: str | None = None,
 ) -> dict:
 	"""Resolve EIR header defaults for the Container being inspected.
 
@@ -355,9 +495,20 @@ def prefill(
 			name, bc_name = row.container, row.booking_code
 		if bc_name:
 			direction = frappe.db.get_value("Booking Code", bc_name, "direction")
+	elif not name and order_muat:
+		booking = frappe.db.get_value("Order Muat", order_muat, "booking")
+		row = frappe.db.get_value(
+			"Order Container Item",
+			{"parent": order_muat, "parenttype": "Order Muat"},
+			["container", "booking_code"], as_dict=True, order_by="idx asc",
+		)
+		if row:
+			name, bc_name = row.container, row.booking_code
+		if bc_name:
+			direction = frappe.db.get_value("Booking Code", bc_name, "direction")
 
 	if not name:
-		frappe.throw(_("Provide a container number (or a booking_code / order_bongkar)."))
+		frappe.throw(_("Provide a container number (or a booking_code / order_bongkar / order_muat)."))
 
 	c = frappe.db.get_value(
 		"Container", name,
@@ -512,6 +663,10 @@ def create_eir(
 	create_repair_order=None,
 	lines=None,
 	photos=None,
+	exterior_condition=None,
+	exterior_remark=None,
+	seals_intact=None,
+	seal_remark=None,
 	submit=False,
 ) -> dict:
 	"""Build an Inspection (EIR) from a checklist payload.
@@ -566,6 +721,15 @@ def create_eir(
 	if order_ref:
 		doc.order_doctype = order_doctype or "Order Bongkar"
 		doc.order_ref = order_ref
+	# EIR-Out verification fields (only meaningful for EIR-Out; harmless otherwise).
+	if exterior_condition is not None:
+		doc.exterior_condition = exterior_condition or None
+	if exterior_remark is not None:
+		doc.exterior_remark = exterior_remark or None
+	if seals_intact is not None:
+		doc.seals_intact = 1 if _as_bool(seals_intact) else 0
+	if seal_remark is not None:
+		doc.seal_remark = seal_remark or None
 	doc.set("damage_log", damage_rows)
 	doc.set("item_photos", photo_rows)
 
@@ -642,9 +806,11 @@ def open_draft(container=None, container_no=None, inspection_type="EIR-In") -> d
 	header = prefill(container=container, container_no=container_no)
 	name = header["container"]
 
+	# Dedup the SAME inspection_type only — an open EIR-In draft must never be returned for
+	# an EIR-Out request (and vice versa); the two flows are independent.
 	existing = frappe.get_all(
 		"Inspection",
-		filters={"container": name, "docstatus": 0, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]},
+		filters={"container": name, "docstatus": 0, "inspection_type": inspection_type},
 		pluck="name", order_by="creation desc", limit=1,
 	)
 	if existing:
@@ -670,9 +836,37 @@ def open_draft(container=None, container_no=None, inspection_type="EIR-In") -> d
 				doc.cargo = snap.get("cargo") or doc.cargo
 		except Exception:
 			frappe.log_error(title="EIR auto-voucher", message=frappe.get_traceback())
+		# EIR-Out: stamp the EIR-In baseline + cleaning certificate for the comparison.
+		if inspection_type == "EIR-Out":
+			from container_depot.operations.cleaning import get_latest_valid_cleaning_cert
+
+			doc.reference_eir_in = latest_eir_in(name)
+			cert = get_latest_valid_cleaning_cert(name)
+			if cert:
+				doc.cleaning_cert = cert["name"]
+				doc.cleaning_cert_valid_until = cert["valid_until"]
 		doc.insert()  # NOT ignore_permissions — only EIR creators can open a draft.
 
 	return _draft_payload(doc, header)
+
+
+def open_eir_out(inspection: str) -> dict:
+	"""Open a draft EIR-Out for editing (worklist → form) with its EIR-In comparison + the
+	cleaning-certificate validity, plus the saved EIR-Out verification fields."""
+	payload = open_draft_by_name(inspection)
+	doc = frappe.get_doc("Inspection", inspection)
+	if doc.inspection_type != "EIR-Out":
+		frappe.throw(_("{0} is not an EIR-Out.").format(inspection))
+	payload["reference"] = get_eir_out_reference(doc)
+	payload["exterior_condition"] = doc.get("exterior_condition")
+	payload["exterior_remark"] = doc.get("exterior_remark")
+	payload["seals_intact"] = int(bool(doc.get("seals_intact")))
+	payload["seal_remark"] = doc.get("seal_remark")
+	payload["cleaning_cert"] = doc.get("cleaning_cert")
+	payload["cleaning_cert_valid_until"] = (
+		str(doc.get("cleaning_cert_valid_until")) if doc.get("cleaning_cert_valid_until") else None
+	)
+	return payload
 
 
 def save_draft(
@@ -691,6 +885,10 @@ def save_draft(
 	create_repair_order=None,
 	lines=None,
 	photos=None,
+	exterior_condition=None,
+	exterior_remark=None,
+	seals_intact=None,
+	seal_remark=None,
 	submit=False,
 ) -> dict:
 	"""Update an existing draft EIR — the PWA auto-save (and finalize) action.
@@ -733,6 +931,15 @@ def save_draft(
 	doc.has_damage = 1 if has_damage else 0
 	doc.set("damage_log", damage_rows)
 	doc.set("item_photos", photo_rows)
+	# EIR-Out verification fields (only sent by the EIR-Out form; omitted = left untouched).
+	if exterior_condition is not None:
+		doc.exterior_condition = exterior_condition or None
+	if exterior_remark is not None:
+		doc.exterior_remark = exterior_remark or None
+	if seals_intact is not None:
+		doc.seals_intact = 1 if _as_bool(seals_intact) else 0
+	if seal_remark is not None:
+		doc.seal_remark = seal_remark or None
 
 	if submit:
 		doc.submit()  # on_submit moves the Container; we never set status here.
@@ -801,7 +1008,8 @@ def list_pending_eirs(search=None, start=0, page_length=20) -> dict:
 	start = max(0, cint(start))
 	page_length = min(max(1, cint(page_length or 20)), 50)
 
-	filters = {"docstatus": 0, "inspection_type": ["in", ["EIR-In", "EIR-Out"]]}
+	# EIR-In only — EIR-Out drafts have their own worklist (``list_pending_eir_out``).
+	filters = {"docstatus": 0, "inspection_type": "EIR-In"}
 	allowed = get_user_depots()
 	if allowed is not None:
 		if not allowed:
@@ -833,6 +1041,54 @@ def list_pending_eirs(search=None, start=0, page_length=20) -> dict:
 		fields=[
 			"name", "inspection_id", "container", "container_no", "inspection_type",
 			"tank_status", "referred_voucher", "voucher_doctype", "depot", "eir_date", "creation",
+		],
+		order_by="creation desc",
+		limit_start=start,
+		limit_page_length=page_length,
+	)
+	return {"items": items, "total": total, "start": start, "page_length": page_length}
+
+
+def list_pending_eir_out(search=None, start=0, page_length=20) -> dict:
+	"""Open (draft) EIR-Out inspections in the user's branch — the PWA EIR-Out worklist.
+
+	Auto-provisioned (one per container) when an Order Muat is submitted
+	(``provision_eir_out_for_order_muat``), so the surveyor works from this list instead of
+	creating one by hand. Branch-scoped by the Inspection depot; newest first; searchable by
+	container number / EIR id / referred Order Muat; paginated.
+	"""
+	start = max(0, cint(start))
+	page_length = min(max(1, cint(page_length or 20)), 50)
+
+	filters = {"docstatus": 0, "inspection_type": "EIR-Out"}
+	allowed = get_user_depots()
+	if allowed is not None:
+		if not allowed:
+			return {"items": [], "total": 0, "start": start, "page_length": page_length}
+		filters["depot"] = ["in", allowed]
+
+	term = str(search).strip() if search is not None else ""
+	if term.lower() in ("undefined", "null", "none"):
+		term = ""
+	or_filters = None
+	if term:
+		s = f"%{term}%"
+		or_filters = [
+			["container_no", "like", s],
+			["inspection_id", "like", s],
+			["referred_voucher", "like", s],
+		]
+
+	total = len(frappe.get_all(
+		"Inspection", filters=filters, or_filters=or_filters, pluck="name", limit_page_length=0
+	))
+	items = frappe.get_all(
+		"Inspection",
+		filters=filters,
+		or_filters=or_filters,
+		fields=[
+			"name", "inspection_id", "container", "container_no", "tank_status",
+			"referred_voucher", "depot", "eir_date", "creation",
 		],
 		order_by="creation desc",
 		limit_start=start,
@@ -926,14 +1182,6 @@ def revert_to_draft(name: str) -> dict:
 
 	if doc.docstatus != 1:
 		frappe.throw(_("Hanya EIR yang sudah disubmit yang bisa dikembalikan ke draft."))
-
-	# Detailed Survey spawns M&R downstream docs (Repair Order / Survey Request); reverting
-	# those safely is out of scope here — cancel via the M&R flow instead.
-	if doc.inspection_type == "Detailed Survey":
-		frappe.throw(_(
-			"Detailed Survey tidak bisa dikembalikan ke draft dari sini karena sudah "
-			"membuat Repair Order / menutup Survey Request. Gunakan alur M&R."
-		))
 
 	# Guard: no OTHER draft EIR for the same container.
 	others = frappe.get_all(

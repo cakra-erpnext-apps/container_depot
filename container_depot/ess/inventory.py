@@ -298,6 +298,7 @@ def get_tank_list(
 				"depot": r.depot,
 				"yard_zone": r.yard_zone,
 				"status": bucket,
+				"raw_status": r.status,  # exact Container.status (drives the gate-out action eligibility)
 				"order_bongkar": r.last_order_bongkar,
 				"pt_due": r.name in pt_due,
 				"needs_move": nm,
@@ -376,6 +377,88 @@ def get_tank_detail(container):
 		"eir_out_date": str(doc.eir_out_date) if doc.eir_out_date else None,
 		"status": bucket,
 		"pt_due": bool(pt_due),
+	}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_dashboard_summary(depot=None):
+	"""Aggregated home-dashboard payload, depot/branch-scoped — one GET so the PWA
+	home screen loads every KPI in a single round-trip.
+
+	Pure aggregation: it reuses the existing, validated read functions
+	(:func:`get_inventory_summary`, the EIR / Cleaning / M&R worklist totals and
+	:func:`yard.zone_occupancy`) — the only extra queries are today's activity
+	counts and the M&R "Pending Approval" count. Sections:
+
+	* ``counts`` / ``periodic_test_due`` / ``total`` — container per status bucket
+	* ``today`` — Gate In / Gate Out / EIR submitted today (Container Activity)
+	* ``pending`` — open EIR-In / EIR-Out / Cleaning / M&R (+ M&R awaiting approval)
+	* ``yard`` — overall occupancy rollup + per-zone occupancy
+
+	GET /api/v1/ess/dashboard-summary
+	"""
+	_require_authenticated_user()
+
+	from container_depot.operations import cleaning, eir, mr, yard
+
+	allowed = get_user_depots()  # None = unrestricted; [] = no depot access
+
+	# 1) Container-per-status buckets (+ periodic-test-due) — reuse the summary.
+	summary = get_inventory_summary(depot)
+
+	# 2) Today's activity from the Container Activity log (depot-scoped).
+	act_filters = {"activity_time": [">=", today()]}
+	if allowed is not None:
+		act_filters["depot"] = ["in", allowed or [""]]
+	today_activity = {
+		"gate_in": frappe.db.count("Container Activity", {**act_filters, "activity_type": "Gate In"}),
+		"gate_out": frappe.db.count("Container Activity", {**act_filters, "activity_type": "Gate Out"}),
+		"eir": frappe.db.count("Container Activity", {**act_filters, "activity_type": "Inspection (EIR)"}),
+	}
+
+	# 3) Pending work — totals from the same worklists the PWA pages use (each is
+	# branch-scoped internally; page_length=1 keeps the row fetch minimal — `total`
+	# is the full count regardless).
+	mr_appr_filters = {"status": "Pending Approval"}
+	if allowed is not None:
+		mr_appr_filters["depot"] = ["in", allowed or [""]]
+	pending = {
+		"eir_in": eir.list_pending_eirs(page_length=1)["total"],
+		"eir_out": eir.list_pending_eir_out(page_length=1)["total"],
+		"cleaning": cleaning.list_open_cleaning_orders(page_length=1)["total"],
+		"mr_open": mr.list_open_mr_orders(page_length=1)["total"],
+		"mr_approval": frappe.db.count("Repair Order", mr_appr_filters),
+	}
+
+	# 4) Yard occupancy per active zone + an overall rollup (mirrors ess/yard scope).
+	zones = yard.zone_occupancy(depot=depot, depots=None if depot else allowed)
+	occ = sum(cint(z["occupied"]) for z in zones)
+	cap = sum(cint(z["capacity"]) for z in zones)
+	yard_summary = {
+		"occupied": occ,
+		"capacity": cap,
+		"utilization": round((occ / cap) * 100, 1) if cap else 0.0,
+		"zones": [
+			{
+				"zone_name": z["zone_name"],
+				"category": z["category"],
+				"occupied": z["occupied"],
+				"capacity": z["capacity"],
+				"utilization": z["utilization"],
+				"is_full": z["is_full"],
+			}
+			for z in zones
+		],
+	}
+
+	return {
+		"success": True,
+		"counts": summary["counts"],
+		"periodic_test_due": summary["periodic_test_due"],
+		"total": summary["total"],
+		"today": today_activity,
+		"pending": pending,
+		"yard": yard_summary,
 	}
 
 

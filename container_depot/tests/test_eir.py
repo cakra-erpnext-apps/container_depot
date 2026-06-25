@@ -636,15 +636,3 @@ class TestEirRevert(FrappeTestCase):
 		draft = eir.create_eir(inspection_type="EIR-In", container=c, submit=False)
 		with self.assertRaises(frappe.ValidationError):
 			eir.revert_to_draft(draft["name"])
-
-	def test_revert_blocks_detailed_survey(self):
-		c = _make_container("REVT1000005", status="Survey_In_Progress")
-		doc = frappe.get_doc({
-			"doctype": "Inspection", "inspection_type": "Detailed Survey",
-			"container": c, "inspector": "Administrator",
-			"has_damage": 0, "tank_status": "Empty Clean",
-		})
-		doc.insert(ignore_permissions=True)
-		doc.submit()
-		with self.assertRaises(frappe.ValidationError):
-			eir.revert_to_draft(doc.name)

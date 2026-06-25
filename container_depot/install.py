@@ -294,6 +294,8 @@ _PWA_DOCTYPE_PERMS = {
 	"Cargo":             {"read": 1, "report": 1},
 	"Order Bongkar":     {"read": 1, "report": 1},
 	"Order Muat":        {"read": 1, "report": 1},
+	# EIR-Out shows the tank's Cleaning Certificate (no + validity) before load-out.
+	"Cleaning Certificate": {"read": 1, "report": 1},
 	"Container Booking": {"read": 1, "report": 1},
 	"Booking Code":      {"read": 1, "report": 1},
 }

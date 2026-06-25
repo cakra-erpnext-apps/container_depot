@@ -74,6 +74,25 @@ def eir_open(inspection=None):
 
 
 @frappe.whitelist(methods=["GET"])
+def eir_out_pending(search=None, start=0, page_length=20):
+	"""GET /api/v1/ess/eir-out-pending — open (draft) EIR-Out worklist in the user's branch.
+
+	EIR-Out drafts are auto-created per container when an Order Muat is submitted
+	(``provision_eir_out_for_order_muat``); the surveyor works from this list. See
+	``eir.list_pending_eir_out``."""
+	_require_authenticated_user()
+	return eir.list_pending_eir_out(search=search, start=start, page_length=page_length)
+
+
+@frappe.whitelist(methods=["GET"])
+def eir_out_open(inspection=None):
+	"""GET /api/v1/ess/eir-out-open — open a draft EIR-Out (form) with its EIR-In comparison
+	+ cleaning-certificate validity + saved verification fields. See ``eir.open_eir_out``."""
+	_require_authenticated_user()
+	return eir.open_eir_out(inspection=inspection)
+
+
+@frappe.whitelist(methods=["GET"])
 def eir_view(inspection=None):
 	"""GET /api/v1/ess/eir-view — read-only view of any EIR (draft OR submitted), for the
 	Riwayat detail. Returns a compact header + recorded damages (+ supports PDF print)."""
@@ -120,9 +139,16 @@ def eir_save_draft(
 	create_repair_order=None,
 	lines=None,
 	photos=None,
+	exterior_condition=None,
+	exterior_remark=None,
+	seals_intact=None,
+	seal_remark=None,
 	submit=False,
 ):
-	"""POST /api/v1/ess/eir-save-draft — auto-save (submit=1 finalizes) a draft EIR."""
+	"""POST /api/v1/ess/eir-save-draft — auto-save (submit=1 finalizes) a draft EIR.
+
+	The EIR-Out form sends the extra verification fields (exterior / seals); they are
+	ignored for EIR-In."""
 	_require_authenticated_user()
 	return eir.save_draft(
 		inspection=inspection,
@@ -140,6 +166,10 @@ def eir_save_draft(
 		create_repair_order=create_repair_order,
 		lines=lines,
 		photos=photos,
+		exterior_condition=exterior_condition,
+		exterior_remark=exterior_remark,
+		seals_intact=seals_intact,
+		seal_remark=seal_remark,
 		submit=submit,
 	)
 

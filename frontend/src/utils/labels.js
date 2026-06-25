@@ -13,6 +13,24 @@ export const labels = {
 	navHistory: "Riwayat", // History tab (reachable from Home tile + EIR checklist)
 	greeting: "Halo", // "Halo, {name}"
 	homeHint: "Pilih menu untuk mulai bekerja", // Pick a menu to start
+	// --- Dashboard (home KPI sections + menu groups) ---
+	dashStatusTitle: "Status Container", // Container per status bucket
+	dashStatusTotal: "Total", // "Total {n}" badge
+	dashPtDue: "uji periodik jatuh tempo", // periodic-test-due flag suffix
+	dashTodayTitle: "Aktivitas Hari Ini", // Today's activity
+	dashTodayIn: "Gate In",
+	dashTodayOut: "Gate Out",
+	dashTodayEir: "EIR",
+	dashPendingTitle: "Tugas Tertunda", // Pending tasks
+	dashPendingApproval: "approval", // "{n} approval" sub-badge on M&R
+	dashNoPending: "Tidak ada tugas tertunda 🎉", // empty pending state
+	dashYardTitle: "Okupansi Yard", // Yard occupancy
+	dashYardEmpty: "Belum ada zona yard aktif", // empty yard state
+	dashMenuTitle: "Menu", // menu section heading
+	grpGate: "Gate", // workflow group: gate
+	grpInspeksi: "Inspeksi", // workflow group: EIR / EIR Out
+	grpPerawatan: "Perawatan", // workflow group: Cleaning / M&R
+	grpYard: "Yard & Monitor", // workflow group: Storage / Monitor
 	// In-PWA notification bell
 	notifications: "Notifikasi", // Notifications
 	notifEmpty: "Belum ada notifikasi", // No notifications yet
@@ -154,6 +172,51 @@ export const labels = {
 	confirmSubmitMessage: "Anda yakin untuk submit order ini? Tindakan ini tidak bisa dibatalkan.",
 	confirmSubmitYes: "Ya, Submit",
 	confirmCancel: "Batal",
+	// TANK OUT — gate-out / load-complete action (Monitor)
+	gateOutAction: "Gate-Out",
+	gateOutConfirmTitle: "Gate-Out / Muat Selesai?",
+	gateOutConfirmMessage: "Konfirmasi isotank keluar depo (muat selesai)? Tindakan ini tidak bisa dibatalkan.",
+	gateOutDone: "Isotank keluar depo — gate-out selesai",
+	// EIR Out (Fase G — surveyor load-out inspection vs last EIR-In)
+	eirOutTitle: "EIR Out",
+	eirOutSubtitle: "Survey keluar — banding EIR-In terakhir",
+	eirOutDesc: "Inspeksi tank sebelum dimuat keluar",
+	eirOutSearch: "Cari no. container / Order Muat…",
+	eirOutEmpty: "Tidak ada EIR-Out menunggu",
+	eirOutNoOrder: "Tanpa Order Muat",
+	eirOutCert: "Cleaning Certificate",
+	eirOutCertNone: "Belum ada certificate",
+	eirOutCertValid: "Valid",
+	eirOutCertExpired: "Tidak valid",
+	eirOutCompare: "Banding EIR-In Terakhir",
+	eirOutPrevDamage: "Temuan saat EIR-In",
+	eirOutPrevClean: "EIR-In: tidak ada temuan",
+	eirOutPrevPhotos: "Foto EIR-In",
+	eirOutNoBaseline: "Tidak ada EIR-In sebelumnya untuk dibandingkan",
+	eirOutAssess: "Penilaian Keluar",
+	eirOutExterior: "Kondisi Eksterior",
+	eirOutExteriorNote: "Catatan eksterior…",
+	eirOutClean: "Bersih",
+	eirOutDirty: "Kotor",
+	eirOutNeedsWash: "Perlu Cuci",
+	eirOutSeals: "Segel lengkap & utuh",
+	eirOutSealNote: "Catatan segel (no. segel, dll)…",
+	eirOutCurrent: "Kondisi Saat Ini / Temuan Baru",
+	eirOutWillReady: "Akan jadi READY TO LOAD",
+	eirOutWillHold: "Akan jadi HOLD (perlu clearance)",
+	eirOutReasonExterior: "eksterior belum bersih",
+	eirOutReasonSeals: "segel tidak lengkap/utuh",
+	eirOutReasonCert: "cleaning certificate tidak valid",
+	eirOutReasonDamage: "ada temuan kerusakan",
+	eirOutSubmitReady: "Submit — READY TO LOAD",
+	eirOutSubmitHold: "Submit — HOLD ke Supervisor",
+	eirOutConfirmReadyTitle: "Submit EIR-Out (Ready To Load)?",
+	eirOutConfirmReadyMsg: "Konfirmasi tank bersih, segel utuh, dan cleaning certificate valid. Operator Kalmar akan dapat notifikasi READY TO LOAD.",
+	eirOutConfirmHoldTitle: "Submit EIR-Out (HOLD)?",
+	eirOutConfirmHoldMsg: "Ada temuan — tank akan HOLD dan Ops Supervisor diberi tahu untuk clearance. Lanjut submit?",
+	eirOutDoneReady: "EIR-Out selesai — READY TO LOAD",
+	eirOutDoneHold: "EIR-Out selesai — HOLD (menunggu clearance)",
+	eirOutBackToList: "Kembali ke daftar",
 	savingDraft: "Menyimpan…", // Saving…
 	draftSaved: "Tersimpan", // Saved
 	eirSubmitted: "EIR berhasil disubmit", // EIR submitted

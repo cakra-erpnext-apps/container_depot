@@ -63,6 +63,11 @@ const routes = [
 		component: () => import("@/pages/MonitorContainer.vue"),
 	},
 	{
+		path: "/eir-out",
+		name: "EirOut",
+		component: () => import("@/pages/EirOut.vue"),
+	},
+	{
 		path: "/monitor/history",
 		name: "MonitorHistory",
 		component: () => import("@/pages/MonitorHistory.vue"),

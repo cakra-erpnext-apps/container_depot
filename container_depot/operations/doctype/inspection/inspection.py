@@ -59,12 +59,12 @@ class Inspection(Document):
 			else:
 				container.status = "Inspecting"
 			self._save_container(container)
-		elif self.inspection_type == "Detailed Survey":
-			self._apply_survey_result(container)
 		elif self.inspection_type == "EIR-Out":
 			# Record the gate-out inspection date on the container (mirrors EIR-In).
 			container.eir_out_date = datetime.datetime.now()
 			self._save_container(container)
+			# Score readiness + signal Ready To Load / Hold on the Order Muat.
+			self._apply_eir_out_outcome()
 		elif cargo_changed:
 			# Some other type with a cargo change — persist it.
 			self._save_container(container)
@@ -156,64 +156,43 @@ class Inspection(Document):
 		finally:
 			frappe.flags.in_status_automation = False
 
-	def _apply_survey_result(self, container):
-		"""Route the container based on the survey outcome (PRO-OPS survey loop):
+	def _apply_eir_out_outcome(self):
+		"""Score an EIR-Out's readiness and signal it on the referenced Order Muat.
 
-		* damage         -> Awaiting_MR_Approval (+ a Pending-Approval Repair Order)
-		* dirty (no dmg) -> Awaiting_Recleaning_Approval
-		* clean          -> Available
-		"""
+		Clean = exterior Clean + seals intact + cleaning cert valid + no new damage. A clean
+		EIR-Out flips the Order Muat to ``Ready To Load`` and notifies Operator Kalmar; any
+		finding flips it to ``Hold`` and notifies the Ops Supervisor. The container status is
+		NOT touched here (it stays on the OUT path; gate-out is the final move) — readiness
+		lives on the Order Muat, and gate-out enforces a clean EIR-Out (see operations/gate)."""
+		from frappe.utils import getdate, today
+
+		# Cleaning certificate validity (blank valid_until = statement-minted = valid forever,
+		# matching the Order Muat gate).
+		vu = self.get("cleaning_cert_valid_until")
+		cert_valid = bool(self.get("cleaning_cert")) and ((not vu) or getdate(vu) >= getdate(today()))
+
+		reasons = []
+		if (self.get("exterior_condition") or "") != "Clean":
+			reasons.append(f"eksterior {self.get('exterior_condition') or 'belum dinilai'}")
+		if not self.get("seals_intact"):
+			reasons.append("segel tidak lengkap/utuh")
+		if not cert_valid:
+			reasons.append("cleaning certificate tidak valid")
 		if self.has_damage:
-			container.status = "Awaiting_MR_Approval"
-			container.repair_status = "Awaiting_Approval"
-			self._save_container(container)
-			self._ensure_repair_order()
-		elif self.tank_status == "Empty Dirty":
-			container.status = "Awaiting_Recleaning_Approval"
-			self._save_container(container)
+			reasons.append("ada temuan kerusakan")
+
+		outcome = "Ready To Load" if not reasons else "Hold Pending Clearance"
+		self.db_set("out_outcome", outcome, update_modified=False)
+
+		# Resolve the Order Muat this EIR-Out was raised against (auto-voucher set it).
+		order_muat = self.referred_voucher if self.get("voucher_doctype") == "Order Muat" else None
+		from container_depot.operations.notify import notify_eir_out_hold, notify_ready_to_load
+
+		if outcome == "Ready To Load":
+			if order_muat:
+				frappe.db.set_value("Order Muat", order_muat, "order_status", "Ready To Load", update_modified=False)
+			notify_ready_to_load(self.container_no, order_muat, depot=self.depot)
 		else:
-			container.status = "Available"
-			container.certification_status = "Completed"
-			self._save_container(container)
-
-		self._complete_survey_request()
-
-	def _ensure_repair_order(self):
-		"""Bring the container's M&R into the approval workflow from this survey.
-
-		If an open M&R already exists (e.g. a Draft auto-created at EIR-In), advance it to
-		Pending Approval and back-link this survey. Otherwise create one from the survey's
-		repair estimate. Idempotent per container — never a second open M&R."""
-		from container_depot.operations import eir_followups
-
-		existing = eir_followups.open_repair_order(self.container)
-		if existing:
-			ro = frappe.get_doc("Repair Order", existing)
-			if ro.status == "Draft":
-				ro.status = "Pending Approval"
-			if not ro.inspection:
-				ro.inspection = self.name
-			ro.save(ignore_permissions=True)
-			return
-		ro = frappe.new_doc("Repair Order")
-		ro.container = self.container
-		ro.inspection = self.name
-		ro.status = "Pending Approval"
-		ro.billing_status = "Unbilled"
-		exclude = {
-			"name", "parent", "parentfield", "parenttype", "idx",
-			"owner", "creation", "modified", "modified_by", "docstatus", "doctype",
-		}
-		for row in (self.repair_estimate or []):
-			ro.append("estimation_items", {k: v for k, v in row.as_dict().items() if k not in exclude})
-		ro.insert(ignore_permissions=True)
-
-	def _complete_survey_request(self):
-		"""Mark a linked Survey Request as Completed and back-link this EIR."""
-		reqs = frappe.get_all(
-			"Survey Request",
-			filters={"container": self.container, "status": ["in", ["Pending Survey", "In Progress"]], "docstatus": ["<", 2]},
-			pluck="name",
-		)
-		for name in reqs:
-			frappe.db.set_value("Survey Request", name, {"status": "Completed", "inspection": self.name}, update_modified=False)
+			if order_muat:
+				frappe.db.set_value("Order Muat", order_muat, "order_status", "Hold", update_modified=False)
+			notify_eir_out_hold(self.container_no, order_muat, ", ".join(reasons), depot=self.depot)

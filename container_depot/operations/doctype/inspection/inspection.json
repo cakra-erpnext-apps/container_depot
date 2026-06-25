@@ -53,17 +53,17 @@
     "remarks",
     "column_break_signoff2",
     "inspector_signature",
-    "tab_survey",
-    "survey_section",
-    "survey_type",
-    "priority",
-    "deadline",
-    "column_break_sr",
-    "requested_by",
-    "tank_owner",
-    "surveyor_company",
-    "survey_ref_section",
+    "eir_out_section",
+    "exterior_condition",
+    "exterior_remark",
+    "column_break_eirout",
+    "seals_intact",
+    "seal_remark",
+    "cleaning_cert",
+    "cleaning_cert_valid_until",
+    "out_outcome",
     "reference_eir_in",
+    "tab_mr",
     "section_break_4",
     "repair_estimate",
     "total_estimate",
@@ -92,7 +92,7 @@
       "fieldname": "inspection_type",
       "fieldtype": "Select",
       "label": "Inspection Type",
-      "options": "EIR-In\nEIR-Out\nDetailed Survey\nPost-Repair",
+      "options": "EIR-In\nEIR-Out",
       "reqd": 1
     },
     {
@@ -372,66 +372,80 @@
       "label": "Inspector Signature"
     },
     {
-      "depends_on": "eval:['Detailed Survey','Post-Repair'].includes(doc.inspection_type)",
-      "fieldname": "tab_survey",
-      "fieldtype": "Tab Break",
-      "label": "Survey & M&R"
-    },
-    {
-      "description": "Set when this inspection fulfils a customer survey request (Detailed Survey).",
-      "fieldname": "survey_section",
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "description": "Verifikasi pra-muat (EIR-Out): kebersihan eksterior, kelengkapan segel, dan validitas Cleaning Certificate vs EIR-In terakhir.",
+      "fieldname": "eir_out_section",
       "fieldtype": "Section Break",
-      "label": "Survey Request"
+      "label": "EIR-Out — Verifikasi Keluar"
     },
     {
-      "fieldname": "survey_type",
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "fieldname": "exterior_condition",
       "fieldtype": "Select",
-      "label": "Survey Type",
-      "options": "\nCleanliness Survey\nGate-In Survey\nPre-Cleaning Survey\nM&R Pre-Inspection"
+      "label": "Kondisi Eksterior",
+      "options": "\nClean\nDirty\nNeeds Wash"
     },
     {
-      "fieldname": "priority",
-      "fieldtype": "Select",
-      "label": "Priority",
-      "options": "\nHigh\nMedium\nLow"
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "fieldname": "exterior_remark",
+      "fieldtype": "Small Text",
+      "label": "Catatan Eksterior"
     },
     {
-      "fieldname": "deadline",
-      "fieldtype": "Date",
-      "label": "Deadline"
-    },
-    {
-      "fieldname": "column_break_sr",
+      "fieldname": "column_break_eirout",
       "fieldtype": "Column Break"
     },
     {
-      "fieldname": "requested_by",
+      "default": "0",
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "fieldname": "seals_intact",
+      "fieldtype": "Check",
+      "label": "Segel Lengkap & Utuh"
+    },
+    {
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "fieldname": "seal_remark",
       "fieldtype": "Data",
-      "label": "Requested By"
+      "label": "Catatan Segel"
     },
     {
-      "fieldname": "tank_owner",
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "description": "Cleaning Certificate yang divalidasi saat EIR-Out (auto dari Order Muat / cert valid terbaru).",
+      "fieldname": "cleaning_cert",
       "fieldtype": "Link",
-      "label": "Tank Owner",
-      "options": "Customer"
+      "label": "Cleaning Certificate",
+      "options": "Cleaning Certificate",
+      "read_only": 1
     },
     {
-      "description": "Assigned 3rd-party surveyor (for Detailed Survey requests).",
-      "fieldname": "surveyor_company",
-      "fieldtype": "Link",
-      "label": "Surveyor Company",
-      "options": "Surveyor Company"
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "fieldname": "cleaning_cert_valid_until",
+      "fieldtype": "Date",
+      "label": "Cert Valid Until",
+      "read_only": 1
     },
     {
-      "fieldname": "survey_ref_section",
-      "fieldtype": "Section Break"
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "description": "Hasil EIR-Out: Ready To Load (bersih) atau Hold Pending Clearance (ada temuan). Diset saat submit.",
+      "fieldname": "out_outcome",
+      "fieldtype": "Select",
+      "label": "EIR-Out Outcome",
+      "options": "\nReady To Load\nHold Pending Clearance",
+      "read_only": 1
     },
     {
-      "description": "For EIR-Out: link to the matching EIR-In so the surveyor can diff photos and damage entries.",
+      "depends_on": "eval:doc.inspection_type=='EIR-Out'",
+      "description": "EIR-Out: link ke EIR-In terakhir sebagai pembanding (foto + temuan).",
       "fieldname": "reference_eir_in",
       "fieldtype": "Link",
       "label": "Reference EIR-In",
-      "options": "Inspection"
+      "options": "Inspection",
+      "read_only": 1
+    },
+    {
+      "fieldname": "tab_mr",
+      "fieldtype": "Tab Break",
+      "label": "M&R & Estimasi"
     },
     {
       "depends_on": "eval:doc.has_damage",
@@ -512,7 +526,7 @@
   ],
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-06-23 10:00:00.000000",
+  "modified": "2026-06-25 13:30:00.000000",
   "module": "Operations",
   "name": "Inspection",
   "search_fields": "inspection_id, container_no, inspection_type, status",

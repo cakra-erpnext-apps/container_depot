@@ -16,7 +16,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import cint, now_datetime, today
+from frappe.utils import cint, getdate, now_datetime, today
 
 from container_depot.operations.user_branch import assert_in_user_branch, get_user_branches
 
@@ -46,6 +46,32 @@ def get_cleaning_masters() -> dict:
 		order_by="sequence asc",
 	)
 	return {"checklist": checklist, "default_remarks": DEFAULT_REMARKS}
+
+
+def get_latest_valid_cleaning_cert(container) -> dict | None:
+	"""Latest submitted Cleaning Certificate for a container + its validity.
+
+	Validity mirrors the Order Muat gate (``order_muat._validate_cleaning_cert``): a cert
+	is valid when it has no expiry (statement-minted = valid forever) OR ``valid_until >=
+	today``. Returns ``{name, valid_until, valid}`` for the newest submitted cert, or
+	``None`` when the container has none. Used by the EIR-Out flow to show + verify the
+	cleaning certificate before load-out.
+	"""
+	row = frappe.db.get_value(
+		"Cleaning Certificate",
+		{"container": container, "docstatus": 1},
+		["name", "valid_until"],
+		as_dict=True,
+		order_by="creation desc",
+	)
+	if not row:
+		return None
+	valid = (not row.valid_until) or getdate(row.valid_until) >= getdate(today())
+	return {
+		"name": row.name,
+		"valid_until": str(row.valid_until) if row.valid_until else None,
+		"valid": bool(valid),
+	}
 
 
 def _latest_eir(container: str) -> str | None:

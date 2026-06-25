@@ -219,6 +219,72 @@ def notify_order_gate(order, direction):
 	)
 
 
+def notify_order_muat_survey(order):
+	"""Fire when an Order Muat is submitted — tells the surveyor (+ ops) an EIR-Out is due
+	before the tank can load (Fase G.1). The EIR-Out drafts are auto-provisioned; this is
+	the signal to go work them from the EIR-Out worklist."""
+	rows = order.get("containers") or []
+	nos = [r.get("container_no") or r.get("container") for r in rows if (r.get("container_no") or r.get("container"))]
+	if not nos:
+		return
+	subject = f"EIR-Out • {', '.join(nos)} • Order Muat {order.name} — siap survey keluar"
+	notify(
+		doctype=order.doctype,
+		name=order.name,
+		subject=subject,
+		branch=order.get("branch"),
+		roles={PWA_ROLE, "Surveyor", "Ops Supervisor", "Admin Ops"},
+	)
+
+
+def notify_ready_to_load(container_no, order_muat=None, *, depot=None):
+	"""Fire when an EIR-Out is submitted clean — signals Operator Kalmar (+ ops) that the
+	tank is READY TO LOAD (Fase G.3)."""
+	if not container_no:
+		return
+	tail = f" • {order_muat}" if order_muat else ""
+	subject = f"READY TO LOAD • {container_no}{tail} — siap dimuat"
+	notify(
+		doctype="Order Muat" if order_muat else "Container",
+		name=order_muat or container_no,
+		subject=subject,
+		branch=_depot_branch(depot) if depot else None,
+		roles={PWA_ROLE, "Operator Kalmar", "Admin Ops", "Ops Supervisor"},
+	)
+
+
+def notify_eir_out_hold(container_no, order_muat=None, reason=None, *, depot=None):
+	"""Fire when an EIR-Out finds an issue — puts the tank on HOLD and asks the Ops
+	Supervisor (+ admin) to clear it (Fase G.4)."""
+	if not container_no:
+		return
+	tail = f" • {reason}" if reason else ""
+	subject = f"HOLD • {container_no}{tail} — perlu clearance Supervisor"
+	notify(
+		doctype="Order Muat" if order_muat else "Container",
+		name=order_muat or container_no,
+		subject=subject,
+		branch=_depot_branch(depot) if depot else None,
+		roles={PWA_ROLE, "Ops Supervisor", "Admin Ops"},
+	)
+
+
+def notify_gate_out(container_no, *, gate_entry=None, depot=None, when=None):
+	"""Fire when a tank completes gate-out / load-complete (keluar depo). Reaches the
+	gate/ops roles (same surface as the order-gate notification)."""
+	if not container_no:
+		return
+	ts = frappe.utils.format_datetime(when) if when else ""
+	subject = f"Gate Out • {container_no} • isotank keluar depo {ts}".strip()
+	notify(
+		doctype="Gate Entry",
+		name=gate_entry,
+		subject=subject,
+		branch=_depot_branch(depot) if depot else None,
+		roles=GATE_ROLES,
+	)
+
+
 def notify_booking_created(booking):
 	"""Fire when a Container Booking is first created (draft) — lets Commercial /
 	admin / Cashier know a new booking (and, for Cash, a payment to collect) exists."""

@@ -98,6 +98,7 @@ website_route_rules = [
 	{"from_route": "/api/v1/inspection/offline-batch", "to_route": "container_depot.api.upload_inspection_offline_batch"},
 	# ESS PWA read endpoints (F1 — Tank Inventory & Live Status)
 	{"from_route": "/api/v1/ess/inventory-summary", "to_route": "container_depot.ess.inventory.get_inventory_summary"},
+	{"from_route": "/api/v1/ess/dashboard-summary", "to_route": "container_depot.ess.inventory.get_dashboard_summary"},
 	{"from_route": "/api/v1/ess/tank-list", "to_route": "container_depot.ess.inventory.get_tank_list"},
 	{"from_route": "/api/v1/ess/tank-detail", "to_route": "container_depot.ess.inventory.get_tank_detail"},
 	# ESS PWA EIR (Equipment Interchange Receipt) checklist endpoints
@@ -106,6 +107,9 @@ website_route_rules = [
 	{"from_route": "/api/v1/ess/eir-create", "to_route": "container_depot.ess.inspections.eir_create"},
 	{"from_route": "/api/v1/ess/eir-open-draft", "to_route": "container_depot.ess.inspections.eir_open_draft"},
 	{"from_route": "/api/v1/ess/eir-save-draft", "to_route": "container_depot.ess.inspections.eir_save_draft"},
+	# ESS PWA EIR-Out (Fase G — surveyor load-out inspection vs last EIR-In)
+	{"from_route": "/api/v1/ess/eir-out-pending", "to_route": "container_depot.ess.inspections.eir_out_pending"},
+	{"from_route": "/api/v1/ess/eir-out-open", "to_route": "container_depot.ess.inspections.eir_out_open"},
 	# ESS PWA Cleaning Order (ISO tank cleanliness) endpoints
 	{"from_route": "/api/v1/ess/cleaning-masters", "to_route": "container_depot.ess.cleaning.cleaning_masters"},
 	{"from_route": "/api/v1/ess/cleaning-orders", "to_route": "container_depot.ess.cleaning.cleaning_orders"},
@@ -121,6 +125,7 @@ website_route_rules = [
 	{"from_route": "/api/v1/ess/mr-decision", "to_route": "container_depot.ess.repairs.mr_decision"},
 	{"from_route": "/api/v1/ess/mr-start", "to_route": "container_depot.ess.repairs.mr_start"},
 	{"from_route": "/api/v1/ess/mr-order-save", "to_route": "container_depot.ess.repairs.mr_order_save"},
+	{"from_route": "/api/v1/ess/gate-out", "to_route": "container_depot.ess.gate.gate_out"},
 	# SPA deep links: serve the /depot shell for any sub-route so a hard refresh on
 	# e.g. /depot/eir doesn't 404 — the Vue router then renders the route client-side.
 	{"from_route": "/depot/<path:app_path>", "to_route": "depot"},

@@ -26,8 +26,16 @@ class OrderMuat(Document):
 	def on_submit(self):
 		_log_order_activity(self, "Order Muat")
 		_ensure_order_qr(self)
-		from container_depot.operations.notify import notify_order_gate
+		from container_depot.operations.notify import notify_order_gate, notify_order_muat_survey
 		notify_order_gate(self, "out")
+		# Fase G: auto-create one DRAFT EIR-Out per container (referencing the latest EIR-In)
+		# and tell the surveyor. Best-effort — an EIR-Out hiccup never blocks the bon submit.
+		try:
+			from container_depot.operations.eir import provision_eir_out_for_order_muat
+			provision_eir_out_for_order_muat(self.name)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"provision EIR-Out for {self.name}")
+		notify_order_muat_survey(self)
 
 	def on_cancel(self):
 		_release_codes(self)

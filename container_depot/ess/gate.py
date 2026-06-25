@@ -24,3 +24,13 @@ def gate_detail(name=None):
 	"""GET /api/v1/ess/gate-detail — one Gate Entry's full vehicle/order/EIR detail."""
 	_require_authenticated_user()
 	return gate.get_gate_detail(name)
+
+
+@frappe.whitelist(methods=["POST"])
+def gate_out(container=None, gate_entry=None):
+	"""POST /api/v1/ess/gate-out — complete gate-out / load-complete for a tank.
+
+	The depot-branch guard (a container outside the caller's branch is rejected) lives in
+	``gate.mark_gate_out`` via ``assert_in_user_branch`` — same scope used across ess.*."""
+	_require_authenticated_user()
+	return gate.mark_gate_out(container=container, gate_entry=gate_entry)

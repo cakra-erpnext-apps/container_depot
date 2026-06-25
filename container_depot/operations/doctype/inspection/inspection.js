@@ -10,8 +10,8 @@
 frappe.ui.form.on('Inspection', {
 	refresh(frm) {
 		// "Cancel" (Desk-only): return a submitted EIR to Draft so it can be edited again
-		// in the PWA / Inspection menu. Excludes Detailed Survey (M&R downstream docs).
-		if (frm.doc.docstatus === 1 && frm.doc.inspection_type !== 'Detailed Survey') {
+		// in the PWA / Inspection menu.
+		if (frm.doc.docstatus === 1) {
 			frm.add_custom_button(__('Kembalikan ke Draft'), () => revert_to_draft(frm));
 		}
 		// Surface an inconsistency without blocking: damage flagged but no rows.
@@ -177,7 +177,6 @@ function prefill_from_container(frm) {
 			if (!d) return;
 			const fills = {
 				depot: d.depot,
-				tank_owner: d.principal,
 				vessel: d.ex_vessel,
 				serial_no: d.serial_no,
 				manufacture_date: d.manufacture_date,

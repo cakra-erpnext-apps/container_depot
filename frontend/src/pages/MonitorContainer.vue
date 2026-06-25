@@ -79,8 +79,8 @@
 		</div>
 
 		<ul v-else class="oak-card divide-y divide-gray-100 overflow-hidden">
-			<li v-for="c in items" :key="c.name">
-				<button class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-gray-50" @click="openInStorage(c)">
+			<li v-for="c in items" :key="c.name" class="flex items-center">
+				<button class="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-gray-50" @click="openInStorage(c)">
 					<span class="oak-icon-tile h-9 w-9 shrink-0 bg-gray-100 text-gray-500"><Icon name="package" :size="16" /></span>
 					<div class="min-w-0 flex-1">
 						<div class="flex items-center justify-between gap-2">
@@ -100,8 +100,16 @@
 							<Icon name="arrow-right" :size="11" class="inline" /> {{ labels.monitorMoveTo }}: {{ c.target_category }}
 						</p>
 					</div>
-					<Icon name="chevron-right" :size="16" class="shrink-0 text-gray-300" />
 				</button>
+				<button
+					v-if="c.raw_status === 'Released_Pending_Pickup'"
+					class="oak-btn oak-btn-primary mr-3 shrink-0 px-3 py-1.5 text-xs"
+					:disabled="gateOutRes.loading"
+					@click.stop="confirmGateOut(c)"
+				>
+					<Icon name="log-out" :size="14" /> {{ labels.gateOutAction }}
+				</button>
+				<Icon v-else name="chevron-right" :size="16" class="mr-4 shrink-0 text-gray-300" />
 			</li>
 		</ul>
 
@@ -119,14 +127,17 @@
 
 <script setup>
 import { computed, onMounted, ref } from "vue"
-import { useRouter } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { createResource } from "frappe-ui"
 import { labels, statusLabels, statusColors } from "@/utils/labels"
 import { userContext, branchLabel } from "@/data/context"
+import { toast } from "@/utils/toast"
+import { confirm } from "@/utils/confirm"
 import Icon from "@/components/Icon.vue"
 
 const PAGE = 50
 const router = useRouter()
+const route = useRoute()
 const search = ref("")
 const statusFilter = ref("ready") // default to "ready for pickup / siap muat"
 const principalFilter = ref("")
@@ -207,8 +218,32 @@ function openInStorage(c) {
 	router.push({ path: "/storage", query: { container: c.container_no || c.name } })
 }
 
+// TANK OUT — confirm + complete gate-out for a pickup-pending tank, then refresh so it
+// drops out of the live-inventory buckets.
+const gateOutRes = createResource({
+	url: "container_depot.ess.gate.gate_out",
+	method: "POST",
+	onSuccess(data) {
+		toast.success(labels.gateOutDone, { title: data?.container })
+		reload(true)
+	},
+	onError: (err) => toast.error(err?.messages?.[0] || err?.message || labels.error),
+})
+async function confirmGateOut(c) {
+	const ok = await confirm({
+		title: labels.gateOutConfirmTitle,
+		message: labels.gateOutConfirmMessage,
+		confirmLabel: labels.gateOutAction,
+		cancelLabel: labels.confirmCancel,
+	})
+	if (ok) gateOutRes.fetch({ container: c.name })
+}
+
 onMounted(() => {
 	if (!userContext.data) userContext.reload()
+	// Honor a deep-link bucket from the dashboard status KPIs (?status=<bucket>).
+	const q = route.query.status
+	if (typeof q === "string" && statusChips.some((c) => c.key === q)) statusFilter.value = q
 	reload(true)
 })
 </script>

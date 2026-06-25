@@ -1,46 +1,176 @@
 <template>
-	<div class="mx-auto w-full max-w-lg space-y-4 md:max-w-2xl">
-		<!-- Greeting hero -->
-		<section class="oak-card relative overflow-hidden animate-slide-up">
-			<div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-500 to-leaf-500"></div>
+	<div class="mx-auto w-full max-w-lg space-y-5 md:max-w-2xl">
+		<!-- Greeting hero (brand gradient) -->
+		<section
+			class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 via-brand-500 to-leaf-600 p-5 text-white shadow-soft animate-slide-up"
+		>
 			<img
 				:src="emblem"
 				alt=""
-				class="pointer-events-none absolute -right-6 -top-4 h-32 w-32 opacity-[0.06]"
+				class="pointer-events-none absolute -right-8 -top-6 h-36 w-36 opacity-[0.12]"
 			/>
-			<div class="relative z-10 p-5">
-				<p class="oak-eyebrow">{{ labels.greeting }} 👋</p>
-				<p class="mt-1 truncate text-xl font-extrabold tracking-tight text-gray-900">
-					{{ displayUser }}
+			<div class="relative z-10">
+				<p class="text-[11px] font-semibold uppercase tracking-wide text-white/70">{{ todayLabel }}</p>
+				<p class="mt-1 truncate text-2xl font-extrabold tracking-tight">
+					{{ labels.greeting }}, {{ displayUser }} 👋
 				</p>
-				<p class="mt-0.5 text-sm text-gray-500">{{ labels.homeHint }}</p>
+				<p class="mt-1 text-sm text-white/80">{{ labels.homeHint }}</p>
 			</div>
 		</section>
 
-		<!-- Menu -->
-		<div class="grid gap-3 sm:grid-cols-2">
-			<router-link
-				v-for="(m, i) in menu"
-				:key="m.to"
-				:to="m.to"
-				class="oak-card oak-press flex animate-slide-up items-center gap-4 p-4"
-				:class="m.wide ? 'sm:col-span-2' : ''"
-				:style="{ animationDelay: 60 + i * 50 + 'ms' }"
-			>
-				<span class="oak-icon-tile h-12 w-12" :class="m.tile">
-					<Icon :name="m.icon" :size="24" />
-				</span>
-				<div class="min-w-0 flex-1">
-					<p class="font-bold text-gray-900">{{ m.title }}</p>
-					<p class="mt-0.5 text-sm text-gray-500">{{ m.desc }}</p>
-				</div>
-				<Icon name="chevron-right" :size="20" class="text-gray-300" />
-			</router-link>
+		<!-- KPI: loading skeleton (first load only) -->
+		<div v-if="dashRes.loading && !dash" class="space-y-3">
+			<div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+				<div v-for="n in 5" :key="n" class="oak-skeleton h-20 rounded-2xl"></div>
+			</div>
+			<div class="oak-skeleton h-24 rounded-2xl"></div>
 		</div>
+
+		<!-- KPI sections (only when data is available; degrade silently on error) -->
+		<template v-else-if="dash">
+			<!-- Container per status -->
+			<section class="space-y-2">
+				<div class="flex items-center justify-between px-1">
+					<p class="oak-eyebrow flex items-center gap-1.5">
+						<Icon name="package" :size="14" /> {{ labels.dashStatusTitle }}
+					</p>
+					<p class="text-xs text-gray-500">
+						{{ labels.dashStatusTotal }} <span class="font-bold text-gray-700">{{ dash.total }}</span>
+					</p>
+				</div>
+				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+					<router-link
+						v-for="s in statusCards"
+						:key="s.key"
+						:to="{ path: '/monitor', query: { status: s.key } }"
+						class="oak-card oak-press relative overflow-hidden p-3"
+					>
+						<span class="absolute inset-y-0 left-0 w-1" :class="s.dot"></span>
+						<span class="flex items-center gap-1.5">
+							<span class="h-2 w-2 shrink-0 rounded-full" :class="s.dot"></span>
+							<span class="truncate text-[11px] font-semibold text-gray-500">{{ s.label }}</span>
+						</span>
+						<span class="mt-1.5 block text-3xl font-extrabold leading-none" :class="s.num">{{ s.count }}</span>
+					</router-link>
+				</div>
+				<router-link
+					v-if="dash.periodic_test_due > 0"
+					:to="{ path: '/monitor', query: { status: '' } }"
+					class="oak-card oak-press flex items-center gap-2 p-3"
+				>
+					<span class="oak-icon-tile h-8 w-8 bg-amber-50 text-amber-600"><Icon name="alert-triangle" :size="16" /></span>
+					<p class="flex-1 text-sm font-medium text-gray-700">
+						<span class="font-bold text-amber-700">{{ dash.periodic_test_due }}</span> {{ labels.dashPtDue }}
+					</p>
+					<Icon name="chevron-right" :size="16" class="text-gray-300" />
+				</router-link>
+			</section>
+
+			<!-- Aktivitas hari ini -->
+			<section class="space-y-2">
+				<p class="oak-eyebrow flex items-center gap-1.5 px-1">
+					<Icon name="activity" :size="14" /> {{ labels.dashTodayTitle }}
+				</p>
+				<div class="grid grid-cols-3 gap-2">
+					<div
+						v-for="t in todayCards"
+						:key="t.label"
+						class="oak-card flex flex-col items-center gap-1 p-3 text-center"
+					>
+						<span class="oak-icon-tile h-9 w-9" :class="t.tile"><Icon :name="t.icon" :size="18" /></span>
+						<p class="mt-0.5 text-xl font-extrabold leading-none text-gray-900">{{ t.count }}</p>
+						<p class="text-[11px] text-gray-500">{{ t.label }}</p>
+					</div>
+				</div>
+			</section>
+
+			<!-- Tugas tertunda -->
+			<section class="space-y-2">
+				<p class="oak-eyebrow flex items-center gap-1.5 px-1">
+					<Icon name="inbox" :size="14" /> {{ labels.dashPendingTitle }}
+				</p>
+				<div v-if="pendingCards.length" class="space-y-2">
+					<router-link
+						v-for="p in pendingCards"
+						:key="p.to"
+						:to="p.to"
+						class="oak-card oak-press flex items-center gap-3 p-3"
+					>
+						<span class="oak-icon-tile h-10 w-10" :class="p.tile">
+							<Icon :name="p.icon" :size="20" />
+						</span>
+						<div class="min-w-0 flex-1">
+							<p class="truncate font-semibold text-gray-900">{{ p.title }}</p>
+							<p v-if="p.sub" class="mt-0.5 text-xs font-medium text-amber-600">{{ p.sub }}</p>
+						</div>
+						<span class="oak-chip shrink-0 bg-brand-50 text-sm font-bold text-brand-700">{{ p.count }}</span>
+						<Icon name="chevron-right" :size="18" class="text-gray-300" />
+					</router-link>
+				</div>
+				<p v-else class="oak-card p-4 text-center text-sm text-gray-400">{{ labels.dashNoPending }}</p>
+			</section>
+
+			<!-- Okupansi yard -->
+			<section class="space-y-2">
+				<p class="oak-eyebrow flex items-center gap-1.5 px-1">
+					<Icon name="layers" :size="14" /> {{ labels.dashYardTitle }}
+				</p>
+				<router-link to="/storage" class="oak-card oak-press block p-4">
+					<div class="flex items-center justify-between gap-2">
+						<p class="oak-section-title">{{ labels.storage }}</p>
+						<span class="shrink-0 text-xs font-medium" :class="dash.yard.utilization >= 90 ? 'text-red-600' : 'text-gray-500'">
+							{{ dash.yard.occupied }}/{{ dash.yard.capacity || "∞" }}
+							<span v-if="dash.yard.capacity"> · {{ dash.yard.utilization }}%</span>
+						</span>
+					</div>
+					<div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+						<div class="h-full rounded-full transition-all" :class="barClass(dash.yard.utilization)" :style="{ width: barWidth(dash.yard.utilization) }"></div>
+					</div>
+					<div v-if="topZones.length" class="mt-3 space-y-2 border-t border-gray-100 pt-3">
+						<div v-for="z in topZones" :key="z.zone_name" class="flex items-center gap-2">
+							<p class="w-24 shrink-0 truncate text-xs font-medium text-gray-600">{{ z.zone_name }}</p>
+							<div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+								<div class="h-full rounded-full" :class="barClass(z.utilization)" :style="{ width: barWidth(z.utilization) }"></div>
+							</div>
+							<span class="w-12 shrink-0 text-right text-[11px] text-gray-500">{{ z.occupied }}/{{ z.capacity || "∞" }}</span>
+						</div>
+					</div>
+					<p v-else class="mt-3 border-t border-gray-100 pt-3 text-center text-xs text-gray-400">{{ labels.dashYardEmpty }}</p>
+				</router-link>
+			</section>
+		</template>
+
+		<!-- Menu — grouped by workflow phase -->
+		<section class="space-y-4">
+			<p class="oak-eyebrow flex items-center gap-1.5 px-1">
+				<Icon name="grid" :size="14" /> {{ labels.dashMenuTitle }}
+			</p>
+			<div v-for="g in menuGroups" :key="g.title" class="space-y-2">
+				<p class="px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{{ g.title }}</p>
+				<div class="grid gap-3 sm:grid-cols-2">
+					<router-link
+						v-for="m in g.items"
+						:key="m.to"
+						:to="m.to"
+						class="oak-card oak-press flex items-center gap-4 p-4"
+						:class="m.wide ? 'sm:col-span-2' : ''"
+					>
+						<span class="oak-icon-tile h-12 w-12" :class="m.tile">
+							<Icon :name="m.icon" :size="24" />
+						</span>
+						<div class="min-w-0 flex-1">
+							<p class="font-bold text-gray-900">{{ m.title }}</p>
+							<p class="mt-0.5 text-sm text-gray-500">{{ m.desc }}</p>
+						</div>
+						<Icon name="chevron-right" :size="20" class="text-gray-300" />
+					</router-link>
+				</div>
+			</div>
+		</section>
 
 		<!-- Riwayat (history) — one entry per main menu -->
 		<div>
-			<p class="oak-eyebrow mb-2 px-1 flex items-center gap-1.5">
+			<p class="oak-eyebrow mb-2 flex items-center gap-1.5 px-1">
 				<Icon name="clock" :size="14" /> {{ labels.historySection }}
 			</p>
 			<div class="grid gap-2 sm:grid-cols-2">
@@ -65,60 +195,111 @@
 import { computed, onMounted } from "vue"
 import { session } from "@/data/session"
 import { userResource } from "@/data/user"
-import { labels } from "@/utils/labels"
+import { dashboardResource } from "@/data/dashboard"
+import { labels, statusLabels } from "@/utils/labels"
 import Icon from "@/components/Icon.vue"
 import emblem from "@/assets/oak-emblem.png"
+
+const dashRes = dashboardResource
 
 onMounted(() => {
 	// Confirm the logged-in user server-side (PRD Phase 0 deliverable).
 	if (session.isLoggedIn && !userResource.data) userResource.reload()
+	// Refresh the dashboard KPIs each visit (component remounts on navigation).
+	dashRes.reload()
 })
 
 const displayUser = computed(() => userResource.data || session.user || "—")
+const todayLabel = new Date().toLocaleDateString("id-ID", {
+	weekday: "long",
+	day: "numeric",
+	month: "long",
+	year: "numeric",
+})
 
-const menu = [
-	{
-		to: "/gate",
-		icon: "log-in",
-		title: labels.gate,
-		desc: labels.gateDesc,
-		tile: "bg-brand-50 text-brand-600",
-	},
-	{
-		to: "/eir",
-		icon: "clipboard",
-		title: labels.eir,
-		desc: labels.eirDesc,
-		tile: "bg-leaf-50 text-leaf-600",
-	},
-	{
-		to: "/cleaning",
-		icon: "droplet",
-		title: labels.cleaningTitle,
-		desc: labels.cleaningDesc,
-		tile: "bg-brand-50 text-brand-600",
-	},
-	{
-		to: "/mr",
-		icon: "tool",
-		title: labels.mrTitleFull,
-		desc: labels.mrDesc,
-		tile: "bg-leaf-50 text-leaf-600",
-	},
-	{
-		to: "/storage",
-		icon: "layers",
-		title: labels.storage,
-		desc: labels.storageDesc,
-		tile: "bg-leaf-50 text-leaf-600",
-	},
-	{
-		to: "/monitor",
-		icon: "grid",
-		title: labels.monitorTitle,
-		desc: labels.monitorDesc,
-		tile: "bg-brand-50 text-brand-600",
-	},
+const dash = computed(() => dashRes.data || null)
+
+// --- KPI: container per status (tap → Monitor pre-filtered to the bucket) ---
+const STATUS_ORDER = ["ready", "in_depot", "cleaning", "repair_survey", "gate_out"]
+// Per-bucket accent (number colour + side/dot tint) — aligned to statusColors.
+const STATUS_STYLE = {
+	ready: { num: "text-leaf-700", dot: "bg-leaf-500" },
+	in_depot: { num: "text-blue-700", dot: "bg-blue-500" },
+	cleaning: { num: "text-amber-700", dot: "bg-amber-500" },
+	repair_survey: { num: "text-orange-700", dot: "bg-orange-500" },
+	gate_out: { num: "text-gray-600", dot: "bg-gray-400" },
+}
+const statusCards = computed(() => {
+	const counts = dash.value?.counts || {}
+	return STATUS_ORDER.map((k) => ({
+		key: k,
+		label: statusLabels[k] || k,
+		num: STATUS_STYLE[k]?.num || "text-gray-900",
+		dot: STATUS_STYLE[k]?.dot || "bg-gray-400",
+		count: counts[k] ?? 0,
+	}))
+})
+
+// --- KPI: today's activity ---
+const todayCards = computed(() => {
+	const t = dash.value?.today || {}
+	return [
+		{ icon: "log-in", tile: "bg-brand-50 text-brand-600", label: labels.dashTodayIn, count: t.gate_in ?? 0 },
+		{ icon: "log-out", tile: "bg-gray-100 text-gray-500", label: labels.dashTodayOut, count: t.gate_out ?? 0 },
+		{ icon: "clipboard", tile: "bg-leaf-50 text-leaf-600", label: labels.dashTodayEir, count: t.eir ?? 0 },
+	]
+})
+
+// --- KPI: pending tasks (hide zero-count rows; tap → the worklist) ---
+const pendingCards = computed(() => {
+	const p = dash.value?.pending || {}
+	const rows = [
+		{ to: "/eir", icon: "clipboard", tile: "bg-leaf-50 text-leaf-600", title: labels.eir, count: p.eir_in ?? 0 },
+		{ to: "/eir-out", icon: "log-out", tile: "bg-brand-50 text-brand-600", title: labels.eirOutTitle, count: p.eir_out ?? 0 },
+		{ to: "/cleaning", icon: "droplet", tile: "bg-brand-50 text-brand-600", title: labels.cleaningTitle, count: p.cleaning ?? 0 },
+		{
+			to: "/mr",
+			icon: "tool",
+			tile: "bg-leaf-50 text-leaf-600",
+			title: labels.mrTitleFull,
+			count: p.mr_open ?? 0,
+			sub: p.mr_approval ? `${p.mr_approval} ${labels.dashPendingApproval}` : "",
+		},
+	]
+	return rows.filter((r) => r.count > 0)
+})
+
+// --- KPI: yard occupancy (busiest zones first) ---
+const topZones = computed(() => {
+	const zones = (dash.value?.yard?.zones || []).slice()
+	zones.sort((a, b) => (b.utilization ?? -1) - (a.utilization ?? -1))
+	return zones.slice(0, 5)
+})
+function barWidth(u) {
+	return `${Math.min(Math.max(u || 0, 0), 100)}%`
+}
+function barClass(u) {
+	const v = u || 0
+	if (v >= 90) return "bg-red-500"
+	if (v >= 70) return "bg-amber-500"
+	return "bg-leaf-500"
+}
+
+// --- Menu tiles, grouped by workflow phase ---
+const tiles = {
+	gate: { to: "/gate", icon: "log-in", title: labels.gate, desc: labels.gateDesc, tile: "bg-brand-50 text-brand-600", wide: true },
+	eir: { to: "/eir", icon: "clipboard", title: labels.eir, desc: labels.eirDesc, tile: "bg-leaf-50 text-leaf-600" },
+	eirOut: { to: "/eir-out", icon: "log-out", title: labels.eirOutTitle, desc: labels.eirOutDesc, tile: "bg-brand-50 text-brand-600" },
+	cleaning: { to: "/cleaning", icon: "droplet", title: labels.cleaningTitle, desc: labels.cleaningDesc, tile: "bg-brand-50 text-brand-600" },
+	mr: { to: "/mr", icon: "tool", title: labels.mrTitleFull, desc: labels.mrDesc, tile: "bg-leaf-50 text-leaf-600" },
+	storage: { to: "/storage", icon: "layers", title: labels.storage, desc: labels.storageDesc, tile: "bg-leaf-50 text-leaf-600" },
+	monitor: { to: "/monitor", icon: "grid", title: labels.monitorTitle, desc: labels.monitorDesc, tile: "bg-brand-50 text-brand-600" },
+}
+const menuGroups = [
+	{ title: labels.grpGate, items: [tiles.gate] },
+	{ title: labels.grpInspeksi, items: [tiles.eir, tiles.eirOut] },
+	{ title: labels.grpPerawatan, items: [tiles.cleaning, tiles.mr] },
+	{ title: labels.grpYard, items: [tiles.storage, tiles.monitor] },
 ]
 
 // "Riwayat" — a history menu per main menu (list + tap-to-detail).
