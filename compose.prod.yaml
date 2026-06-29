@@ -96,9 +96,19 @@ services:
           bench --site "${SITE_NAME}" migrate
           bench --site "${SITE_NAME}" set-config host_name "https://${SITE_NAME}"
           bench --site "${SITE_NAME}" set-config developer_mode 0
-          bench build --app container_depot --force
-          mkdir -p assets/container_depot
-          cp -rL apps/container_depot/frontend/dist assets/container_depot/frontend 2>/dev/null || true
+          bench build --production --apps frappe,erpnext,container_depot
+          # Nginx runs in a separate container. Frappe build creates symlinks in sites/assets,
+          # but symlink targets do not exist inside nginx. Use physical copies.
+          rm -rf sites/assets/frappe sites/assets/erpnext sites/assets/container_depot
+          mkdir -p /tmp/oakdepo_assets
+          rm -rf /tmp/oakdepo_assets/frappe /tmp/oakdepo_assets/erpnext /tmp/oakdepo_assets/container_depot
+          cp -aL apps/frappe/frappe/public /tmp/oakdepo_assets/frappe
+          cp -aL apps/erpnext/erpnext/public /tmp/oakdepo_assets/erpnext
+          cp -aL apps/container_depot/container_depot/public /tmp/oakdepo_assets/container_depot
+          mv /tmp/oakdepo_assets/frappe sites/assets/frappe
+          mv /tmp/oakdepo_assets/erpnext sites/assets/erpnext
+          mv /tmp/oakdepo_assets/container_depot sites/assets/container_depot
+          cp -rL apps/container_depot/frontend/dist sites/assets/container_depot/frontend 2>/dev/null || true
           echo "[create-site] Done."
         else
           echo "[create-site] Site exists — skip creation."
