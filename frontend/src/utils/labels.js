@@ -14,6 +14,13 @@ export const labels = {
 	greeting: "Halo", // "Halo, {name}"
 	homeHint: "Pilih menu untuk mulai bekerja", // Pick a menu to start
 	// --- Dashboard (home KPI sections + menu groups) ---
+	dashSummaryTitle: "Ringkasan Operasional", // collapsible KPI section header
+	dashSummaryUnit: "unit", // "{n} unit" in collapsed summary
+	dashSummaryTask: "tugas", // "{n} tugas" pending count in collapsed summary
+	dashSummaryAlert: "alert", // "⚠ {n} alert" in collapsed summary
+	dashSummaryLoading: "Memuat ringkasan…", // collapsed summary while loading
+	dashSummaryUnavailable: "Ringkasan tidak tersedia", // collapsed summary on error
+	dashSummaryHide: "Ketuk untuk sembunyikan", // expanded-state hint
 	dashStatusTitle: "Status Container", // Container per status bucket
 	dashStatusTotal: "Total", // "Total {n}" badge
 	dashPtDue: "uji periodik jatuh tempo", // periodic-test-due flag suffix

@@ -1,23 +1,55 @@
 <template>
 	<div class="mx-auto w-full max-w-lg space-y-5 md:max-w-2xl">
-		<!-- Greeting hero (brand gradient) -->
-		<section
-			class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 via-brand-500 to-leaf-600 p-5 text-white shadow-soft animate-slide-up"
-		>
+		<!-- Greeting hero -->
+		<section class="oak-card relative overflow-hidden animate-slide-up">
+			<div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-500 to-leaf-500"></div>
 			<img
 				:src="emblem"
 				alt=""
-				class="pointer-events-none absolute -right-8 -top-6 h-36 w-36 opacity-[0.12]"
+				class="pointer-events-none absolute -right-6 -top-4 h-32 w-32 opacity-[0.06]"
 			/>
-			<div class="relative z-10">
-				<p class="text-[11px] font-semibold uppercase tracking-wide text-white/70">{{ todayLabel }}</p>
-				<p class="mt-1 truncate text-2xl font-extrabold tracking-tight">
-					{{ labels.greeting }}, {{ displayUser }} 👋
+			<div class="relative z-10 p-5">
+				<p class="oak-eyebrow">{{ labels.greeting }} 👋</p>
+				<p class="mt-1 truncate text-xl font-extrabold tracking-tight text-gray-900">
+					{{ displayUser }}
 				</p>
-				<p class="mt-1 text-sm text-white/80">{{ labels.homeHint }}</p>
+				<p class="mt-0.5 text-sm text-gray-500">{{ labels.homeHint }}</p>
 			</div>
 		</section>
 
+		<!-- Ringkasan Operasional — collapsible KPI dashboard (tap header to expand) -->
+		<button
+			type="button"
+			@click="dashOpen = !dashOpen"
+			:aria-expanded="dashOpen"
+			class="oak-card oak-press flex w-full items-center gap-3 p-4 text-left"
+		>
+			<span class="oak-icon-tile h-10 w-10 bg-brand-50 text-brand-600">
+				<Icon name="activity" :size="20" />
+			</span>
+			<div class="min-w-0 flex-1">
+				<p class="font-bold text-gray-900">{{ labels.dashSummaryTitle }}</p>
+				<p v-if="dashOpen" class="mt-0.5 text-xs text-gray-400">{{ labels.dashSummaryHide }}</p>
+				<p v-else class="mt-0.5 truncate text-xs text-gray-500">
+					<template v-if="dashRes.loading && !dash">{{ labels.dashSummaryLoading }}</template>
+					<template v-else-if="dash">
+						<span class="font-bold text-gray-700">{{ dash.total }}</span> {{ labels.dashSummaryUnit }}
+						<template v-if="summaryPending"> · {{ summaryPending }} {{ labels.dashSummaryTask }}</template>
+						<template v-if="summaryAlerts"> · <span class="font-bold text-amber-600">⚠ {{ summaryAlerts }} {{ labels.dashSummaryAlert }}</span></template>
+					</template>
+					<template v-else>{{ labels.dashSummaryUnavailable }}</template>
+				</p>
+			</div>
+			<Icon
+				name="chevron-down"
+				:size="20"
+				class="shrink-0 text-gray-400 transition-transform duration-200"
+				:class="dashOpen ? 'rotate-180' : ''"
+			/>
+		</button>
+
+		<!-- Expanded KPI content — kept mounted (v-show) so toggling never re-fetches -->
+		<div v-show="dashOpen" class="space-y-5">
 		<!-- KPI: loading skeleton (first load only) -->
 		<div v-if="dashRes.loading && !dash" class="space-y-3">
 			<div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -139,6 +171,7 @@
 				</router-link>
 			</section>
 		</template>
+		</div>
 
 		<!-- Menu — grouped by workflow phase -->
 		<section class="space-y-4">
@@ -192,7 +225,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { session } from "@/data/session"
 import { userResource } from "@/data/user"
 import { dashboardResource } from "@/data/dashboard"
@@ -210,14 +243,31 @@ onMounted(() => {
 })
 
 const displayUser = computed(() => userResource.data || session.user || "—")
-const todayLabel = new Date().toLocaleDateString("id-ID", {
-	weekday: "long",
-	day: "numeric",
-	month: "long",
-	year: "numeric",
-})
 
 const dash = computed(() => dashRes.data || null)
+
+// --- Collapsible "Ringkasan" dashboard ---
+// Default collapsed so the menu is reachable on open without scrolling; the
+// summary line keeps the key numbers glanceable while closed. Choice persists
+// per user (per browser) so supervisors who keep it open stay that way.
+const DASH_OPEN_KEY = "depot.home.dashOpen"
+const dashOpen = ref(localStorage.getItem(DASH_OPEN_KEY) === "1")
+watch(dashOpen, (v) => localStorage.setItem(DASH_OPEN_KEY, v ? "1" : "0"))
+
+// Collapsed-summary figures: pending tasks awaiting action + urgent alerts
+// (periodic test due, M&R approvals, near-full yard).
+const summaryPending = computed(() => {
+	const p = dash.value?.pending || {}
+	return (p.eir_in || 0) + (p.eir_out || 0) + (p.cleaning || 0) + (p.mr_open || 0)
+})
+const summaryAlerts = computed(() => {
+	const p = dash.value?.pending || {}
+	return (
+		(dash.value?.periodic_test_due || 0) +
+		(p.mr_approval || 0) +
+		((dash.value?.yard?.utilization || 0) >= 90 ? 1 : 0)
+	)
+})
 
 // --- KPI: container per status (tap → Monitor pre-filtered to the bucket) ---
 const STATUS_ORDER = ["ready", "in_depot", "cleaning", "repair_survey", "gate_out"]
